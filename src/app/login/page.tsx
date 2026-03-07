@@ -2,25 +2,42 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Mail, Lock, LogIn } from 'lucide-react';
+import { Mail, Lock, LogIn, Loader2 } from 'lucide-react';
+import apiClient from '@/lib/axios';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
 
-    // Mock Login Logic
-    if (email === 'admin@ggreen.com' && password === 'password123') {
-      // Set a fake token
-      localStorage.setItem('auth_token', 'mock_token_123');
-      router.push('/');
-    } else {
-      setError('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+    try {
+      const response = await apiClient.post('/auth/login', {
+        email,
+        password,
+      });
+
+      // Assuming the API returns the token in response.data.token or response.data.accessToken
+      const token = response.data.token || response.data.accessToken || response.data.data?.token;
+
+      if (token) {
+        localStorage.setItem('auth_token', token);
+        router.push('/');
+      } else {
+        throw new Error('ไม่พบ Token ในการตอบกลับจากเซิร์ฟเวอร์');
+      }
+    } catch (err: any) {
+      console.error('Login error:', err);
+      const errorMessage = err.response?.data?.message || err.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ';
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -74,10 +91,15 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            className="w-full bg-[#24967a] hover:bg-[#1e7e66] text-white font-bold py-4 rounded-xl shadow-lg shadow-green-200/50 transition-all flex items-center justify-center space-x-2"
+            disabled={isLoading}
+            className={`w-full bg-[#24967a] hover:bg-[#1e7e66] text-white font-bold py-4 rounded-xl shadow-lg shadow-green-200/50 transition-all flex items-center justify-center space-x-2 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
           >
-            <LogIn className="w-5 h-5" />
-            <span>เข้าสู่ระบบ</span>
+            {isLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <LogIn className="w-5 h-5" />
+            )}
+            <span>{isLoading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}</span>
           </button>
         </form>
 
