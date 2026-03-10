@@ -34,14 +34,14 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             # 1. สั่ง Server ให้ไปดึงกล่อง Image ล่าสุดจาก Docker Hub
-            sudo docker pull ${{ secrets.DOCKER_USERNAME }}/my-next-app:latest
+            docker pull ${{ secrets.DOCKER_USERNAME }}/my-next-app:latest
             
             # 2. ปิดและลบแอปตัวเก่าทิ้ง (ถ้ามีรันอยู่)
-            sudo docker stop my-next-app || true
-            sudo docker rm my-next-app || true
+            docker stop my-next-app || true
+            docker rm my-next-app || true
             
             # 3. สั่งรันแอปตัวใหม่ผูกกับพอร์ต 3000
-            sudo docker run -d --name my-next-app -p 3000:3000 --restart unless-stopped ${{ secrets.DOCKER_USERNAME }}/my-next-app:latest
+            docker run -d --name my-next-app -p 3000:3000 --restart unless-stopped ${{ secrets.DOCKER_USERNAME }}/my-next-app:latest
             
             # 4. ลบไฟล์ขยะทิ้งเพื่อคืนพื้นที่ให้ Server
-            sudo docker image prune -f
+            docker image prune -f
