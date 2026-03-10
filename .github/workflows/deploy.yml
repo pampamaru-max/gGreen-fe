@@ -25,7 +25,7 @@ jobs:
 
       - name: 🗜️ Zip files for deployment
         # แพ็กไฟล์ทั้งหมดส่งไป Server (ยกเว้น .git และ node_modules เพื่อให้ส่งไวขึ้น)
-        run: tar -czf deploy.tar.gz --exclude='.git' --exclude='node_modules' .
+        run: tar -czf deploy.tar.gz --exclude='.git' --exclude='node_modules' --exclude='deploy.tar.gz' .
 
       - name: 🚀 Copy files to Server
         uses: appleboy/scp-action@v0.1.7
