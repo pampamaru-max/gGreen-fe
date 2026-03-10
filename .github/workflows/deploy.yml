@@ -1,0 +1,54 @@
+name: Deploy Next.js to GCP
+
+on:
+  push:
+    branches:
+      - main # ⚠️ สำคัญ: ถ้ากิ่งใน Git ของคุณชื่อ master ให้เปลี่ยนตรงนี้เป็น master นะครับ
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 📦 Install Dependencies
+        run: npm install
+
+      - name: 🏗️ Build Next.js App
+        run: npm run build
+
+      - name: 🗜️ Zip files for deployment
+        # แพ็กไฟล์ทั้งหมดส่งไป Server (ยกเว้น .git และ node_modules เพื่อให้ส่งไวขึ้น)
+        run: tar -czf deploy.tar.gz --exclude='.git' --exclude='node_modules' .
+
+      - name: 🚀 Copy files to Server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: "deploy.tar.gz"
+          target: "~/"
+
+      - name: 🔄 Start App with PM2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            # สร้างโฟลเดอร์ my-app และแตกไฟล์
+            mkdir -p ~/my-app
+            tar -xzf ~/deploy.tar.gz -C ~/my-app
+            rm ~/deploy.tar.gz
+            
+            # เข้าไปในโฟลเดอร์และรันแอป
+            cd ~/my-app
+            npm install --omit=dev
+            pm2 restart my-app || pm2 start npm --name "my-app" -- start

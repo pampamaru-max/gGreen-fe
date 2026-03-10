@@ -3,36 +3,61 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Mail, Lock, LogIn } from 'lucide-react';
+import apiClient from '@/lib/axios';
+import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
 
-    // Mock Login Logic
-    if (email === 'admin@ggreen.com' && password === 'password123') {
-      // Set a fake token
-      localStorage.setItem('auth_token', 'mock_token_123');
-      router.push('/');
-    } else {
-      setError('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+    try {
+      const response = await apiClient.post('/auth/login', {
+        email,
+        password,
+      });
+
+      // Assuming the API returns the token in response.data.token or response.data.accessToken
+      const token = response.data.token || response.data.accessToken || response.data.data?.token;
+
+      if (token) {
+        localStorage.setItem('auth_token', token);
+        router.push('/');
+      } else {
+        throw new Error('ไม่พบ Token ในการตอบกลับจากเซิร์ฟเวอร์');
+      }
+    } catch (err: any) {
+      console.error('Login error:', err);
+      const errorMessage = err.response?.data?.message || err.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ';
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f0f9f6] px-4">
-      <div className="bg-white p-8 md:p-12 rounded-3xl shadow-xl w-full max-w-md">
+    <div 
+      className="min-h-screen flex items-center justify-center px-4" 
+      style={{ background: 'linear-gradient(180deg, #C3EDE6 23%, #B5D984 100%)' }}
+    >
+      <div 
+        className="bg-white p-8 md:p-12 rounded-3xl shadow-xl w-full flex flex-col justify-center" 
+        style={{ width: '605px', height: '582px', maxWidth: '100%' }}
+      >
         <div className="text-center mb-10">
           <div className="w-20 h-20 bg-[#24967a] rounded-full flex items-center justify-center mx-auto mb-6 text-white shadow-lg">
              <span className="text-3xl font-bold">G</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">เข้าสู่ระบบ G-Green</h1>
-          <p className="text-gray-500 mt-2">กรมการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม</p>
+          <h1 className="text-2xl font-bold text-gray-800">ระบบประมวลผล G-Green</h1>
+          <p className="text-gray-500 mt-2">เข้าสู่ระบบ G-Green</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-6">
@@ -42,43 +67,33 @@ export default function LoginPage() {
             </div>
           )}
           
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700 block ml-1">อีเมล</label>
-            <div className="relative">
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="email"
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl py-4 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-[#24967a] focus:bg-white transition-all text-gray-800"
-                placeholder="email@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-          </div>
+          <Input
+            label="อีเมล"
+            icon={Mail}
+            type="email"
+            placeholder="email@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
 
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700 block ml-1">รหัสผ่าน</label>
-            <div className="relative">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="password"
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl py-4 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-[#24967a] focus:bg-white transition-all text-gray-800"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-          </div>
+          <Input
+            label="รหัสผ่าน"
+            icon={Lock}
+            type="password"
+            placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
 
-          <button
+          <Button
             type="submit"
-            className="w-full bg-[#24967a] hover:bg-[#1e7e66] text-white font-bold py-4 rounded-xl shadow-lg shadow-green-200/50 transition-all flex items-center justify-center space-x-2"
+            isLoading={isLoading}
+            icon={LogIn}
           >
-            <LogIn className="w-5 h-5" />
-            <span>เข้าสู่ระบบ</span>
-          </button>
+            {isLoading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
+          </Button>
         </form>
 
         <div className="mt-8 text-center">
