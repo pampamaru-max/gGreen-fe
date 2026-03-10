@@ -1,9 +1,9 @@
-name: Deploy Next.js to GCP
+name: Deploy Next.js via Docker
 
 on:
   push:
     branches:
-      - main # ⚠️ สำคัญ: ถ้ากิ่งใน Git ของคุณชื่อ master ให้เปลี่ยนตรงนี้เป็น master นะครับ
+      - main
 
 jobs:
   build-and-deploy:
@@ -12,45 +12,36 @@ jobs:
       - name: 📥 Checkout Code
         uses: actions/checkout@v4
 
-      - name: ⚙️ Setup Node.js
-        uses: actions/setup-node@v4
+      - name: 🔑 Login to Docker Hub
+        uses: docker/login-action@v3
         with:
-          node-version: '20'
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: 📦 Install Dependencies
-        run: npm install
-
-      - name: 🏗️ Build Next.js App
-        run: npm run build
-
-      - name: 🗜️ Zip files for deployment
-        # แพ็กไฟล์ทั้งหมดส่งไป Server (ยกเว้น .git และ node_modules เพื่อให้ส่งไวขึ้น)
-        run: |
-          tar -czf ../deploy.tar.gz --exclude='.git' --exclude='node_modules' .
-          mv ../deploy.tar.gz ./deploy.tar.gz
-
-      - name: 🚀 Copy files to Server
-        uses: appleboy/scp-action@v0.1.7
+      - name: 🏗️ Build and Push Docker Image
+        uses: docker/build-push-action@v5
         with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          source: "deploy.tar.gz"
-          target: "~/"
+          context: .
+          push: true
+          # แพ็กใส่กล่องชื่อ my-next-app แล้วส่งไปเก็บที่ Docker Hub
+          tags: ${{ secrets.DOCKER_USERNAME }}/my-next-app:latest
 
-      - name: 🔄 Start App with PM2
+      - name: 🚀 Deploy to GCP
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            # สร้างโฟลเดอร์ my-app และแตกไฟล์
-            mkdir -p ~/my-app
-            tar -xzf ~/deploy.tar.gz -C ~/my-app
-            rm ~/deploy.tar.gz
+            # 1. สั่ง Server ให้ไปดึงกล่อง Image ล่าสุดจาก Docker Hub
+            sudo docker pull ${{ secrets.DOCKER_USERNAME }}/my-next-app:latest
             
-            # เข้าไปในโฟลเดอร์และรันแอป
-            cd ~/my-app
-            npm install --omit=dev
-            pm2 restart my-app || pm2 start npm --name "my-app" -- start
+            # 2. ปิดและลบแอปตัวเก่าทิ้ง (ถ้ามีรันอยู่)
+            sudo docker stop my-next-app || true
+            sudo docker rm my-next-app || true
+            
+            # 3. สั่งรันแอปตัวใหม่ผูกกับพอร์ต 3000
+            sudo docker run -d --name my-next-app -p 3000:3000 --restart unless-stopped ${{ secrets.DOCKER_USERNAME }}/my-next-app:latest
+            
+            # 4. ลบไฟล์ขยะทิ้งเพื่อคืนพื้นที่ให้ Server
+            sudo docker image prune -f
