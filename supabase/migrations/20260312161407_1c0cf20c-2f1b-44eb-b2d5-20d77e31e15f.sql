@@ -1,0 +1,1 @@
+ALTER TABLE public.programs ADD COLUMN reports jsonb NOT NULL DEFAULT '[]'::jsonb;

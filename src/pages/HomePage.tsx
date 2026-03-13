@@ -1,0 +1,158 @@
+import { Building2, UtensilsCrossed, Home, Factory, Trees, Recycle, Award, ArrowRight, Star, ClipboardCheck, MapPin, Calendar, Phone, Users, ShieldCheck, Loader2 } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
+import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import gLogo from "@/assets/g-logo.png";
+import dcceLogo from "@/assets/dcce-logo.png";
+
+const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+  Building2, UtensilsCrossed, Home, Factory, Trees, Recycle, Award, Star, ClipboardCheck,
+};
+
+export default function HomePage() {
+  const navigate = useNavigate();
+
+  const { data: programs = [], isLoading: programsLoading } = useQuery({
+    queryKey: ["programs"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("programs").select("*").order("sort_order");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  return (
+    <div className="flex flex-col gap-8 p-6 lg:p-8 max-w-7xl mx-auto w-full">
+      {/* Hero Text Section */}
+      <div className="relative overflow-hidden rounded-2xl border border-border/60 p-8 sm:p-12 min-h-[260px]" style={{ backgroundColor: '#dfe8e6' }}>
+        <img
+          src={gLogo}
+          alt=""
+          className="absolute right-6 top-1/2 -translate-y-1/2 h-[200px] w-[200px] sm:h-[240px] sm:w-[240px] object-contain opacity-80 pointer-events-none select-none mix-blend-multiply animate-fade-in [animation-duration:1.2s] [animation-delay:0.3s] [animation-fill-mode:backwards]" />
+        
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-3">
+            <img src={dcceLogo} alt="กรมการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม" className="h-12 w-12 object-contain" />
+            <p className="text-accent leading-relaxed">
+              กรมการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม
+              <br />
+              <span className="text-sm">Department of Climate Change and Environment</span>
+            </p>
+          </div>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground leading-tight mb-3 max-w-[calc(100%-220px)] sm:max-w-[calc(100%-260px)]">
+            โครงการพัฒนาระบบบริการข้อมูลการผลิต การบริการและการบริโภคที่เป็นมิตรกับสิ่งแวดล้อม
+          </h1>
+          <div className="flex gap-3 mt-6">
+            <button
+              onClick={() => navigate("/register")}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground text-base font-bold shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
+              สมัครเข้าร่วมโครงการ <ArrowRight className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs Section */}
+      <Tabs defaultValue="programs">
+        <TabsList className="w-full justify-start">
+          <TabsTrigger value="programs">โครงการภายใต้ G-Green</TabsTrigger>
+          <TabsTrigger value="reports">รายงาน</TabsTrigger>
+        </TabsList>
+        <TabsContent value="programs">
+          {programsLoading ? (
+            <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+              {programs.map((p) => {
+                const IconComp = iconMap[p.icon] ?? Building2;
+                return (
+                  <Card
+                    key={p.id}
+                    className="group hover:shadow-lg transition-shadow border-border/60 cursor-pointer"
+                    onClick={() => navigate(`/program/${p.id}`)}>
+                    <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+                      <div className="h-12 w-12 rounded-xl bg-accent/10 flex items-center justify-center group-hover:bg-accent/20 transition-colors">
+                        <IconComp className="h-6 w-6 text-accent" />
+                      </div>
+                      <span className="text-sm font-semibold text-foreground">{p.name}</span>
+                      <span className="text-xs text-muted-foreground leading-tight">{p.description}</span>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+        <TabsContent value="reports">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Card
+              className="group hover:shadow-lg transition-shadow border-border/60 cursor-pointer"
+              onClick={() => navigate("/reports/participants")}
+            >
+              <CardContent className="p-5 flex items-center gap-4">
+                <div className="h-12 w-12 rounded-xl bg-accent/10 flex items-center justify-center group-hover:bg-accent/20 transition-colors shrink-0">
+                  <Users className="h-6 w-6 text-accent" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-semibold text-foreground">รายชื่อผู้เข้าร่วมโครงการ</span>
+                  <p className="text-xs text-muted-foreground">รายงานข้อมูลผู้เข้าร่วมโครงการ G-Green</p>
+                </div>
+                <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-accent transition-colors shrink-0" />
+              </CardContent>
+            </Card>
+            <Card
+              className="group hover:shadow-lg transition-shadow border-border/60 cursor-pointer"
+              onClick={() => navigate("/reports/all-green")}
+            >
+              <CardContent className="p-5 flex items-center gap-4">
+                <div className="h-12 w-12 rounded-xl bg-accent/10 flex items-center justify-center group-hover:bg-accent/20 transition-colors shrink-0">
+                  <ShieldCheck className="h-6 w-6 text-accent" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-semibold text-foreground">รายชื่อผู้ได้รับสัญลักษณ์ All Green</span>
+                  <p className="text-xs text-muted-foreground">รายงานผู้ได้รับสัญลักษณ์ All Green</p>
+                </div>
+                <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-accent transition-colors shrink-0" />
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
+
+
+
+      {/* Footer */}
+      <footer className="border-t border-border/60 mt-8 pt-8 pb-4">
+        <div className="flex flex-col md:flex-row gap-8 items-start justify-between">
+          <div className="flex-1 space-y-4">
+            <h3 className="text-lg font-bold text-accent">
+              กรมการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม
+            </h3>
+            <p className="text-sm font-semibold text-accent">
+              กระทรวงทรัพยากรธรรมชาติและสิ่งแวดล้อม
+            </p>
+            <p className="text-sm text-muted-foreground mt-3">
+              DEPARTMENT OF CLIMATE CHANGE AND ENVIRONMENT (DCCE)
+            </p>
+            <div className="space-y-2 text-sm text-muted-foreground mt-4">
+              <div className="flex items-start gap-2">
+                <MapPin className="h-4 w-4 mt-0.5 text-accent shrink-0" />
+                <span>เลขที่ 49 ซอย 30 ถนนพระราม 6 แขวงพญาไท เขตพญาไท กรุงเทพมหานคร 10400</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-accent shrink-0" />
+                <span>จันทร์-ศุกร์ เวลา 08.30 – 16.30 น.</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Phone className="h-4 w-4 text-accent shrink-0" />
+                <span>0-2278-8400-19</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>);
+
+}
