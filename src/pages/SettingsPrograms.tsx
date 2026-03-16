@@ -4,7 +4,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import apiClient from "@/lib/axios";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -159,13 +159,10 @@ export default function SettingsPrograms() {
   const { data: programs = [], isLoading } = useQuery({
     queryKey: ["programs"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("programs")
-        .select("*")
-        .order("sort_order");
-      if (error) throw error;
-      return (data ?? []).map((p) => ({
+      const { data } = await apiClient.get<Program[]>("programs");
+      return data.map((p: any) => ({
         ...p,
+        sort_order: p.sortOrder,
         about: (p.about as ContentBlock[]) ?? [],
         guidelines: normalizeGuidelines(p.guidelines),
         reports: normalizeGuidelines(p.reports),
@@ -175,19 +172,23 @@ export default function SettingsPrograms() {
 
   const upsertMutation = useMutation({
     mutationFn: async (program: Omit<Program, "sort_order"> & { sort_order?: number }) => {
-      const payload = {
-        ...program,
-        about: program.about as unknown as string,
-        guidelines: program.guidelines as unknown as string,
-        reports: program.reports as unknown as string,
-        sort_order: program.sort_order ?? programs.length,
-      };
       if (editingProgram) {
-        const { error } = await supabase.from("programs").update(payload).eq("id", editingProgram.id);
-        if (error) throw error;
+        const { name, description, icon, about, guidelines, reports, sort_order } = program;
+        await apiClient.patch(`programs/${editingProgram.id}`, {
+          name, description, icon, about, guidelines, reports,
+          sortOrder: sort_order ?? programs.length,
+        });
       } else {
-        const { error } = await supabase.from("programs").insert(payload);
-        if (error) throw error;
+        await apiClient.post("programs", {
+          id: program.id,
+          name: program.name,
+          description: program.description,
+          icon: program.icon,
+          about: program.about,
+          guidelines: program.guidelines,
+          reports: program.reports,
+          sortOrder: program.sort_order ?? programs.length,
+        });
       }
     },
     onSuccess: () => {
@@ -202,8 +203,7 @@ export default function SettingsPrograms() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("programs").delete().eq("id", id);
-      if (error) throw error;
+      await apiClient.delete(`programs/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["programs"] });
@@ -256,12 +256,13 @@ export default function SettingsPrograms() {
     try {
       const newFiles: GuidelineFile[] = [];
       for (const file of Array.from(files)) {
-        const ext = file.name.split(".").pop();
-        const path = `guidelines/${form.id || "new"}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-        const { error } = await supabase.storage.from("program-assets").upload(path, file);
-        if (error) throw error;
-        const { data: urlData } = supabase.storage.from("program-assets").getPublicUrl(path);
-        newFiles.push({ url: urlData.publicUrl, name: file.name });
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("folder", `guidelines/${form.id || "new"}`);
+        const { data } = await apiClient.post<{ url: string }>("files/upload", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        newFiles.push({ url: data.url, name: file.name });
       }
       setForm((f) => ({
         ...f,
@@ -309,12 +310,13 @@ export default function SettingsPrograms() {
     try {
       const newFiles: GuidelineFile[] = [];
       for (const file of Array.from(files)) {
-        const ext = file.name.split(".").pop();
-        const path = `reports/${form.id || "new"}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-        const { error } = await supabase.storage.from("program-assets").upload(path, file);
-        if (error) throw error;
-        const { data: urlData } = supabase.storage.from("program-assets").getPublicUrl(path);
-        newFiles.push({ url: urlData.publicUrl, name: file.name });
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("folder", `reports/${form.id || "new"}`);
+        const { data } = await apiClient.post<{ url: string }>("files/upload", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        newFiles.push({ url: data.url, name: file.name });
       }
       setForm((f) => ({
         ...f,
