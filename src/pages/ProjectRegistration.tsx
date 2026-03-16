@@ -7,7 +7,7 @@ export default function ProjectRegistration() {
     <div className="p-6 space-y-6">
       <div className="flex items-center gap-3">
         <UserPlus className="h-6 w-6 text-accent" />
-        <h1 className="text-xl font-bold text-foreground">สมัครเข้าร่วมโครงการ</h1>
+        <h1 className="text-xl font-bold text-foreground">เข้าประเมิน G-Green</h1>
       </div>
       <Card>
         <CardHeader>

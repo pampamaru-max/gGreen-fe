@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { AddCategoryDialog } from "@/components/AddCategoryDialog";
 import { EditCategoryDialog } from "@/components/EditCategoryDialog";
 import { getCategoryColor } from "@/components/CategoryCard";
-import { Trash2, FolderTree, Loader2 } from "lucide-react";
+import { Trash2, FolderTree, Loader2, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -11,6 +11,11 @@ import {
   AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader,
   AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 interface DbCategory {
   id: number;
@@ -18,6 +23,14 @@ interface DbCategory {
   max_score: number;
   sort_order: number;
   is_default: boolean;
+  program_id: string | null;
+}
+
+interface DbProgram {
+  id: string;
+  name: string;
+  icon: string;
+  sort_order: number;
 }
 
 interface CategoryItemProps {
@@ -30,12 +43,10 @@ interface CategoryItemProps {
 }
 
 const CategoryItem = ({ cat, idx, topicCount, indicatorCount, onEdit, onDelete }: CategoryItemProps) => {
-  const color = getCategoryColor(idx);
-
   return (
-    <div className="flex items-center gap-3 rounded-xl border bg-card p-4 shadow-sm">
+    <div className="flex items-center gap-3 rounded-lg border bg-background p-3 shadow-sm">
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-foreground">{cat.name}</p>
+        <p className="font-medium text-sm text-foreground">{cat.name}</p>
         <p className="text-xs text-muted-foreground">
           ลำดับที่ {cat.sort_order} · {topicCount} ประเด็น · {indicatorCount} ตัวชี้วัด · คะแนนเต็ม {cat.max_score}
         </p>
@@ -48,12 +59,7 @@ const CategoryItem = ({ cat, idx, topicCount, indicatorCount, onEdit, onDelete }
         <Tooltip>
           <TooltipTrigger asChild>
             <span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="shrink-0 text-muted-foreground opacity-40 cursor-not-allowed"
-                disabled
-              >
+              <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground opacity-40 cursor-not-allowed h-8 w-8" disabled>
                 <Trash2 className="h-4 w-4" />
               </Button>
             </span>
@@ -65,11 +71,7 @@ const CategoryItem = ({ cat, idx, topicCount, indicatorCount, onEdit, onDelete }
       ) : (
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-            >
+            <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive h-8 w-8">
               <Trash2 className="h-4 w-4" />
             </Button>
           </AlertDialogTrigger>
@@ -96,39 +98,107 @@ const CategoryItem = ({ cat, idx, topicCount, indicatorCount, onEdit, onDelete }
   );
 };
 
+interface ProgramCardProps {
+  program: DbProgram;
+  categories: DbCategory[];
+  topicCounts: Record<number, number>;
+  indicatorCounts: Record<number, number>;
+  onAddCategory: (data: { name: string; maxScore: number; sortOrder: number }, programId: string) => void;
+  onEditCategory: (updated: DbCategory) => void;
+  onDeleteCategory: (id: number) => void;
+}
+
+const ProgramCard = ({ program, categories, topicCounts, indicatorCounts, onAddCategory, onEditCategory, onDeleteCategory }: ProgramCardProps) => {
+  const [open, setOpen] = useState(false);
+  const totalMax = categories.reduce((sum, c) => sum + c.max_score, 0);
+  const nextSortOrder = categories.length > 0 ? Math.max(...categories.map((c) => c.sort_order)) + 1 : 1;
+
+  const isUnder = totalMax < 100;
+  const isExact = totalMax === 100;
+  const statusColor = isUnder
+    ? "text-yellow-600 bg-yellow-50 border-yellow-200"
+    : isExact
+      ? "text-green-600 bg-green-50 border-green-200"
+      : "text-red-600 bg-red-50 border-red-200";
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <div className="rounded-xl border border-accent/30 bg-accent/10 shadow-sm overflow-hidden">
+        <CollapsibleTrigger asChild>
+          <button className="flex w-full items-center gap-3 p-4 text-left hover:bg-muted/50 transition-colors">
+            {open ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-foreground">{program.name}</p>
+              <p className="text-xs text-muted-foreground">{categories.length} หมวด</p>
+            </div>
+            <div className={`rounded-lg border px-3 py-1 text-xs font-semibold ${statusColor}`}>
+              {totalMax} / 100
+            </div>
+          </button>
+        </CollapsibleTrigger>
+
+        <CollapsibleContent>
+          <div className="border-t px-4 py-3 space-y-2">
+            {categories.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">ยังไม่มีหมวดในโครงการนี้</p>
+            )}
+            {categories.map((cat, idx) => (
+              <CategoryItem
+                key={cat.id}
+                cat={cat}
+                idx={idx}
+                topicCount={topicCounts[cat.id] || 0}
+                indicatorCount={indicatorCounts[cat.id] || 0}
+                onEdit={onEditCategory}
+                onDelete={onDeleteCategory}
+              />
+            ))}
+            <div className="pt-1">
+              <AddCategoryDialog
+                nextSortOrder={nextSortOrder}
+                onAdd={(data) => onAddCategory(data, program.id)}
+              />
+            </div>
+          </div>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  );
+};
+
 const SettingsCategories = () => {
   const [categories, setCategories] = useState<DbCategory[]>([]);
+  const [programs, setPrograms] = useState<DbProgram[]>([]);
   const [topicCounts, setTopicCounts] = useState<Record<number, number>>({});
   const [indicatorCounts, setIndicatorCounts] = useState<Record<number, number>>({});
   const [loading, setLoading] = useState(true);
 
+  const fetchData = async () => {
+    const [catRes, progRes, topicRes, indRes] = await Promise.all([
+      supabase.from("categories").select("*").order("sort_order"),
+      supabase.from("programs").select("id, name, icon, sort_order").order("sort_order"),
+      supabase.from("topics").select("id, category_id"),
+      supabase.from("indicators").select("id, topic_id"),
+    ]);
 
-  const fetchCategories = async () => {
-    const { data, error } = await supabase
-      .from("categories")
-      .select("*")
-      .order("sort_order");
-
-    if (error) {
-      toast({ title: "เกิดข้อผิดพลาด", description: error.message, variant: "destructive" });
+    if (catRes.error) {
+      toast({ title: "เกิดข้อผิดพลาด", description: catRes.error.message, variant: "destructive" });
       return;
     }
-    setCategories(data || []);
 
-    // Fetch topic and indicator counts
-    const { data: topics } = await supabase.from("topics").select("id, category_id");
-    const { data: indicators } = await supabase.from("indicators").select("id, topic_id");
+    setCategories((catRes.data || []) as DbCategory[]);
+    setPrograms((progRes.data || []) as DbProgram[]);
 
     const tCounts: Record<number, number> = {};
     const iCounts: Record<number, number> = {};
     const topicToCat: Record<string, number> = {};
 
-    (topics || []).forEach((t: any) => {
+    (topicRes.data || []).forEach((t: any) => {
       tCounts[t.category_id] = (tCounts[t.category_id] || 0) + 1;
       topicToCat[t.id] = t.category_id;
     });
 
-    (indicators || []).forEach((ind: any) => {
+    (indRes.data || []).forEach((ind: any) => {
       const catId = topicToCat[ind.topic_id];
       if (catId) iCounts[catId] = (iCounts[catId] || 0) + 1;
     });
@@ -138,15 +208,16 @@ const SettingsCategories = () => {
   };
 
   useEffect(() => {
-    fetchCategories().finally(() => setLoading(false));
+    fetchData().finally(() => setLoading(false));
   }, []);
 
-  const handleAddCategory = async (data: { name: string; maxScore: number; sortOrder: number }) => {
+  const handleAddCategory = async (data: { name: string; maxScore: number; sortOrder: number }, programId: string) => {
     const { error } = await supabase.from("categories").insert({
       name: data.name,
       max_score: data.maxScore,
       sort_order: data.sortOrder,
       is_default: false,
+      program_id: programId,
     });
 
     if (error) {
@@ -154,7 +225,7 @@ const SettingsCategories = () => {
       return;
     }
     toast({ title: "เพิ่มหมวดสำเร็จ" });
-    fetchCategories();
+    fetchData();
   };
 
   const handleDeleteCategory = async (id: number) => {
@@ -164,7 +235,7 @@ const SettingsCategories = () => {
       return;
     }
     toast({ title: "ลบหมวดสำเร็จ" });
-    fetchCategories();
+    fetchData();
   };
 
   const handleEditCategory = async (updated: DbCategory) => {
@@ -178,11 +249,8 @@ const SettingsCategories = () => {
       return;
     }
     toast({ title: "แก้ไขหมวดสำเร็จ" });
-    fetchCategories();
+    fetchData();
   };
-
-
-  const nextSortOrder = categories.length > 0 ? Math.max(...categories.map((c) => c.sort_order)) + 1 : 1;
 
   if (loading) {
     return (
@@ -201,44 +269,51 @@ const SettingsCategories = () => {
           </div>
           <div className="flex-1">
             <h2 className="text-lg font-bold text-foreground">จัดการหมวด</h2>
-            <p className="text-xs text-muted-foreground">เพิ่ม ลบ หรือแก้ไขหมวดเกณฑ์การประเมิน</p>
+            <p className="text-xs text-muted-foreground">เพิ่ม ลบ หรือแก้ไขหมวดเกณฑ์การประเมินตามโครงการ</p>
           </div>
-          <AddCategoryDialog nextSortOrder={nextSortOrder} onAdd={handleAddCategory} />
         </div>
       </div>
 
-      <div className="px-6 pt-4">
-        {(() => {
-          const totalMax = categories.reduce((sum, c) => sum + c.max_score, 0);
-          const isUnder = totalMax < 100;
-          const isExact = totalMax === 100;
-          const colorClass = isUnder
-            ? "border-yellow-400 bg-yellow-50 text-yellow-700"
-            : isExact
-              ? "border-green-400 bg-green-50 text-green-700"
-              : "border-red-400 bg-red-50 text-red-700";
-          const label = isUnder ? "ยังไม่ครบ 100 คะแนน" : isExact ? "ครบ 100 คะแนนพอดี ✓" : "เกิน 100 คะแนน ⚠";
-          return (
-            <div className={`flex items-center justify-between rounded-xl border-2 px-5 py-3 ${colorClass}`}>
-              <span className="text-sm font-semibold">{label}</span>
-              <span className="text-xl font-bold tabular-nums">{totalMax} <span className="text-sm font-normal opacity-70">/ 100</span></span>
-            </div>
-          );
-        })()}
-      </div>
+      <div className="px-6 py-4 space-y-4">
+        {programs.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center py-8">ยังไม่มีโครงการ กรุณาเพิ่มโครงการก่อน</p>
+        )}
+        {programs.map((program) => {
+          const programCategories = categories
+            .filter((c) => c.program_id === program.id)
+            .sort((a, b) => a.sort_order - b.sort_order);
 
-      <div className="px-6 py-4 space-y-3">
-        {categories.map((cat, idx) => (
-          <CategoryItem
-            key={cat.id}
-            cat={cat}
-            idx={idx}
-            topicCount={topicCounts[cat.id] || 0}
-            indicatorCount={indicatorCounts[cat.id] || 0}
-            onEdit={handleEditCategory}
-            onDelete={handleDeleteCategory}
-          />
-        ))}
+          return (
+            <ProgramCard
+              key={program.id}
+              program={program}
+              categories={programCategories}
+              topicCounts={topicCounts}
+              indicatorCounts={indicatorCounts}
+              onAddCategory={handleAddCategory}
+              onEditCategory={handleEditCategory}
+              onDeleteCategory={handleDeleteCategory}
+            />
+          );
+        })}
+
+        {/* Show unassigned categories if any */}
+        {categories.some((c) => !c.program_id) && (
+          <div className="rounded-xl border border-dashed bg-muted/30 p-4 space-y-2">
+            <p className="font-semibold text-sm text-muted-foreground">หมวดที่ยังไม่ได้ผูกกับโครงการ</p>
+            {categories.filter((c) => !c.program_id).map((cat, idx) => (
+              <CategoryItem
+                key={cat.id}
+                cat={cat}
+                idx={idx}
+                topicCount={topicCounts[cat.id] || 0}
+                indicatorCount={indicatorCounts[cat.id] || 0}
+                onEdit={handleEditCategory}
+                onDelete={handleDeleteCategory}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

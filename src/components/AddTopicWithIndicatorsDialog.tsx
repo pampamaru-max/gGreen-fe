@@ -34,19 +34,25 @@ interface Props {
   /** Returns the next sort_order number for topics under the given category */
   getNextTopicNum: (catId: number) => number;
   onSave: (catId: number, topicName: string, indicators: IndicatorDraft[]) => Promise<void>;
+  /** Pre-selected category ID (when opened from within a category card) */
+  preSelectedCatId?: number;
+  /** Custom trigger button label */
+  triggerLabel?: string;
+  /** Whether to show as a small ghost button */
+  compact?: boolean;
 }
 
-export default function AddTopicWithIndicatorsDialog({ categories, getNextTopicNum, onSave }: Props) {
+export default function AddTopicWithIndicatorsDialog({ categories, getNextTopicNum, onSave, preSelectedCatId, triggerLabel, compact }: Props) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [catId, setCatId] = useState<string>("");
+  const [catId, setCatId] = useState<string>(preSelectedCatId ? String(preSelectedCatId) : "");
   const [topicName, setTopicName] = useState("");
   const [indicators, setIndicators] = useState<IndicatorDraft[]>([
     { name: "", maxScore: 4 },
   ]);
 
   const reset = () => {
-    setCatId("");
+    setCatId(preSelectedCatId ? String(preSelectedCatId) : "");
     setTopicName("");
     setIndicators([{ name: "", maxScore: 4 }]);
   };
@@ -82,10 +88,10 @@ export default function AddTopicWithIndicatorsDialog({ categories, getNextTopicN
 
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) reset(); }}>
-      <Button className="gap-1.5" onClick={() => setOpen(true)}>
-        <Plus className="h-4 w-4" /> เพิ่มประเด็น/ตัวชี้วัด
+      <Button variant={compact ? "ghost" : "default"} size={compact ? "sm" : "default"} className={compact ? "gap-1 text-xs h-7" : "gap-1.5"} onClick={() => setOpen(true)}>
+        <Plus className={compact ? "h-3 w-3" : "h-4 w-4"} /> {triggerLabel || "เพิ่มประเด็น/ตัวชี้วัด"}
       </Button>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>เพิ่มประเด็นใหม่</DialogTitle>
         </DialogHeader>
@@ -101,7 +107,7 @@ export default function AddTopicWithIndicatorsDialog({ categories, getNextTopicN
               <SelectContent>
                 {categories.map((cat) => (
                   <SelectItem key={cat.id} value={String(cat.id)}>
-                    {cat.id}. {cat.name}
+                    {cat.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -124,12 +130,12 @@ export default function AddTopicWithIndicatorsDialog({ categories, getNextTopicN
             <Label className="text-base font-semibold">ตัวชี้วัด</Label>
             <div className="rounded-xl border bg-card p-4 space-y-3">
               {indicators.map((ind, idx) => (
-                <div key={idx} className="flex items-center gap-2">
+              <div key={idx} className="flex items-start gap-2">
                   <Input
                     value={ind.name}
                     onChange={(e) => updateIndicator(idx, "name", e.target.value)}
                     placeholder="ชื่อตัวชี้วัด"
-                    className="flex-1"
+                    className="flex-1 min-w-0"
                   />
                   <Input
                     type="number"
@@ -137,7 +143,7 @@ export default function AddTopicWithIndicatorsDialog({ categories, getNextTopicN
                     onChange={(e) => updateIndicator(idx, "maxScore", Number(e.target.value))}
                     min={1}
                     max={10}
-                    className="w-16 text-center"
+                    className="w-14 text-center shrink-0"
                   />
                   {indicators.length > 1 && (
                     <Button

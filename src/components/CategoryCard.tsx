@@ -47,6 +47,13 @@ interface Props {
   uploadedFiles: Record<string, UploadedFile[]>;
   onFilesChange: (indicatorId: string, files: UploadedFile[]) => void;
   onSave?: (indicatorId: string) => Promise<void>;
+  implementationDetails?: Record<string, string>;
+  onImplementationDetailChange?: (indicatorId: string, value: string) => void;
+  committeeScores?: Record<string, number>;
+  onCommitteeScoreChange?: (indicatorId: string, score: number) => void;
+  committeeComments?: Record<string, string>;
+  onCommitteeCommentChange?: (indicatorId: string, value: string) => void;
+  userRole?: string | null;
 }
 
 function IndicatorDialog({
@@ -59,6 +66,13 @@ function IndicatorDialog({
   open,
   onOpenChange,
   onSave,
+  implementationDetail,
+  onImplementationDetailChange,
+  committeeScore,
+  onCommitteeScoreChange,
+  committeeComment,
+  onCommitteeCommentChange,
+  userRole,
 }: {
   indicator: Category["topics"][0]["indicators"][0];
   score: number;
@@ -69,6 +83,13 @@ function IndicatorDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave?: () => Promise<void>;
+  implementationDetail?: string;
+  onImplementationDetailChange?: (value: string) => void;
+  committeeScore?: number;
+  onCommitteeScoreChange?: (score: number) => void;
+  committeeComment?: string;
+  onCommitteeCommentChange?: (value: string) => void;
+  userRole?: string | null;
 }) {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -187,6 +208,19 @@ function IndicatorDialog({
               </div>
             )}
 
+            {/* รายละเอียดการดำเนินการ */}
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                รายละเอียดการดำเนินการ
+              </p>
+              <textarea
+                value={implementationDetail || ""}
+                onChange={(e) => onImplementationDetailChange?.(e.target.value)}
+                placeholder="ระบุรายละเอียดการดำเนินการ..."
+                className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              />
+            </div>
+
             {/* เอกสารแนบ */}
             <div className="space-y-2">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -242,11 +276,11 @@ function IndicatorDialog({
 
           {/* ===== ด้านขวา: ให้คะแนน + หมายเหตุเกณฑ์คะแนน ===== */}
           <div className="overflow-y-auto px-6 py-5 space-y-5">
-            {/* ให้คะแนน */}
+            {/* ให้คะแนนประเมินตนเอง */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  ให้คะแนน
+                  ให้คะแนนประเมินตนเอง
                 </p>
                 <div>
                   <span
@@ -318,6 +352,66 @@ function IndicatorDialog({
               )}
             </div>
 
+            {/* กรรมการให้คะแนน */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  กรรมการให้คะแนน
+                </p>
+                <div>
+                  <span
+                    className="text-xl font-bold"
+                    style={{ color: (committeeScore || 0) > 0 ? `hsl(${getScoreColor(committeeScore || 0)})` : "hsl(var(--muted-foreground))" }}
+                  >
+                    {committeeScore || 0}
+                  </span>
+                  <span className="text-sm text-muted-foreground">/{indicator.maxScore}</span>
+                </div>
+              </div>
+              {userRole === "user" ? (
+                <p className="text-sm text-muted-foreground italic">เฉพาะกรรมการหรือผู้ดูแลระบบเท่านั้นที่สามารถให้คะแนนได้</p>
+              ) : (
+                <div className="flex items-center gap-2 flex-wrap">
+                  {Array.from({ length: indicator.maxScore + 1 }, (_, i) => i).map((opt) => (
+                    <label
+                      key={`committee-radio-${opt}`}
+                      className="flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <input
+                        type="radio"
+                        name={`committee-score-${indicator.id}`}
+                        checked={opt === (committeeScore || 0)}
+                        onChange={() => onCommitteeScoreChange?.(opt)}
+                        className="h-4 w-4 accent-primary"
+                      />
+                      <span className="text-sm font-medium" style={{ color: opt === (committeeScore || 0) && opt > 0 ? `hsl(${getScoreColor(opt)})` : "hsl(var(--foreground))" }}>
+                        {opt}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* ความเห็นกรรมการ */}
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                ความเห็นกรรมการ
+              </p>
+              {userRole === "user" ? (
+                <div className="text-sm text-foreground/70 bg-muted/30 border rounded-md p-3 leading-relaxed whitespace-pre-line min-h-[60px]">
+                  {committeeComment || <span className="text-muted-foreground italic">ยังไม่มีความเห็น</span>}
+                </div>
+              ) : (
+                <textarea
+                  value={committeeComment || ""}
+                  onChange={(e) => onCommitteeCommentChange?.(e.target.value)}
+                  placeholder="ระบุความเห็นของกรรมการ..."
+                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                />
+              )}
+            </div>
+
             {/* หมายเหตุเกณฑ์คะแนน */}
             {indicator.notes && (
               <div className="space-y-1.5">
@@ -362,7 +456,7 @@ function IndicatorDialog({
   );
 }
 
-export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDelete, uploadedFiles, onFilesChange, onSave }: Props) {
+export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDelete, uploadedFiles, onFilesChange, onSave, implementationDetails, onImplementationDetailChange, committeeScores, onCommitteeScoreChange, committeeComments, onCommitteeCommentChange, userRole }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndicator, setSelectedIndicator] = useState<Category["topics"][0]["indicators"][0] | null>(null);
   const color = categoryColors[colorIndex % categoryColors.length];
@@ -470,6 +564,13 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
           open={!!selectedIndicator}
           onOpenChange={(open) => { if (!open) setSelectedIndicator(null); }}
           onSave={onSave ? () => onSave(selectedIndicator.id) : undefined}
+          implementationDetail={implementationDetails?.[selectedIndicator.id] || ""}
+          onImplementationDetailChange={(v) => onImplementationDetailChange?.(selectedIndicator.id, v)}
+          committeeScore={committeeScores?.[selectedIndicator.id] || 0}
+          onCommitteeScoreChange={(v) => onCommitteeScoreChange?.(selectedIndicator.id, v)}
+          committeeComment={committeeComments?.[selectedIndicator.id] || ""}
+          onCommitteeCommentChange={(v) => onCommitteeCommentChange?.(selectedIndicator.id, v)}
+          userRole={userRole}
         />
       )}
     </div>

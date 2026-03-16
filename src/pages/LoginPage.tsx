@@ -24,27 +24,19 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const response = await apiClient.post("auth/login", { email, password });
-      
       if (response.data.token) {
         localStorage.setItem("auth_token", response.data.token);
-        // We can also store the user data if needed
         if (response.data.user) {
           localStorage.setItem("auth_user", JSON.stringify(response.data.user));
         }
-        checkAuth(); // Update AuthContext state
-        toast({ title: "เข้าสู่ระบบสำเร็จ" });
-        navigate("/projects");
+        checkAuth();
+        navigate("/evaluation");
       }
-    } catch (error) {
-      let errorMessage = "อีเมลหรือรหัสผ่านไม่ถูกต้อง";
-      if (axios.isAxiosError(error)) {
-        errorMessage = error.response?.data?.message || errorMessage;
-      }
-      toast({ 
-        title: "เข้าสู่ระบบไม่สำเร็จ", 
-        description: errorMessage, 
-        variant: "destructive" 
-      });
+    } catch (err) {
+      const message = axios.isAxiosError(err)
+        ? err.response?.data?.message ?? err.message
+        : "เกิดข้อผิดพลาด";
+      toast({ title: "เข้าสู่ระบบไม่สำเร็จ", description: message, variant: "destructive" });
     } finally {
       setLoading(false);
     }

@@ -25,11 +25,19 @@ import {
 } from "@/components/ui/collapsible";
 import AddTopicWithIndicatorsDialog from "@/components/AddTopicWithIndicatorsDialog";
 
+interface DbProgram {
+  id: string;
+  name: string;
+  icon: string;
+  sort_order: number;
+}
+
 interface DbCategory {
   id: number;
   name: string;
   max_score: number;
   sort_order: number;
+  program_id: string | null;
 }
 
 interface DbTopic {
@@ -237,7 +245,7 @@ function SortableIndicatorRow({ ind, color, onEdit, onDelete }: { ind: DbIndicat
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
 
   return (
-    <div ref={setNodeRef} style={style} className="flex items-center gap-3 px-4 py-2.5 group/ind hover:bg-muted/10 border-b last:border-b-0">
+    <div ref={setNodeRef} style={{ ...style, backgroundColor: `hsl(${color} / 0.03)` }} className="flex items-center gap-3 px-4 py-2.5 group/ind hover:bg-muted/10 border-b last:border-b-0">
       <button {...attributes} {...listeners} className="shrink-0 cursor-grab active:cursor-grabbing touch-none text-muted-foreground hover:text-foreground">
         <GripVertical className="h-4 w-4" />
       </button>
@@ -266,6 +274,7 @@ function SortableIndicatorRow({ ind, color, onEdit, onDelete }: { ind: DbIndicat
 /* ─── Main Page ─── */
 
 const SettingsIndicators = () => {
+  const [programs, setPrograms] = useState<DbProgram[]>([]);
   const [categories, setCategories] = useState<DbCategory[]>([]);
   const [topics, setTopics] = useState<DbTopic[]>([]);
   const [indicators, setIndicators] = useState<DbIndicator[]>([]);
@@ -273,12 +282,14 @@ const SettingsIndicators = () => {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const fetchAll = async () => {
-    const [catRes, topicRes, indRes] = await Promise.all([
+    const [progRes, catRes, topicRes, indRes] = await Promise.all([
+      supabase.from("programs").select("*").order("sort_order"),
       supabase.from("categories").select("*").order("sort_order"),
       supabase.from("topics").select("*").order("sort_order"),
       supabase.from("indicators").select("*").order("sort_order"),
     ]);
 
+    if (progRes.data) setPrograms(progRes.data);
     if (catRes.data) setCategories(catRes.data);
     if (topicRes.data) setTopics(topicRes.data);
     if (indRes.data) setIndicators(indRes.data.map(d => ({ ...d, notes: (d as any).notes || "", evidence_description: (d as any).evidence_description || "", scoring_criteria: (d.scoring_criteria as unknown as ScoringCriterion[] ?? []) })));
@@ -418,82 +429,117 @@ const SettingsIndicators = () => {
             <h2 className="text-lg font-bold text-foreground">จัดการประเด็น / ตัวชี้วัด</h2>
             <p className="text-xs text-muted-foreground">เพิ่ม แก้ไข หรือลบประเด็นและตัวชี้วัดในแต่ละหมวด</p>
           </div>
-          <AddTopicWithIndicatorsDialog
-            categories={categories}
-            getNextTopicNum={getNextTopicNum}
-            onSave={handleAddTopicWithIndicators}
-          />
         </div>
       </div>
 
-      <div className="px-6 py-6 space-y-4">
-        {categories.map((cat, catIdx) => {
-          const color = getCategoryColor(catIdx);
-          const catTopics = topics.filter((t) => t.category_id === cat.id);
+      <div className="px-6 py-6 space-y-6">
+        {programs.map((program, progIdx) => {
+          const programCategories = categories.filter(c => c.program_id === program.id);
+          if (programCategories.length === 0) return null;
 
           return (
-            <Collapsible key={cat.id} defaultOpen={catIdx === 0} className="group/cat">
-              <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
+            <Collapsible key={program.id} defaultOpen={progIdx === 0} className="group/prog">
+              <div className="rounded-xl border border-accent/30 bg-accent/10 overflow-hidden shadow-sm">
                 <CollapsibleTrigger asChild>
-                  <button
-                    className="flex w-full items-center gap-3 px-4 py-3 border-b hover:bg-muted/30 transition-colors"
-                    style={{ backgroundColor: `hsl(${color} / 0.06)` }}
-                  >
-                    <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]/cat:rotate-90" />
-                    <p className="font-semibold text-foreground text-left flex-1">{cat.name}</p>
+                  <button className="flex w-full items-center gap-3 px-5 py-4 hover:bg-accent/20 transition-colors">
+                    <ChevronRight className="h-5 w-5 text-accent-foreground/70 transition-transform group-data-[state=open]/prog:rotate-90" />
+                    
+                    <p className="font-bold text-foreground text-left flex-1 text-base">{program.name}</p>
                     <span className="text-xs text-muted-foreground">
-                      {catTopics.length} ประเด็น · {indicators.filter(i => catTopics.some(t => t.id === i.topic_id)).length} ตัวชี้วัด · คะแนนเต็ม {cat.max_score}
+                      {programCategories.length} หมวด
                     </span>
                   </button>
                 </CollapsibleTrigger>
 
                 <CollapsibleContent>
-                  {catTopics.map((topic) => {
-                    const topicInds = indicators.filter((i) => i.topic_id === topic.id).sort((a, b) => a.sort_order - b.sort_order);
-                    return (
-                      <Collapsible key={topic.id} defaultOpen className="group/topic border-b last:border-b-0">
-                        <div className="flex items-center gap-2 bg-muted/30 px-4 py-2.5">
-                          <CollapsibleTrigger asChild>
-                            <button className="shrink-0 p-0.5 hover:bg-muted/50 rounded">
-                              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground transition-transform group-data-[state=open]/topic:rotate-90" />
-                            </button>
-                          </CollapsibleTrigger>
-                          <span className="text-sm font-medium text-foreground flex-1">{topic.name}</span>
-                          <EditTopicDialog topic={topic} onSave={(name) => handleEditTopic(topic.id, name)} />
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => handleDeleteTopic(topic.id)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
+                  <div className="px-3 pb-3 space-y-3">
+                    {programCategories.map((cat, catIdx) => {
+                      const color = "210 70% 45%"; // consistent blue for all categories
+                      const catTopics = topics.filter((t) => t.category_id === cat.id);
 
-                        <CollapsibleContent>
-                          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleReorderIndicators(topic.id, e)}>
-                            <SortableContext items={topicInds.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                              <div>
-                                {topicInds.map((ind) => (
-                                  <SortableIndicatorRow
-                                    key={ind.id}
-                                    ind={ind}
-                                    color={color}
-                                    onEdit={(data) => handleEditIndicator(ind.id, data)}
-                                    onDelete={() => handleDeleteIndicator(ind.id)}
-                                  />
-                                ))}
+                      return (
+                        <Collapsible key={cat.id} defaultOpen={catIdx === 0} className="group/cat">
+                          <div className="rounded-lg border bg-card overflow-hidden shadow-sm">
+                            <CollapsibleTrigger asChild>
+                              <button
+                                className="flex w-full items-center gap-3 px-4 py-3 border-b hover:bg-muted/30 transition-colors"
+                                style={{ backgroundColor: `hsl(${color} / 0.1)` }}
+                              >
+                                <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]/cat:rotate-90" />
+                                <p className="font-bold text-foreground text-left flex-1">{cat.name}</p>
+                                <span className="text-xs text-muted-foreground">
+                                  {catTopics.length} ประเด็น · {indicators.filter(i => catTopics.some(t => t.id === i.topic_id)).length} ตัวชี้วัด · คะแนนเต็ม {cat.max_score}
+                                </span>
+                              </button>
+                            </CollapsibleTrigger>
+
+                            <CollapsibleContent>
+                              {catTopics.map((topic) => {
+                                const topicInds = indicators.filter((i) => i.topic_id === topic.id).sort((a, b) => a.sort_order - b.sort_order);
+                                return (
+                                  <Collapsible key={topic.id} defaultOpen className="group/topic border-b last:border-b-0">
+                                    <div
+                                      className="flex items-center gap-2 px-4 py-2.5"
+                                      style={{ backgroundColor: `hsl(${color} / 0.06)` }}
+                                    >
+                                      <CollapsibleTrigger asChild>
+                                        <button className="shrink-0 p-0.5 hover:bg-muted/50 rounded">
+                                          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground transition-transform group-data-[state=open]/topic:rotate-90" />
+                                        </button>
+                                      </CollapsibleTrigger>
+                                      <span className="text-sm font-medium text-foreground flex-1">{topic.name}</span>
+                                      <EditTopicDialog topic={topic} onSave={(name) => handleEditTopic(topic.id, name)} />
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                        onClick={() => handleDeleteTopic(topic.id)}
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
+
+                                    <CollapsibleContent>
+                                      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleReorderIndicators(topic.id, e)}>
+                                        <SortableContext items={topicInds.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                                          <div>
+                                            {topicInds.map((ind) => (
+                                              <SortableIndicatorRow
+                                                key={ind.id}
+                                                ind={ind}
+                                                color={color}
+                                                onEdit={(data) => handleEditIndicator(ind.id, data)}
+                                                onDelete={() => handleDeleteIndicator(ind.id)}
+                                              />
+                                            ))}
+                                          </div>
+                                        </SortableContext>
+                                      </DndContext>
+                                      <div className="px-4 py-2 border-t border-dashed">
+                                        <AddIndicatorDialog onAdd={(name, ms) => handleAddIndicator(topic.id, name, ms)} />
+                                      </div>
+                                    </CollapsibleContent>
+                                  </Collapsible>
+                                );
+                              })}
+
+                              {/* Add topic button inside category */}
+                              <div className="px-4 py-2.5 border-t border-dashed">
+                                <AddTopicWithIndicatorsDialog
+                                  categories={programCategories}
+                                  getNextTopicNum={getNextTopicNum}
+                                  onSave={handleAddTopicWithIndicators}
+                                  preSelectedCatId={cat.id}
+                                  triggerLabel="เพิ่มประเด็น"
+                                  compact
+                                />
                               </div>
-                            </SortableContext>
-                          </DndContext>
-                          <div className="px-4 py-2 border-t border-dashed">
-                            <AddIndicatorDialog onAdd={(name, ms) => handleAddIndicator(topic.id, name, ms)} />
+                            </CollapsibleContent>
                           </div>
-                        </CollapsibleContent>
-                      </Collapsible>
-                    );
-                  })}
-
+                        </Collapsible>
+                      );
+                    })}
+                  </div>
                 </CollapsibleContent>
               </div>
             </Collapsible>

@@ -1,197 +1,195 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
-import { Category } from "@/data/evaluationData";
-import type { UploadedFile } from "@/components/CategoryCard";
-import { CategoryCard } from "@/components/CategoryCard";
-import { ScoreSummary } from "@/components/ScoreSummary";
-import { ClipboardCheck, Loader2 } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { ClipboardCheck, Loader2, Plus, Pencil, Search, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { useUserRole } from "@/hooks/useUserRole";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+interface RegistrationRow {
+  id: string;
+  organization_name: string;
+  province: string;
+  program_id: string;
+  program_name: string;
+  evaluation_id: string | null;
+  evaluation_status: string | null;
+  has_committee_score: boolean;
+  created_year: number;
+}
 
 const EvaluationPage = () => {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [scores, setScores] = useState<Record<string, number>>({});
-  const [uploadedFiles, setUploadedFiles] = useState<Record<string, UploadedFile[]>>({});
+  const [rows, setRows] = useState<RegistrationRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [evaluationId, setEvaluationId] = useState<string | null>(null);
+  const { isAdmin, role, accessibleProgramIds, loading: roleLoading } = useUserRole();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  // Filter states
+  const [searchOrg, setSearchOrg] = useState("");
+  const [filterProgram, setFilterProgram] = useState<string>("all");
+  const [filterProvince, setFilterProvince] = useState<string>("all");
+  const [filterSelfStatus, setFilterSelfStatus] = useState<string>("all");
+  const [filterCommitteeStatus, setFilterCommitteeStatus] = useState<string>("all");
+  const [filterYear, setFilterYear] = useState<string>("all");
 
   useEffect(() => {
+    if (roleLoading) return;
+
     const fetchData = async () => {
       setLoading(true);
-      const [catRes, topicRes, indRes] = await Promise.all([
-        supabase.from("categories").select("*").order("sort_order"),
-        supabase.from("topics").select("*").order("sort_order"),
-        supabase.from("indicators").select("*").order("sort_order"),
-      ]);
 
-      if (catRes.data && topicRes.data && indRes.data) {
-        const cats: Category[] = catRes.data.map((c) => {
-          const topics = topicRes.data
-            .filter((t) => t.category_id === c.id)
-            .map((t) => ({
-              id: t.id,
-              name: t.name,
-              indicators: indRes.data
-                .filter((i) => i.topic_id === t.id)
-                .map((i) => ({
-                  id: i.id,
-                  name: i.name,
-                  maxScore: i.max_score,
-                  description: i.description || "",
-                  detail: i.detail || "",
-                  notes: i.notes || "",
-                  evidenceDescription: (i as any).evidence_description || "",
-                  scoringCriteria: Array.isArray(i.scoring_criteria)
-                    ? (i.scoring_criteria as { score: number; label: string }[])
-                    : [],
-                })),
-            }));
-          return {
-            id: c.id,
-            name: c.name,
-            maxScore: c.max_score,
-            topics,
-          };
-        });
-        setCategories(cats);
+      let regQuery = supabase
+        .from("project_registrations")
+        .select("id, organization_name, province, program_id, status, created_at, user_id")
+        .eq("status", "selected");
 
-        // Load latest draft evaluation
-        const { data: evalData } = await supabase
-          .from("evaluations")
-          .select("*")
-          .eq("status", "draft")
-          .order("updated_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (evalData) {
-          setEvaluationId(evalData.id);
-          const [scoreRes, fileRes] = await Promise.all([
-            supabase.from("evaluation_scores").select("*").eq("evaluation_id", evalData.id),
-            supabase.from("evaluation_files").select("*").eq("evaluation_id", evalData.id),
-          ]);
-          if (scoreRes.data) {
-            const loaded: Record<string, number> = {};
-            scoreRes.data.forEach((s) => { loaded[s.indicator_id] = s.score; });
-            setScores(loaded);
-          }
-          if (fileRes.data) {
-            const loaded: Record<string, UploadedFile[]> = {};
-            fileRes.data.forEach((f) => {
-              if (!loaded[f.indicator_id]) loaded[f.indicator_id] = [];
-              loaded[f.indicator_id].push({ name: f.file_name, url: f.file_url, path: f.file_path });
-            });
-            setUploadedFiles(loaded);
-          }
+      if (isAdmin) {
+        // Admin sees all
+      } else if (role === "user" || role === "evaluator") {
+        // User and evaluator see registrations in their assigned programs
+        if (accessibleProgramIds.length > 0) {
+          regQuery = regQuery.in("program_id", accessibleProgramIds);
+        } else if (role === "user" && user) {
+          // Fallback: show own registrations if no program access assigned
+          regQuery = regQuery.eq("user_id", user.id);
+        } else {
+          setRows([]);
+          setLoading(false);
+          return;
         }
+      } else {
+        setRows([]);
+        setLoading(false);
+        return;
       }
+
+      const { data: registrations } = await regQuery;
+      if (!registrations || registrations.length === 0) {
+        setRows([]);
+        setLoading(false);
+        return;
+      }
+
+      const programIds = [...new Set(registrations.map((r) => r.program_id))];
+      const { data: programs } = await supabase
+        .from("programs")
+        .select("id, name")
+        .in("id", programIds);
+      const programMap = new Map(programs?.map((p) => [p.id, p.name]) || []);
+
+      // Fetch evaluations with user_id to correctly map per-user
+      let evalQuery = supabase
+        .from("evaluations")
+        .select("id, program_id, status, user_id")
+        .in("program_id", programIds);
+
+      // For "user" role, only fetch their own evaluations
+      if (role === "user" && user) {
+        evalQuery = evalQuery.eq("user_id", user.id);
+      }
+
+      const { data: evaluations } = await evalQuery;
+
+      // Use composite key "program_id:user_id" to support multiple evaluations per program
+      const evalMap = new Map(
+        evaluations?.map((e) => [`${e.program_id}:${e.user_id}`, { id: e.id, status: e.status }]) || []
+      );
+
+      const evalIds = evaluations?.map((e) => e.id) || [];
+      let committeeMap = new Map<string, boolean>();
+      if (evalIds.length > 0) {
+        const { data: scores } = await supabase
+          .from("evaluation_scores")
+          .select("evaluation_id, committee_score")
+          .in("evaluation_id", evalIds)
+          .not("committee_score", "is", null)
+          .gt("committee_score", 0);
+
+        const evalIdsWithCommittee = new Set(scores?.map((s) => s.evaluation_id) || []);
+        evalIds.forEach((id) => committeeMap.set(id, evalIdsWithCommittee.has(id)));
+      }
+
+      const result: RegistrationRow[] = registrations.map((reg) => {
+        const evalKey = `${reg.program_id}:${reg.user_id}`;
+        const eval_ = evalMap.get(evalKey);
+        return {
+          id: reg.id,
+          organization_name: reg.organization_name,
+          province: reg.province,
+          program_id: reg.program_id,
+          program_name: programMap.get(reg.program_id) || "",
+          evaluation_id: eval_?.id || null,
+          evaluation_status: eval_?.status || null,
+          has_committee_score: eval_ ? (committeeMap.get(eval_.id) || false) : false,
+          created_year: new Date(reg.created_at).getFullYear() + 543,
+        };
+      });
+
+      setRows(result);
       setLoading(false);
     };
+
     fetchData();
-  }, []);
+  }, [isAdmin, role, user, accessibleProgramIds, roleLoading]);
 
-  const handleScoreChange = (indicatorId: string, score: number) => {
-    setScores((prev) => ({ ...prev, [indicatorId]: score }));
-  };
+  // Derived unique values for dropdowns
+  const programOptions = useMemo(() => [...new Set(rows.map((r) => r.program_name))].filter(Boolean).sort(), [rows]);
+  const provinceOptions = useMemo(() => [...new Set(rows.map((r) => r.province))].filter(Boolean).sort(), [rows]);
+  const yearOptions = useMemo(() => [...new Set(rows.map((r) => String(r.created_year)))].sort().reverse(), [rows]);
 
-  const handleFilesChange = (indicatorId: string, files: UploadedFile[]) => {
-    setUploadedFiles((prev) => ({ ...prev, [indicatorId]: files }));
-  };
+  // Filtering logic
+  const filteredRows = useMemo(() => {
+    return rows.filter((row) => {
+      if (searchOrg && !row.organization_name.toLowerCase().includes(searchOrg.toLowerCase())) return false;
+      if (filterProgram !== "all" && row.program_name !== filterProgram) return false;
+      if (filterProvince !== "all" && row.province !== filterProvince) return false;
+      if (filterYear !== "all" && String(row.created_year) !== filterYear) return false;
 
-  const handleSaveIndicator = useCallback(async (indicatorId: string) => {
-    try {
-      let evalId = evaluationId;
-
-      // Create evaluation if not exists
-      if (!evalId) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error("กรุณาเข้าสู่ระบบก่อนบันทึก");
-        const { data: newEval, error } = await supabase
-          .from("evaluations")
-          .insert({ name: "การประเมิน G-Green", status: "draft", total_score: 0, total_max: 0, user_id: user.id })
-          .select()
-          .single();
-        if (error) throw error;
-        evalId = newEval.id;
-        setEvaluationId(evalId);
+      if (filterSelfStatus !== "all") {
+        const status = row.evaluation_status;
+        if (filterSelfStatus === "none" && status) return false;
+        if (filterSelfStatus === "draft" && status !== "draft") return false;
+        if (filterSelfStatus === "completed" && (status === "draft" || !status)) return false;
       }
 
-      // Upsert score
-      const score = scores[indicatorId] || 0;
-      // Delete old then insert
-      await supabase.from("evaluation_scores").delete()
-        .eq("evaluation_id", evalId)
-        .eq("indicator_id", indicatorId);
-      
-      if (score > 0) {
-        const { error: scoreErr } = await supabase.from("evaluation_scores").insert({
-          evaluation_id: evalId,
-          indicator_id: indicatorId,
-          score,
-        });
-        if (scoreErr) throw scoreErr;
+      if (filterCommitteeStatus !== "all") {
+        if (filterCommitteeStatus === "none" && row.has_committee_score) return false;
+        if (filterCommitteeStatus === "completed" && !row.has_committee_score) return false;
       }
 
-      // Upsert files
-      await supabase.from("evaluation_files").delete()
-        .eq("evaluation_id", evalId)
-        .eq("indicator_id", indicatorId);
-      
-      const files = uploadedFiles[indicatorId] || [];
-      if (files.length > 0) {
-        const fileRows = files.map((f) => ({
-          evaluation_id: evalId!,
-          indicator_id: indicatorId,
-          file_name: f.name,
-          file_url: f.url,
-          file_path: f.path,
-        }));
-        const { error: fileErr } = await supabase.from("evaluation_files").insert(fileRows);
-        if (fileErr) throw fileErr;
-      }
-
-      // Update evaluation totals
-      const { data: allScores } = await supabase
-        .from("evaluation_scores")
-        .select("score")
-        .eq("evaluation_id", evalId);
-      const totalScore = allScores?.reduce((s, r) => s + r.score, 0) || 0;
-
-      await supabase.from("evaluations").update({
-        total_score: totalScore,
-        updated_at: new Date().toISOString(),
-      }).eq("id", evalId);
-
-      toast.success("บันทึกเรียบร้อยแล้ว");
-    } catch (err: any) {
-      console.error(err);
-      toast.error("บันทึกไม่สำเร็จ: " + (err.message || "เกิดข้อผิดพลาด"));
-    }
-  }, [evaluationId, scores, uploadedFiles]);
-
-  const totalTopics = categories.reduce((s, c) => s + c.topics.length, 0);
-  const totalIndicators = categories.reduce(
-    (s, c) => s + c.topics.reduce((ts, t) => ts + t.indicators.length, 0),
-    0
-  );
-
-  const summaryData = useMemo(() => {
-    return categories.map((cat) => {
-      let totalScore = 0;
-      let totalMax = 0;
-      cat.topics.forEach((topic) => {
-        topic.indicators.forEach((ind) => {
-          totalScore += scores[ind.id] || 0;
-          totalMax += ind.maxScore;
-        });
-      });
-      return { id: cat.id, name: cat.name, score: totalScore, maxScore: cat.maxScore, totalPossible: totalMax };
+      return true;
     });
-  }, [scores, categories]);
+  }, [rows, searchOrg, filterProgram, filterProvince, filterSelfStatus, filterCommitteeStatus, filterYear]);
 
-  const grandTotal = summaryData.reduce((s, c) => s + c.score, 0);
-  const grandMax = summaryData.reduce((s, c) => s + c.totalPossible, 0);
+  const hasActiveFilters = searchOrg || filterProgram !== "all" || filterProvince !== "all" || filterSelfStatus !== "all" || filterCommitteeStatus !== "all" || filterYear !== "all";
 
-  if (loading) {
+  const clearFilters = () => {
+    setSearchOrg("");
+    setFilterProgram("all");
+    setFilterProvince("all");
+    setFilterSelfStatus("all");
+    setFilterCommitteeStatus("all");
+    setFilterYear("all");
+  };
+
+  const getSelfAssessmentBadge = (status: string | null) => {
+    if (!status) return <Badge variant="outline" className="text-muted-foreground">ยังไม่ประเมิน</Badge>;
+    if (status === "draft") return <Badge variant="secondary">ร่าง</Badge>;
+    return <Badge className="bg-green-600 hover:bg-green-700">ประเมินแล้ว</Badge>;
+  };
+
+  const getCommitteeBadge = (hasScore: boolean, evaluationId: string | null) => {
+    if (!evaluationId) return <Badge variant="outline" className="text-muted-foreground">-</Badge>;
+    if (hasScore) return <Badge className="bg-green-600 hover:bg-green-700">ประเมินแล้ว</Badge>;
+    return <Badge variant="outline" className="text-muted-foreground">ยังไม่ประเมิน</Badge>;
+  };
+
+  if (loading || roleLoading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -206,35 +204,149 @@ const EvaluationPage = () => {
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
             <ClipboardCheck className="h-5 w-5 text-primary-foreground" />
           </div>
-          <div className="flex-1">
+          <div>
             <h2 className="text-lg font-bold text-foreground">ประเมิน G-Green</h2>
-            <p className="text-xs text-muted-foreground">
-              {categories.length} หมวด · {totalTopics} ประเด็น · {totalIndicators} ตัวชี้วัด · คะแนนเต็ม {grandMax}
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-xs text-muted-foreground">คะแนนรวม</p>
-            <p className="text-2xl font-bold text-primary">
-              {grandTotal}<span className="text-sm font-normal text-muted-foreground">/{grandMax}</span>
-            </p>
+            <p className="text-xs text-muted-foreground">รายการหน่วยงานที่ผ่านการคัดเลือกเข้าร่วมโครงการ</p>
           </div>
         </div>
       </div>
 
-      <div className="px-6 py-6 space-y-6">
-        <ScoreSummary data={summaryData} />
-        {categories.map((category, idx) => (
-          <CategoryCard
-            key={category.id}
-            category={category}
-            colorIndex={idx}
-            scores={scores}
-            onScoreChange={handleScoreChange}
-            uploadedFiles={uploadedFiles}
-            onFilesChange={handleFilesChange}
-            onSave={handleSaveIndicator}
-          />
-        ))}
+      <div className="px-6 py-4 space-y-4">
+        {/* Filters */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="ค้นหาชื่อหน่วยงาน..."
+              value={searchOrg}
+              onChange={(e) => setSearchOrg(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+
+          <Select value={filterProgram} onValueChange={setFilterProgram}>
+            <SelectTrigger>
+              <SelectValue placeholder="โครงการ" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">โครงการทั้งหมด</SelectItem>
+              {programOptions.map((p) => (
+                <SelectItem key={p} value={p}>{p}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={filterProvince} onValueChange={setFilterProvince}>
+            <SelectTrigger>
+              <SelectValue placeholder="จังหวัด" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">จังหวัดทั้งหมด</SelectItem>
+              {provinceOptions.map((p) => (
+                <SelectItem key={p} value={p}>{p}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={filterSelfStatus} onValueChange={setFilterSelfStatus}>
+            <SelectTrigger>
+              <SelectValue placeholder="สถานะประเมินตนเอง" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">สถานะประเมินตนเองทั้งหมด</SelectItem>
+              <SelectItem value="none">ยังไม่ประเมิน</SelectItem>
+              <SelectItem value="draft">ร่าง</SelectItem>
+              <SelectItem value="completed">ประเมินแล้ว</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={filterCommitteeStatus} onValueChange={setFilterCommitteeStatus}>
+            <SelectTrigger>
+              <SelectValue placeholder="สถานะกรรมการ" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">สถานะกรรมการทั้งหมด</SelectItem>
+              <SelectItem value="none">ยังไม่ประเมิน</SelectItem>
+              <SelectItem value="completed">ประเมินแล้ว</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={filterYear} onValueChange={setFilterYear}>
+            <SelectTrigger>
+              <SelectValue placeholder="ปี" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">ปีทั้งหมด</SelectItem>
+              {yearOptions.map((y) => (
+                <SelectItem key={y} value={y}>พ.ศ. {y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {hasActiveFilters && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">แสดง {filteredRows.length} จาก {rows.length} รายการ</span>
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="h-7 px-2 text-xs">
+              <X className="h-3 w-3 mr-1" />
+              ล้างตัวกรอง
+            </Button>
+          </div>
+        )}
+
+        {filteredRows.length === 0 ? (
+          <div className="text-center py-12">
+            <ClipboardCheck className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+            <p className="text-muted-foreground">
+              {rows.length === 0 ? "ไม่มีรายการที่คุณมีสิทธิ์เข้าถึง" : "ไม่พบรายการที่ตรงกับตัวกรอง"}
+            </p>
+            {rows.length === 0 && <p className="text-xs text-muted-foreground mt-1">กรุณาติดต่อผู้ดูแลระบบ</p>}
+          </div>
+        ) : (
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12 text-center">#</TableHead>
+                  <TableHead>ชื่อหน่วยงาน</TableHead>
+                  <TableHead>ชื่อโครงการ</TableHead>
+                  <TableHead>จังหวัด</TableHead>
+                  <TableHead className="text-center">ปี</TableHead>
+                  <TableHead className="text-center">สถานะประเมินตนเอง</TableHead>
+                  <TableHead className="text-center">สถานะกรรมการประเมิน</TableHead>
+                  <TableHead className="text-center w-20">จัดการ</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredRows.map((row, idx) => (
+                  <TableRow key={row.id}>
+                    <TableCell className="text-center text-muted-foreground">{idx + 1}</TableCell>
+                    <TableCell className="font-medium">{row.organization_name}</TableCell>
+                    <TableCell>{row.program_name}</TableCell>
+                    <TableCell>{row.province}</TableCell>
+                    <TableCell className="text-center">{row.created_year}</TableCell>
+                    <TableCell className="text-center">{getSelfAssessmentBadge(row.evaluation_status)}</TableCell>
+                    <TableCell className="text-center">{getCommitteeBadge(row.has_committee_score, row.evaluation_id)}</TableCell>
+                    <TableCell className="text-center">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => navigate(`/evaluation/${row.program_id}`)}
+                        title={row.evaluation_id ? "แก้ไขการประเมิน" : "เพิ่มการประเมิน"}
+                      >
+                        {row.evaluation_id ? (
+                          <Pencil className="h-4 w-4 text-primary" />
+                        ) : (
+                          <Plus className="h-4 w-4 text-primary" />
+                        )}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </div>
     </div>
   );

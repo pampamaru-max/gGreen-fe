@@ -21,6 +21,7 @@ export type Database = {
           is_default: boolean
           max_score: number
           name: string
+          program_id: string | null
           sort_order: number
           updated_at: string
         }
@@ -30,6 +31,7 @@ export type Database = {
           is_default?: boolean
           max_score?: number
           name: string
+          program_id?: string | null
           sort_order?: number
           updated_at?: string
         }
@@ -39,10 +41,19 @@ export type Database = {
           is_default?: boolean
           max_score?: number
           name?: string
+          program_id?: string | null
           sort_order?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "categories_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       certificate_templates: {
         Row: {
@@ -100,6 +111,50 @@ export type Database = {
           },
         ]
       }
+      document_templates: {
+        Row: {
+          created_at: string
+          id: string
+          is_required: boolean
+          name: string
+          program_id: string
+          sample_file_name: string | null
+          sample_file_url: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_required?: boolean
+          name: string
+          program_id: string
+          sample_file_name?: string | null
+          sample_file_url?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_required?: boolean
+          name?: string
+          program_id?: string
+          sample_file_name?: string | null
+          sample_file_url?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_templates_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       evaluation_files: {
         Row: {
           created_at: string
@@ -140,23 +195,32 @@ export type Database = {
       }
       evaluation_scores: {
         Row: {
+          committee_comment: string | null
+          committee_score: number | null
           created_at: string
           evaluation_id: string
           id: string
+          implementation_detail: string | null
           indicator_id: string
           score: number
         }
         Insert: {
+          committee_comment?: string | null
+          committee_score?: number | null
           created_at?: string
           evaluation_id: string
           id?: string
+          implementation_detail?: string | null
           indicator_id: string
           score?: number
         }
         Update: {
+          committee_comment?: string | null
+          committee_score?: number | null
           created_at?: string
           evaluation_id?: string
           id?: string
+          implementation_detail?: string | null
           indicator_id?: string
           score?: number
         }
@@ -175,6 +239,7 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          program_id: string | null
           status: string
           total_max: number
           total_score: number
@@ -185,6 +250,7 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          program_id?: string | null
           status?: string
           total_max?: number
           total_score?: number
@@ -195,6 +261,7 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          program_id?: string | null
           status?: string
           total_max?: number
           total_score?: number
@@ -325,6 +392,102 @@ export type Database = {
         }
         Relationships: []
       }
+      project_registrations: {
+        Row: {
+          address: string
+          contact_email: string
+          contact_name: string
+          contact_phone: string
+          created_at: string
+          id: string
+          organization_name: string
+          organization_type: string
+          program_id: string
+          province: string
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          address?: string
+          contact_email?: string
+          contact_name?: string
+          contact_phone?: string
+          created_at?: string
+          id?: string
+          organization_name: string
+          organization_type?: string
+          program_id: string
+          province?: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          address?: string
+          contact_email?: string
+          contact_name?: string
+          contact_phone?: string
+          created_at?: string
+          id?: string
+          organization_name?: string
+          organization_type?: string
+          program_id?: string
+          province?: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      registration_documents: {
+        Row: {
+          created_at: string
+          document_template_id: string
+          file_name: string
+          file_path: string
+          file_url: string
+          id: string
+          registration_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          document_template_id: string
+          file_name: string
+          file_path: string
+          file_url: string
+          id?: string
+          registration_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          document_template_id?: string
+          file_name?: string
+          file_path?: string
+          file_url?: string
+          id?: string
+          registration_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registration_documents_document_template_id_fkey"
+            columns: ["document_template_id"]
+            isOneToOne: false
+            referencedRelation: "document_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registration_documents_registration_id_fkey"
+            columns: ["registration_id"]
+            isOneToOne: false
+            referencedRelation: "project_registrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scoring_levels: {
         Row: {
           color: string
@@ -334,6 +497,7 @@ export type Database = {
           max_score: number
           min_score: number
           name: string
+          program_id: string | null
           sort_order: number
           updated_at: string
         }
@@ -345,6 +509,7 @@ export type Database = {
           max_score?: number
           min_score?: number
           name: string
+          program_id?: string | null
           sort_order?: number
           updated_at?: string
         }
@@ -356,10 +521,19 @@ export type Database = {
           max_score?: number
           min_score?: number
           name?: string
+          program_id?: string | null
           sort_order?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "scoring_levels_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       topics: {
         Row: {
@@ -396,15 +570,64 @@ export type Database = {
           },
         ]
       }
+      user_program_access: {
+        Row: {
+          created_at: string
+          id: string
+          program_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          program_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          program_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_programs: { Args: { _user_id: string }; Returns: string[] }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "evaluator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -531,6 +754,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "evaluator", "user"],
+    },
   },
 } as const

@@ -28,7 +28,6 @@ interface Props {
   programId: string;
 }
 
-
 const TEXT_COLORS = [
   { label: "ดำ", value: "#000000" },
   { label: "เทาเข้ม", value: "#374151" },
@@ -151,9 +150,7 @@ function RichTextBlock({ block, onUpdate }: {
 
   return (
     <div className="border border-border rounded-lg overflow-visible">
-      {/* Toolbar */}
       <div className="flex items-center gap-0.5 flex-wrap border-b border-border px-1.5 py-1 bg-muted/40">
-        {/* Heading */}
         <ToolBtn title="หัวข้อ H2" active={editor.isActive("heading", { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
           <Heading2 className="h-3.5 w-3.5" />
         </ToolBtn>
@@ -161,8 +158,6 @@ function RichTextBlock({ block, onUpdate }: {
           <Heading3 className="h-3.5 w-3.5" />
         </ToolBtn>
         <Divider />
-
-        {/* Text style */}
         <ToolBtn title="หนา" active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()}>
           <Bold className="h-3.5 w-3.5" />
         </ToolBtn>
@@ -176,8 +171,6 @@ function RichTextBlock({ block, onUpdate }: {
           <Strikethrough className="h-3.5 w-3.5" />
         </ToolBtn>
         <Divider />
-
-        {/* Color */}
         <ColorPicker
           title="สีข้อความ"
           icon={<><Palette className="h-3.5 w-3.5" /><span className="text-[9px]">▾</span></>}
@@ -197,8 +190,6 @@ function RichTextBlock({ block, onUpdate }: {
           }
         />
         <Divider />
-
-        {/* Align */}
         <ToolBtn title="ชิดซ้าย" active={editor.isActive({ textAlign: "left" })} onClick={() => editor.chain().focus().setTextAlign("left").run()}>
           <AlignLeft className="h-3.5 w-3.5" />
         </ToolBtn>
@@ -209,8 +200,6 @@ function RichTextBlock({ block, onUpdate }: {
           <AlignRight className="h-3.5 w-3.5" />
         </ToolBtn>
         <Divider />
-
-        {/* List */}
         <ToolBtn title="รายการจุด" active={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()}>
           <List className="h-3.5 w-3.5" />
         </ToolBtn>
@@ -218,8 +207,6 @@ function RichTextBlock({ block, onUpdate }: {
           <ListOrdered className="h-3.5 w-3.5" />
         </ToolBtn>
       </div>
-
-      {/* Editor area */}
       <EditorContent editor={editor} />
     </div>
   );
@@ -283,7 +270,6 @@ export default function AboutContentEditor({ blocks, onChange, programId }: Prop
     <div className="space-y-3">
       {blocks.map((block, i) => (
         <div key={i} className="group relative border border-border rounded-lg p-3">
-          {/* Controls */}
           <div className="absolute -right-1 -top-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => moveBlock(i, -1)} disabled={i === 0}>
               <ChevronUp className="h-3.5 w-3.5" />

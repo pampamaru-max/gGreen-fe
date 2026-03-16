@@ -4,6 +4,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import apiClient from "@/lib/axios";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -126,6 +127,34 @@ function SortableGuidelineCard({
   );
 }
 
+/* ── Sortable program card ── */
+function SortableProgramCard({ program, onEdit, onDelete }: { program: Program; onEdit: (p: Program) => void; onDelete: (p: Program) => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: program.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+  return (
+    <Card ref={setNodeRef} style={style} className="bg-accent/10 border-accent/30">
+      <CardContent className="p-4 flex items-center justify-between">
+        <div className="flex items-center gap-3 min-w-0">
+          <button type="button" className="cursor-grab touch-none text-muted-foreground hover:text-foreground" {...attributes} {...listeners}>
+            <GripVertical className="h-4 w-4" />
+          </button>
+          <div className="min-w-0">
+            <p className="font-semibold text-sm">{program.name}</p>
+            <p className="text-xs text-muted-foreground truncate">{program.description}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <Button variant="ghost" size="icon" onClick={() => onEdit(program)}>
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => onDelete(program)}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 export default function SettingsPrograms() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -169,6 +198,38 @@ export default function SettingsPrograms() {
       })) as Program[];
     },
   });
+
+  const reorderMutation = useMutation({
+    mutationFn: async (reordered: Program[]) => {
+      const updates = reordered.map((p, i) =>
+        supabase.from("programs").update({ sort_order: i }).eq("id", p.id)
+      );
+      const results = await Promise.all(updates);
+      const err = results.find((r) => r.error);
+      if (err?.error) throw err.error;
+    },
+    onMutate: async (reordered) => {
+      await queryClient.cancelQueries({ queryKey: ["programs"] });
+      const previous = queryClient.getQueryData<Program[]>(["programs"]);
+      queryClient.setQueryData(["programs"], reordered);
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(["programs"], context.previous);
+      toast({ title: "จัดลำดับไม่สำเร็จ", variant: "destructive" });
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["programs"] }),
+  });
+
+  const handleProgramDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = programs.findIndex((p) => p.id === active.id);
+    const newIndex = programs.findIndex((p) => p.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const reordered = arrayMove(programs, oldIndex, newIndex).map((p, i) => ({ ...p, sort_order: i }));
+    reorderMutation.mutate(reordered);
+  }, [programs, reorderMutation]);
 
   const upsertMutation = useMutation({
     mutationFn: async (program: Omit<Program, "sort_order"> & { sort_order?: number }) => {
@@ -363,38 +424,19 @@ export default function SettingsPrograms() {
       {isLoading ? (
         <p className="text-muted-foreground">กำลังโหลด...</p>
       ) : (
-        <div className="grid gap-3">
-          {programs.map((p) => (
-            <Card key={p.id}>
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3 min-w-0">
-                  <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <div className="min-w-0">
-                    <p className="font-semibold text-sm">{p.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{p.description}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => {
-                      if (confirm(`ต้องการลบโครงการ "${p.name}" หรือไม่?`)) {
-                        deleteMutation.mutate(p.id);
-                      }
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleProgramDragEnd}>
+          <SortableContext items={programs.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+            <div className="grid gap-3">
+              {programs.map((p) => (
+                <SortableProgramCard key={p.id} program={p} onEdit={openEdit} onDelete={(prog) => {
+                  if (confirm(`ต้องการลบโครงการ "${prog.name}" หรือไม่?`)) {
+                    deleteMutation.mutate(prog.id);
+                  }
+                }} />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

@@ -1,4 +1,5 @@
-import { Building2, UtensilsCrossed, Home, Factory, Trees, Recycle, Award, ArrowRight, Star, ClipboardCheck, MapPin, Calendar, Phone, Users, ShieldCheck, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { Building2, UtensilsCrossed, Home, Factory, Trees, Recycle, Award, ArrowRight, Star, ClipboardCheck, MapPin, Calendar, Phone, Users, ShieldCheck, Loader2, UserPlus } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
@@ -6,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import gLogo from "@/assets/g-logo.png";
 import dcceLogo from "@/assets/dcce-logo.png";
+import ProjectRegistrationDialog from "@/components/ProjectRegistrationDialog";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Building2, UtensilsCrossed, Home, Factory, Trees, Recycle, Award, Star, ClipboardCheck,
@@ -13,6 +15,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const [regOpen, setRegOpen] = useState(false);
 
   const { data: programs = [], isLoading: programsLoading } = useQuery({
     queryKey: ["programs"],
@@ -24,7 +27,7 @@ export default function HomePage() {
   });
 
   return (
-    <div className="flex flex-col gap-8 p-6 lg:p-8 max-w-7xl mx-auto w-full">
+    <><div className="flex flex-col gap-8 p-6 lg:p-8 max-w-7xl mx-auto w-full">
       {/* Hero Text Section */}
       <div className="relative overflow-hidden rounded-2xl border border-border/60 p-8 sm:p-12 min-h-[260px]" style={{ backgroundColor: '#dfe8e6' }}>
         <img
@@ -44,11 +47,16 @@ export default function HomePage() {
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground leading-tight mb-3 max-w-[calc(100%-220px)] sm:max-w-[calc(100%-260px)]">
             โครงการพัฒนาระบบบริการข้อมูลการผลิต การบริการและการบริโภคที่เป็นมิตรกับสิ่งแวดล้อม
           </h1>
-          <div className="flex gap-3 mt-6">
+          <div className="flex flex-wrap gap-3 mt-6">
+            <button
+              onClick={() => setRegOpen(true)}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-accent text-accent-foreground text-base font-bold shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
+              สมัครเข้าร่วมโครงการ <UserPlus className="h-5 w-5" />
+            </button>
             <button
               onClick={() => navigate("/register")}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground text-base font-bold shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
-              สมัครเข้าร่วมโครงการ <ArrowRight className="h-5 w-5" />
+              เข้าประเมิน G-Green <ArrowRight className="h-5 w-5" />
             </button>
           </div>
         </div>
@@ -153,6 +161,9 @@ export default function HomePage() {
           </div>
         </div>
       </footer>
-    </div>);
+    </div>
+
+    <ProjectRegistrationDialog open={regOpen} onOpenChange={setRegOpen} />
+    </>);
 
 }
