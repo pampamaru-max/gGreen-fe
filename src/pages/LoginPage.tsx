@@ -26,11 +26,19 @@ export default function LoginPage() {
       const response = await apiClient.post("auth/login", { email, password });
       if (response.data.token) {
         localStorage.setItem("auth_token", response.data.token);
-        if (response.data.user) {
-          localStorage.setItem("auth_user", JSON.stringify(response.data.user));
+        const userData = response.data.user;
+        if (userData) {
+          localStorage.setItem("auth_user", JSON.stringify(userData));
         }
         checkAuth();
-        navigate("/evaluation");
+        const role = userData?.role?.toUpperCase();
+        if (role === "SUPERADMIN" || role === "ADMIN") {
+          navigate("/settings/programs");
+        } else if (role === "EVALUATOR") {
+          navigate("/evaluation");
+        } else {
+          navigate("/register");
+        }
       }
     } catch (err) {
       const message = axios.isAxiosError(err)

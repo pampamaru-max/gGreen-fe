@@ -1,5 +1,3 @@
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 export type AppRole = "admin" | "evaluator" | "user";
@@ -11,55 +9,28 @@ interface UserRoleState {
   loading: boolean;
 }
 
+function mapRole(backendRole: string | undefined): AppRole | null {
+  if (!backendRole) return null;
+  const r = backendRole.toUpperCase();
+  if (r === "SUPERADMIN" || r === "ADMIN") return "admin";
+  if (r === "EVALUATOR") return "evaluator";
+  if (r === "EVALUATEE") return "user";
+  return null;
+}
+
 export function useUserRole(): UserRoleState {
-  const { user } = useAuth();
-  const [role, setRole] = useState<AppRole | null>(null);
-  const [accessibleProgramIds, setAccessibleProgramIds] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { user, loading } = useAuth();
 
-  useEffect(() => {
-    if (!user) {
-      setRole(null);
-      setAccessibleProgramIds([]);
-      setLoading(false);
-      return;
-    }
+  if (loading) {
+    return { role: null, accessibleProgramIds: [], isAdmin: false, loading: true };
+  }
 
-    const fetch = async () => {
-      setLoading(true);
-
-      // Fetch role
-      const { data: roles } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id);
-
-      const userRole = (roles?.[0]?.role as AppRole) || null;
-      setRole(userRole);
-
-      if (userRole === "admin") {
-        // Admin sees all programs
-        setAccessibleProgramIds([]);
-      } else {
-        // Fetch assigned programs
-        const { data: access } = await supabase
-          .from("user_program_access")
-          .select("program_id")
-          .eq("user_id", user.id);
-
-        setAccessibleProgramIds(access?.map((a) => a.program_id) || []);
-      }
-
-      setLoading(false);
-    };
-
-    fetch();
-  }, [user]);
+  const role = mapRole(user?.role);
 
   return {
     role,
-    accessibleProgramIds,
+    accessibleProgramIds: user?.programAccess ?? [],
     isAdmin: role === "admin",
-    loading,
+    loading: false,
   };
 }
