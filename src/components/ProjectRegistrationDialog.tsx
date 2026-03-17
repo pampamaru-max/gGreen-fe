@@ -79,13 +79,21 @@ export default function ProjectRegistrationDialog({ open, onOpenChange }: Props)
   const onSubmit = async (values: RegistrationForm) => {
     setSubmitting(true);
     try {
-      const { error } = await supabase.from("project_registrations" as any).insert(values as any);
-      if (error) throw error;
+      await apiClient.post("project-registrations", {
+        programId: values.program_id,
+        organizationName: values.organization_name,
+        organizationType: values.organization_type,
+        address: values.address,
+        province: values.province,
+        contactName: values.contact_name,
+        contactPhone: values.contact_phone,
+        contactEmail: values.contact_email,
+      });
       toast({ title: "สมัครสำเร็จ", description: "ส่งข้อมูลการสมัครเข้าร่วมโครงการเรียบร้อยแล้ว" });
       form.reset();
       onOpenChange(false);
     } catch (err: any) {
-      toast({ title: "เกิดข้อผิดพลาด", description: err.message, variant: "destructive" });
+      toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
