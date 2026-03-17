@@ -15,9 +15,11 @@ export default function AboutContentRenderer({ blocks }: Props) {
       {blocks.map((block, i) => {
         if (block.type === "text") {
           return (
-            <p key={i} className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-              {block.content}
-            </p>
+            <div
+              key={i}
+              className="text-sm text-muted-foreground leading-relaxed [&_p]:mb-2 [&_strong]:font-semibold [&_strong]:text-foreground [&_ol]:list-decimal [&_ol]:ml-5 [&_ol]:space-y-1 [&_ul]:list-disc [&_ul]:ml-5 [&_ul]:space-y-1 [&_li]:leading-relaxed [&_h1]:text-xl [&_h1]:font-bold [&_h2]:text-lg [&_h2]:font-bold [&_h3]:text-base [&_h3]:font-semibold"
+              dangerouslySetInnerHTML={{ __html: block.content ?? "" }}
+            />
           );
         }
         if (block.type === "image") {

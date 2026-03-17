@@ -4,7 +4,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import apiClient from "@/lib/axios";
 import gLogo from "@/assets/g-logo.png";
 import dcceLogo from "@/assets/dcce-logo.png";
 import ProjectRegistrationDialog from "@/components/ProjectRegistrationDialog";
@@ -20,8 +20,7 @@ export default function HomePage() {
   const { data: programs = [], isLoading: programsLoading } = useQuery({
     queryKey: ["programs"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("programs").select("*").order("sort_order");
-      if (error) throw error;
+      const { data } = await apiClient.get("programs/names");
       return data ?? [];
     },
   });

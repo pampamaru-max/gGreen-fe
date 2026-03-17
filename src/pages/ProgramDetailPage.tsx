@@ -1,6 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Building2, UtensilsCrossed, Home, Factory, Trees, Recycle, Award, Star, ClipboardCheck, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -34,13 +33,10 @@ export default function ProgramDetailPage() {
   const { data: program, isLoading } = useQuery({
     queryKey: ["program", slug],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("programs")
-        .select("*")
-        .eq("id", slug!)
-        .maybeSingle();
-      if (error) throw error;
-      if (!data) return null;
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}programs/${slug}`);
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error("Failed to fetch program");
+      const data = await res.json();
       return { ...data, about: (data.about as ContentBlock[]) ?? [], guidelines: normalizeGuidelines(data.guidelines), reports: normalizeGuidelines(data.reports) };
     },
     enabled: !!slug,

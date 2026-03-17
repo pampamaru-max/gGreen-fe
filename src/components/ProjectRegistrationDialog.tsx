@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import apiClient from "@/lib/axios";
 import { useQuery } from "@tanstack/react-query";
 
 const registrationSchema = z.object({
@@ -57,8 +57,7 @@ export default function ProjectRegistrationDialog({ open, onOpenChange }: Props)
   const { data: programs = [] } = useQuery({
     queryKey: ["programs"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("programs").select("id, name, icon").order("sort_order");
-      if (error) throw error;
+      const { data } = await apiClient.get("programs/names");
       return data ?? [];
     },
   });
