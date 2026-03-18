@@ -212,24 +212,41 @@ function RichTextBlock({ block, onUpdate }: {
   );
 }
 
+let _idCounter = 0;
+const genId = () => `block-${++_idCounter}-${Math.random().toString(36).slice(2)}`;
+
 export default function AboutContentEditor({ blocks, onChange, programId }: Props) {
   const [uploading, setUploading] = useState<number | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const stableIds = useRef<string[]>([]);
 
-  const addTextBlock = () => onChange([...blocks, { type: "text", content: "<p></p>" }]);
+  // Sync stableIds length with blocks length
+  while (stableIds.current.length < blocks.length) stableIds.current.push(genId());
+  if (stableIds.current.length > blocks.length) stableIds.current = stableIds.current.slice(0, blocks.length);
+
+  const addTextBlock = () => {
+    stableIds.current = [...stableIds.current, genId()];
+    onChange([...blocks, { type: "text", content: "<p></p>" }]);
+  };
 
   const updateBlock = useCallback((index: number, updated: ContentBlock) => {
     onChange(blocks.map((b, i) => (i === index ? updated : b)));
   }, [blocks, onChange]);
 
-  const removeBlock = (index: number) => onChange(blocks.filter((_, i) => i !== index));
+  const removeBlock = (index: number) => {
+    stableIds.current = stableIds.current.filter((_, i) => i !== index);
+    onChange(blocks.filter((_, i) => i !== index));
+  };
 
   const moveBlock = (index: number, direction: -1 | 1) => {
     const target = index + direction;
     if (target < 0 || target >= blocks.length) return;
     const next = [...blocks];
     [next[index], next[target]] = [next[target], next[index]];
+    const ids = [...stableIds.current];
+    [ids[index], ids[target]] = [ids[target], ids[index]];
+    stableIds.current = ids;
     onChange(next);
   };
 
@@ -244,8 +261,10 @@ export default function AboutContentEditor({ blocks, onChange, programId }: Prop
         timeout: 60000,
       });
       if (type === "image") {
+        stableIds.current = [...stableIds.current, genId()];
         onChange([...blocks, { type: "image", url: data.url, caption: "" }]);
       } else {
+        stableIds.current = [...stableIds.current, genId()];
         onChange([...blocks, { type: "file", url: data.url, name: file.name, title: "" }]);
       }
     } catch (err: any) {
@@ -270,7 +289,7 @@ export default function AboutContentEditor({ blocks, onChange, programId }: Prop
   return (
     <div className="space-y-3">
       {blocks.map((block, i) => (
-        <div key={i} className="group relative border border-border rounded-lg p-3">
+        <div key={stableIds.current[i]} className="group relative border border-border rounded-lg p-3">
           <div className="absolute -right-2 -top-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
             <Button variant="secondary" size="icon" className="h-7 w-7 rounded-full shadow-md border border-border" onClick={() => moveBlock(i, -1)} disabled={i === 0}>
               <ChevronUp className="h-4 w-4" />
