@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import apiClient from "@/lib/axios";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,12 +15,12 @@ import { Plus, Pencil, Trash2, FileUp, ExternalLink } from "lucide-react";
 interface Program { id: string; name: string; }
 interface DocTemplate {
   id: string;
-  program_id: string;
+  programId: string;
   name: string;
-  sample_file_url: string | null;
-  sample_file_name: string | null;
-  is_required: boolean;
-  sort_order: number;
+  sampleFileUrl: string | null;
+  sampleFileName: string | null;
+  isRequired: boolean;
+  sortOrder: number;
 }
 
 export default function SettingsDocuments() {
@@ -38,27 +39,40 @@ export default function SettingsDocuments() {
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
-    supabase.from("programs").select("id, name").order("sort_order").then(({ data }) => {
+    // Fetch programs from backend API for consistency
+    apiClient.get("/programs").then(({ data }) => {
       if (data) {
         setPrograms(data);
         if (data.length > 0 && !selectedProgram) setSelectedProgram(data[0].id);
       }
+    }).catch(error => {
+      console.error("Error fetching programs:", error);
+      // Fallback to Supabase if API fails
+      supabase.from("programs").select("id, name").order("sort_order").then(({ data }) => {
+        if (data) {
+          setPrograms(data);
+          if (data.length > 0 && !selectedProgram) setSelectedProgram(data[0].id);
+        }
+      });
     });
   }, []);
 
-  useEffect(() => {
+  const fetchDocs = async () => {
     if (!selectedProgram) return;
     setLoading(true);
-    supabase
-      .from("document_templates")
-      .select("*")
-      .eq("program_id", selectedProgram)
-      .order("sort_order")
-      .then(({ data, error }) => {
-        if (data) setDocs(data as DocTemplate[]);
-        if (error) toast({ title: "เกิดข้อผิดพลาด", description: error.message, variant: "destructive" });
-        setLoading(false);
-      });
+    try {
+      // Use backend API to fetch documents (returns camelCase from Prisma)
+      const { data } = await apiClient.get(`/document-templates?programId=${selectedProgram}`);
+      setDocs(data);
+    } catch (error: any) {
+      toast({ title: "เกิดข้อผิดพลาด", description: error.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDocs();
   }, [selectedProgram]);
 
   const openAdd = () => {
@@ -72,21 +86,9 @@ export default function SettingsDocuments() {
   const openEdit = (doc: DocTemplate) => {
     setEditing(doc);
     setFormName(doc.name);
-    setFormRequired(doc.is_required);
+    setFormRequired(doc.isRequired);
     setFile(null);
     setDialogOpen(true);
-  };
-
-  const uploadFile = async (f: File): Promise<{ url: string; name: string } | null> => {
-    const ext = f.name.split(".").pop();
-    const path = `${selectedProgram}/${Date.now()}_${f.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-    const { error } = await supabase.storage.from("document-samples").upload(path, f);
-    if (error) {
-      toast({ title: "อัปโหลดไม่สำเร็จ", description: error.message, variant: "destructive" });
-      return null;
-    }
-    const { data: urlData } = supabase.storage.from("document-samples").getPublicUrl(path);
-    return { url: urlData.publicUrl, name: f.name };
   };
 
   const handleSave = async () => {
@@ -96,46 +98,51 @@ export default function SettingsDocuments() {
     }
     setUploading(true);
 
-    let fileUrl = editing?.sample_file_url ?? null;
-    let fileName = editing?.sample_file_name ?? null;
-
-    if (file) {
-      const result = await uploadFile(file);
-      if (result) {
-        fileUrl = result.url;
-        fileName = result.name;
+    try {
+      const formData = new FormData();
+      formData.append("name", formName.trim());
+      formData.append("isRequired", String(formRequired));
+      formData.append("programId", selectedProgram);
+      if (file) {
+        formData.append("file", file);
       }
-    }
 
-    if (editing) {
-      const { error } = await supabase
-        .from("document_templates")
-        .update({ name: formName.trim(), is_required: formRequired, sample_file_url: fileUrl, sample_file_name: fileName })
-        .eq("id", editing.id);
-      if (error) toast({ title: "เกิดข้อผิดพลาด", description: error.message, variant: "destructive" });
-      else toast({ title: "บันทึกสำเร็จ" });
-    } else {
-      const { error } = await supabase
-        .from("document_templates")
-        .insert({ program_id: selectedProgram, name: formName.trim(), is_required: formRequired, sample_file_url: fileUrl, sample_file_name: fileName, sort_order: docs.length });
-      if (error) toast({ title: "เกิดข้อผิดพลาด", description: error.message, variant: "destructive" });
-      else toast({ title: "เพิ่มเอกสารสำเร็จ" });
-    }
+      if (editing) {
+        // Use backend API to update (bypasses RLS)
+        await apiClient.patch(`/document-templates/${editing.id}`, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        toast({ title: "บันทึกสำเร็จ" });
+      } else {
+        // Use backend API to create (bypasses RLS)
+        formData.append("sortOrder", String(docs.length));
+        await apiClient.post("/document-templates", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        toast({ title: "เพิ่มเอกสารสำเร็จ" });
+      }
 
-    setDialogOpen(false);
-    setUploading(false);
-    // Refresh
-    const { data } = await supabase.from("document_templates").select("*").eq("program_id", selectedProgram).order("sort_order");
-    if (data) setDocs(data as DocTemplate[]);
+      setDialogOpen(false);
+      fetchDocs();
+    } catch (error: any) {
+      toast({ 
+        title: "เกิดข้อผิดพลาด", 
+        description: error.response?.data?.message || error.message, 
+        variant: "destructive" 
+      });
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleDelete = async (doc: DocTemplate) => {
     if (!confirm(`ต้องการลบเอกสาร "${doc.name}" หรือไม่?`)) return;
-    const { error } = await supabase.from("document_templates").delete().eq("id", doc.id);
-    if (error) toast({ title: "เกิดข้อผิดพลาด", description: error.message, variant: "destructive" });
-    else {
+    try {
+      await apiClient.delete(`/document-templates/${doc.id}`);
       setDocs((prev) => prev.filter((d) => d.id !== doc.id));
       toast({ title: "ลบสำเร็จ" });
+    } catch (error: any) {
+      toast({ title: "เกิดข้อผิดพลาด", description: error.message, variant: "destructive" });
     }
   };
 
@@ -191,17 +198,17 @@ export default function SettingsDocuments() {
                       <TableCell>{i + 1}</TableCell>
                       <TableCell className="font-medium">{doc.name}</TableCell>
                       <TableCell>
-                        {doc.sample_file_url ? (
-                          <a href={doc.sample_file_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1 text-sm">
+                        {doc.sampleFileUrl ? (
+                          <a href={doc.sampleFileUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1 text-sm">
                             <ExternalLink className="h-3.5 w-3.5" />
-                            {doc.sample_file_name || "ดูตัวอย่าง"}
+                            {doc.sampleFileName || "ดูตัวอย่าง"}
                           </a>
                         ) : (
                           <span className="text-muted-foreground text-sm">—</span>
                         )}
                       </TableCell>
                       <TableCell className="text-center">
-                        {doc.is_required ? (
+                        {doc.isRequired ? (
                           <span className="inline-flex items-center rounded-full bg-destructive/10 px-2.5 py-0.5 text-xs font-medium text-destructive">บังคับ</span>
                         ) : (
                           <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">ไม่บังคับ</span>
@@ -246,8 +253,8 @@ export default function SettingsDocuments() {
                   <input type="file" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
                 </label>
               </div>
-              {editing?.sample_file_url && !file && (
-                <p className="text-xs text-muted-foreground">ไฟล์ปัจจุบัน: {editing.sample_file_name || "มีไฟล์แนบ"}</p>
+              {editing?.sampleFileUrl && !file && (
+                <p className="text-xs text-muted-foreground">ไฟล์ปัจจุบัน: {editing.sampleFileName || "มีไฟล์แนบ"}</p>
               )}
             </div>
             <div className="flex items-center gap-3">
