@@ -114,7 +114,9 @@
   .scrollbar-thin::-webkit-scrollbar-track {
     background: hsl(var(--muted));
     border-radius: 9999px;
-    margin: 8px;
+    margin-top: 8px;
+    margin-bottom: 8px;
+    margin-right: 8px;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb {
     background-color: hsl(var(--primary) / 0.5);
