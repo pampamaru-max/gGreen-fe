@@ -131,7 +131,8 @@ export default function ProjectRegistrationDialog({ open, onOpenChange }: Props)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-hidden p-0 flex flex-col">
+        <div className="px-6 pt-6 pb-3 flex-shrink-0">
         <DialogHeader>
           <div className="flex items-center gap-3 mb-1">
             <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -145,7 +146,8 @@ export default function ProjectRegistrationDialog({ open, onOpenChange }: Props)
             </div>
           </div>
         </DialogHeader>
-
+        </div>
+        <div className="overflow-y-auto scrollbar-thin flex-1 px-6 pb-6 mr-2">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5 mt-2">
             {/* โครงการ */}
@@ -365,6 +367,7 @@ export default function ProjectRegistrationDialog({ open, onOpenChange }: Props)
             </Button>
           </form>
         </Form>
+        </div>
       </DialogContent>
     </Dialog>
   );

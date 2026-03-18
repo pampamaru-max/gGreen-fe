@@ -12,8 +12,75 @@ import { Input } from "@/components/ui/input";
 import AboutContentEditor, { type ContentBlock } from "@/components/AboutContentEditor";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, GripVertical, X, Upload, FileText, Loader2 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Plus, Pencil, Trash2, GripVertical, X, Upload, FileText, Loader2,
+  Building2, UtensilsCrossed, Home, Factory, Trees, Recycle, Award, Star,
+  ClipboardCheck, Leaf, ShoppingBag, Landmark, Globe, Sun, Wind, Droplets,
+  Sprout, Hotel, FlameKindling, Bike, Bus, Car, Package, Truck,
+  type LucideIcon,
+} from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+
+/* ── Icon picker ── */
+const ICON_OPTIONS: { name: string; Icon: LucideIcon }[] = [
+  { name: "Building2", Icon: Building2 },
+  { name: "UtensilsCrossed", Icon: UtensilsCrossed },
+  { name: "Home", Icon: Home },
+  { name: "Factory", Icon: Factory },
+  { name: "Trees", Icon: Trees },
+  { name: "Recycle", Icon: Recycle },
+  { name: "Award", Icon: Award },
+  { name: "Star", Icon: Star },
+  { name: "ClipboardCheck", Icon: ClipboardCheck },
+  { name: "Leaf", Icon: Leaf },
+  { name: "Sprout", Icon: Sprout },
+  { name: "ShoppingBag", Icon: ShoppingBag },
+  { name: "Landmark", Icon: Landmark },
+  { name: "Globe", Icon: Globe },
+  { name: "Sun", Icon: Sun },
+  { name: "Wind", Icon: Wind },
+  { name: "Droplets", Icon: Droplets },
+  { name: "Hotel", Icon: Hotel },
+  { name: "FlameKindling", Icon: FlameKindling },
+  { name: "Bike", Icon: Bike },
+  { name: "Bus", Icon: Bus },
+  { name: "Car", Icon: Car },
+  { name: "Package", Icon: Package },
+  { name: "Truck", Icon: Truck },
+];
+
+function IconPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const found = ICON_OPTIONS.find((o) => o.name === value);
+  const CurrentIcon = found?.Icon ?? Building2;
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" className="w-full justify-start gap-2 font-normal">
+          <CurrentIcon className="h-4 w-4 text-primary shrink-0" />
+          <span className="truncate">{value || "เลือกไอคอน"}</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-2" align="start">
+        <div className="grid grid-cols-4 gap-1">
+          {ICON_OPTIONS.map(({ name, Icon }) => (
+            <button
+              key={name}
+              type="button"
+              title={name}
+              onClick={() => { onChange(name); setOpen(false); }}
+              className={`flex flex-col items-center gap-1 rounded-lg p-2 text-xs hover:bg-accent transition-colors ${value === name ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}
+            >
+              <Icon className="h-5 w-5" />
+              <span className="truncate w-full text-center leading-tight">{name}</span>
+            </button>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export type GuidelineFile = { url: string; name: string };
 export type GuidelineItem = { title: string; files: GuidelineFile[] };
@@ -322,6 +389,7 @@ export default function SettingsPrograms() {
         formData.append("folder", `guidelines/${form.id || "new"}`);
         const { data } = await apiClient.post<{ url: string }>("files/upload", formData, {
           headers: { "Content-Type": "multipart/form-data" },
+          timeout: 60000,
         });
         newFiles.push({ url: data.url, name: file.name });
       }
@@ -376,6 +444,7 @@ export default function SettingsPrograms() {
         formData.append("folder", `reports/${form.id || "new"}`);
         const { data } = await apiClient.post<{ url: string }>("files/upload", formData, {
           headers: { "Content-Type": "multipart/form-data" },
+          timeout: 60000,
         });
         newFiles.push({ url: data.url, name: file.name });
       }
@@ -410,40 +479,52 @@ export default function SettingsPrograms() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">จัดการโครงการ</h1>
-          <p className="text-sm text-muted-foreground">เพิ่ม แก้ไข หรือลบโครงการภายใต้ G-Green</p>
+    <div className="min-h-full bg-background">
+      <div className="border-b bg-card/50 px-6 py-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
+            <Building2 className="h-5 w-5 text-primary-foreground" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-lg font-bold text-foreground">จัดการโครงการ</h2>
+            <p className="text-xs text-muted-foreground">เพิ่ม แก้ไข หรือลบโครงการภายใต้ G-Green</p>
+          </div>
+          <Button onClick={openAdd}>
+            <Plus className="mr-2 h-4 w-4" /> เพิ่มโครงการ
+          </Button>
         </div>
-        <Button onClick={openAdd}>
-          <Plus className="mr-2 h-4 w-4" /> เพิ่มโครงการ
-        </Button>
       </div>
 
-      {isLoading ? (
-        <p className="text-muted-foreground">กำลังโหลด...</p>
-      ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleProgramDragEnd}>
-          <SortableContext items={programs.map((p) => p.id)} strategy={verticalListSortingStrategy}>
-            <div className="grid gap-3">
-              {programs.map((p) => (
-                <SortableProgramCard key={p.id} program={p} onEdit={openEdit} onDelete={(prog) => {
-                  if (confirm(`ต้องการลบโครงการ "${prog.name}" หรือไม่?`)) {
-                    deleteMutation.mutate(prog.id);
-                  }
-                }} />
-              ))}
-            </div>
-          </SortableContext>
-        </DndContext>
-      )}
+      <div className="px-6 py-4 space-y-4">
+        {isLoading ? (
+          <div className="flex items-center justify-center min-h-[300px]">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleProgramDragEnd}>
+            <SortableContext items={programs.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+              <div className="grid gap-3">
+                {programs.map((p) => (
+                  <SortableProgramCard key={p.id} program={p} onEdit={openEdit} onDelete={(prog) => {
+                    if (confirm(`ต้องการลบโครงการ "${prog.name}" หรือไม่?`)) {
+                      deleteMutation.mutate(prog.id);
+                    }
+                  }} />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        )}
+      </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingProgram ? "แก้ไขโครงการ" : "เพิ่มโครงการใหม่"}</DialogTitle>
-          </DialogHeader>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden p-0 flex flex-col">
+          <div className="px-6 pt-6 pb-3 flex-shrink-0">
+            <DialogHeader>
+              <DialogTitle>{editingProgram ? "แก้ไขโครงการ" : "เพิ่มโครงการใหม่"}</DialogTitle>
+            </DialogHeader>
+          </div>
+          <div className="overflow-y-auto scrollbar-thin flex-1 px-6 pb-2 mr-2">
           <Tabs defaultValue="about" className="w-full">
             <TabsList className="w-full">
               <TabsTrigger value="about" className="flex-1">เกี่ยวกับโครงการ</TabsTrigger>
@@ -463,10 +544,9 @@ export default function SettingsPrograms() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>ไอคอน</Label>
-                  <Input
+                  <IconPicker
                     value={form.icon}
-                    onChange={(e) => setForm((f) => ({ ...f, icon: e.target.value }))}
-                    placeholder="Building2"
+                    onChange={(v) => setForm((f) => ({ ...f, icon: v }))}
                   />
                 </div>
               </div>
@@ -566,14 +646,18 @@ export default function SettingsPrograms() {
               </div>
             </TabsContent>
           </Tabs>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>ยกเลิก</Button>
-            <Button onClick={handleSave} disabled={upsertMutation.isPending}>
-              {upsertMutation.isPending ? "กำลังบันทึก..." : "บันทึก"}
-            </Button>
-          </DialogFooter>
+          </div>
+          <div className="px-6 py-4 flex-shrink-0 border-t">
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>ยกเลิก</Button>
+              <Button onClick={handleSave} disabled={upsertMutation.isPending}>
+                {upsertMutation.isPending ? "กำลังบันทึก..." : "บันทึก"}
+              </Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
   );
 }
+

@@ -241,6 +241,7 @@ export default function AboutContentEditor({ blocks, onChange, programId }: Prop
       formData.append("folder", `programs/${programId}`);
       const { data } = await apiClient.post<{ url: string }>("files/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
+        timeout: 60000,
       });
       if (type === "image") {
         onChange([...blocks, { type: "image", url: data.url, caption: "" }]);
@@ -270,15 +271,15 @@ export default function AboutContentEditor({ blocks, onChange, programId }: Prop
     <div className="space-y-3">
       {blocks.map((block, i) => (
         <div key={i} className="group relative border border-border rounded-lg p-3">
-          <div className="absolute -right-1 -top-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => moveBlock(i, -1)} disabled={i === 0}>
-              <ChevronUp className="h-3.5 w-3.5" />
+          <div className="absolute -right-2 -top-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+            <Button variant="secondary" size="icon" className="h-7 w-7 rounded-full shadow-md border border-border" onClick={() => moveBlock(i, -1)} disabled={i === 0}>
+              <ChevronUp className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => moveBlock(i, 1)} disabled={i === blocks.length - 1}>
-              <ChevronDown className="h-3.5 w-3.5" />
+            <Button variant="secondary" size="icon" className="h-7 w-7 rounded-full shadow-md border border-border" onClick={() => moveBlock(i, 1)} disabled={i === blocks.length - 1}>
+              <ChevronDown className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={() => removeBlock(i)}>
-              <Trash2 className="h-3.5 w-3.5" />
+            <Button variant="destructive" size="icon" className="h-7 w-7 rounded-full shadow-md" onClick={() => removeBlock(i)}>
+              <Trash2 className="h-4 w-4" />
             </Button>
           </div>
 
