@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { getCategoryColor } from "@/components/CategoryCard";
 import { ListChecks, Plus, Pencil, Trash2, ChevronRight, Loader2, GripVertical } from "lucide-react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
@@ -8,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
+import apiClient from "@/lib/axios";
 import { toast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -29,22 +28,22 @@ interface DbProgram {
   id: string;
   name: string;
   icon: string;
-  sort_order: number;
+  sortOrder: number;
 }
 
 interface DbCategory {
   id: number;
   name: string;
-  max_score: number;
-  sort_order: number;
-  program_id: string | null;
+  maxScore: number;
+  sortOrder: number;
+  programId: string | null;
 }
 
 interface DbTopic {
   id: string;
-  category_id: number;
+  categoryId: number;
   name: string;
-  sort_order: number;
+  sortOrder: number;
 }
 
 interface ScoringCriterion {
@@ -54,15 +53,15 @@ interface ScoringCriterion {
 
 interface DbIndicator {
   id: string;
-  topic_id: string;
+  topicId: string;
   name: string;
-  max_score: number;
-  sort_order: number;
+  maxScore: number;
+  sortOrder: number;
   description: string;
   detail: string;
   notes: string;
-  evidence_description: string;
-  scoring_criteria: ScoringCriterion[];
+  evidenceDescription: string;
+  scoringCriteria: ScoringCriterion[];
 }
 
 /* ─── Dialogs ─── */
@@ -124,21 +123,21 @@ function AddIndicatorDialog({ onAdd }: { onAdd: (name: string, maxScore: number)
 function EditIndicatorDialog({ indicator, onSave }: { indicator: DbIndicator; onSave: (data: { name: string; maxScore: number; description: string; detail: string; notes: string; evidenceDescription: string; scoringCriteria: ScoringCriterion[] }) => void }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(indicator.name);
-  const [maxScore, setMaxScore] = useState(indicator.max_score);
+  const [maxScore, setMaxScore] = useState(indicator.maxScore);
   const [description, setDescription] = useState(indicator.description || "");
   const [detail, setDetail] = useState(indicator.detail || "");
   const [notes, setNotes] = useState(indicator.notes || "");
-  const [scoringCriteria, setScoringCriteria] = useState<ScoringCriterion[]>(indicator.scoring_criteria || []);
-  const [evidenceDescription, setEvidenceDescription] = useState(indicator.evidence_description || "");
+  const [scoringCriteria, setScoringCriteria] = useState<ScoringCriterion[]>(indicator.scoringCriteria || []);
+  const [evidenceDescription, setEvidenceDescription] = useState(indicator.evidenceDescription || "");
 
   const resetFromIndicator = () => {
     setName(indicator.name);
-    setMaxScore(indicator.max_score);
+    setMaxScore(indicator.maxScore);
     setDescription(indicator.description || "");
     setDetail(indicator.detail || "");
     setNotes(indicator.notes || "");
-    setEvidenceDescription(indicator.evidence_description || "");
-    setScoringCriteria(indicator.scoring_criteria || []);
+    setEvidenceDescription(indicator.evidenceDescription || "");
+    setScoringCriteria(indicator.scoringCriteria || []);
   };
 
   const addCriterion = () => setScoringCriteria([...scoringCriteria, { score: 0, label: "" }]);
@@ -254,7 +253,7 @@ function SortableIndicatorRow({ ind, color, onEdit, onDelete }: { ind: DbIndicat
         className="text-xs font-semibold px-2 py-1 rounded-md"
         style={{ backgroundColor: `hsl(${color} / 0.1)`, color: `hsl(${color})` }}
       >
-        เต็ม {ind.max_score}
+        เต็ม {ind.maxScore}
       </span>
       <div className="flex items-center gap-0.5 opacity-0 group-hover/ind:opacity-100 transition-opacity">
         <EditIndicatorDialog indicator={ind} onSave={onEdit} />
@@ -282,17 +281,25 @@ const SettingsIndicators = () => {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const fetchAll = async () => {
-    const [progRes, catRes, topicRes, indRes] = await Promise.all([
-      supabase.from("programs").select("*").order("sort_order"),
-      supabase.from("categories").select("*").order("sort_order"),
-      supabase.from("topics").select("*").order("sort_order"),
-      supabase.from("indicators").select("*").order("sort_order"),
-    ]);
-
-    if (progRes.data) setPrograms(progRes.data);
-    if (catRes.data) setCategories(catRes.data);
-    if (topicRes.data) setTopics(topicRes.data);
-    if (indRes.data) setIndicators(indRes.data.map(d => ({ ...d, notes: (d as any).notes || "", evidence_description: (d as any).evidence_description || "", scoring_criteria: (d.scoring_criteria as unknown as ScoringCriterion[] ?? []) })));
+    try {
+      const [progRes, catRes, topicRes, indRes] = await Promise.all([
+        apiClient.get<DbProgram[]>("programs/names-with-sort"),
+        apiClient.get<DbCategory[]>("categories"),
+        apiClient.get<DbTopic[]>("topics"),
+        apiClient.get<DbIndicator[]>("indicators"),
+      ]);
+      setPrograms(progRes.data);
+      setCategories(catRes.data);
+      setTopics(topicRes.data);
+      setIndicators(indRes.data.map(d => ({
+        ...d,
+        notes: d.notes || "",
+        evidenceDescription: d.evidenceDescription || "",
+        scoringCriteria: d.scoringCriteria || [],
+      })));
+    } catch (err: any) {
+      toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
+    }
   };
 
   useEffect(() => {
@@ -300,7 +307,7 @@ const SettingsIndicators = () => {
   }, []);
 
   const getNextTopicNum = (catId: number) => {
-    const catTopics = topics.filter((t) => t.category_id === catId);
+    const catTopics = topics.filter((t) => t.categoryId === catId);
     return catTopics.length + 1;
   };
 
@@ -312,26 +319,26 @@ const SettingsIndicators = () => {
   ) => {
     const nextNum = getNextTopicNum(catId);
     const topicId = `${catId}.${nextNum}`;
-    const { error: topicError } = await supabase.from("topics").insert({
-      id: topicId, category_id: catId, name: topicName, sort_order: nextNum,
-    });
-    if (topicError) {
-      toast({ title: "เกิดข้อผิดพลาด", description: topicError.message, variant: "destructive" });
+    try {
+      await apiClient.post("topics", { id: topicId, categoryId: catId, name: topicName, sortOrder: nextNum });
+    } catch (err: any) {
+      toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
       return;
     }
 
-    // Insert indicators
-    const indRows = indicatorDrafts.map((ind, idx) => ({
-      id: `${topicId}.${idx + 1}`,
-      topic_id: topicId,
-      name: ind.name,
-      max_score: ind.maxScore,
-      sort_order: idx + 1,
-    }));
-    if (indRows.length > 0) {
-      const { error: indError } = await supabase.from("indicators").insert(indRows);
-      if (indError) {
-        toast({ title: "เกิดข้อผิดพลาด", description: indError.message, variant: "destructive" });
+    if (indicatorDrafts.length > 0) {
+      try {
+        await Promise.all(indicatorDrafts.map((ind, idx) =>
+          apiClient.post("indicators", {
+            id: `${topicId}.${idx + 1}`,
+            topicId,
+            name: ind.name,
+            maxScore: ind.maxScore,
+            sortOrder: idx + 1,
+          })
+        ));
+      } catch (err: any) {
+        toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
         return;
       }
     }
@@ -340,53 +347,73 @@ const SettingsIndicators = () => {
     fetchAll();
   };
 
-
   const handleEditTopic = async (topicId: string, name: string) => {
-    const { error } = await supabase.from("topics").update({ name }).eq("id", topicId);
-    if (error) { toast({ title: "เกิดข้อผิดพลาด", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "แก้ไขประเด็นสำเร็จ" });
-    fetchAll();
+    try {
+      await apiClient.patch(`topics/${topicId}`, { name });
+      toast({ title: "แก้ไขประเด็นสำเร็จ" });
+      fetchAll();
+    } catch (err: any) {
+      toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
+    }
   };
 
   const handleDeleteTopic = async (topicId: string) => {
-    const { error } = await supabase.from("topics").delete().eq("id", topicId);
-    if (error) { toast({ title: "เกิดข้อผิดพลาด", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "ลบประเด็นสำเร็จ" });
-    fetchAll();
+    try {
+      await apiClient.delete(`topics/${topicId}`);
+      toast({ title: "ลบประเด็นสำเร็จ" });
+      fetchAll();
+    } catch (err: any) {
+      toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
+    }
   };
 
   // Indicator CRUD
   const handleAddIndicator = async (topicId: string, name: string, maxScore: number) => {
-    const topicInds = indicators.filter((i) => i.topic_id === topicId);
+    const topicInds = indicators.filter((i) => i.topicId === topicId);
     const nextNum = topicInds.length + 1;
     const id = `${topicId}.${nextNum}`;
-    const { error } = await supabase.from("indicators").insert({
-      id, topic_id: topicId, name, max_score: maxScore, sort_order: nextNum,
-    });
-    if (error) { toast({ title: "เกิดข้อผิดพลาด", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "เพิ่มตัวชี้วัดสำเร็จ" });
-    fetchAll();
+    try {
+      await apiClient.post("indicators", { id, topicId, name, maxScore, sortOrder: nextNum });
+      toast({ title: "เพิ่มตัวชี้วัดสำเร็จ" });
+      fetchAll();
+    } catch (err: any) {
+      toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
+    }
   };
 
   const handleEditIndicator = async (indId: string, data: { name: string; maxScore: number; description: string; detail: string; notes: string; evidenceDescription: string; scoringCriteria: ScoringCriterion[] }) => {
-    const { error } = await supabase.from("indicators").update({ name: data.name, max_score: data.maxScore, description: data.description, detail: data.detail, notes: data.notes, evidence_description: data.evidenceDescription, scoring_criteria: JSON.parse(JSON.stringify(data.scoringCriteria)) } as any).eq("id", indId);
-    if (error) { toast({ title: "เกิดข้อผิดพลาด", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "แก้ไขตัวชี้วัดสำเร็จ" });
-    fetchAll();
+    try {
+      await apiClient.patch(`indicators/${indId}`, {
+        name: data.name,
+        maxScore: data.maxScore,
+        description: data.description,
+        detail: data.detail,
+        notes: data.notes,
+        evidenceDescription: data.evidenceDescription,
+        scoringCriteria: data.scoringCriteria,
+      });
+      toast({ title: "แก้ไขตัวชี้วัดสำเร็จ" });
+      fetchAll();
+    } catch (err: any) {
+      toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
+    }
   };
 
   const handleDeleteIndicator = async (indId: string) => {
-    const { error } = await supabase.from("indicators").delete().eq("id", indId);
-    if (error) { toast({ title: "เกิดข้อผิดพลาด", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "ลบตัวชี้วัดสำเร็จ" });
-    fetchAll();
+    try {
+      await apiClient.delete(`indicators/${indId}`);
+      toast({ title: "ลบตัวชี้วัดสำเร็จ" });
+      fetchAll();
+    } catch (err: any) {
+      toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
+    }
   };
 
   const handleReorderIndicators = async (topicId: string, event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    const topicInds = indicators.filter(i => i.topic_id === topicId).sort((a, b) => a.sort_order - b.sort_order);
+    const topicInds = indicators.filter(i => i.topicId === topicId).sort((a, b) => a.sortOrder - b.sortOrder);
     const oldIndex = topicInds.findIndex(i => i.id === active.id);
     const newIndex = topicInds.findIndex(i => i.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
@@ -398,16 +425,15 @@ const SettingsIndicators = () => {
     // Optimistic update
     const updatedIndicators = indicators.map(ind => {
       const idx = reordered.findIndex(r => r.id === ind.id);
-      if (idx !== -1) return { ...ind, sort_order: idx + 1 };
+      if (idx !== -1) return { ...ind, sortOrder: idx + 1 };
       return ind;
     });
     setIndicators(updatedIndicators);
 
     // Persist
-    const updates = reordered.map((ind, idx) =>
-      supabase.from("indicators").update({ sort_order: idx + 1 }).eq("id", ind.id)
-    );
-    await Promise.all(updates);
+    await Promise.all(reordered.map((ind, idx) =>
+      apiClient.patch(`indicators/${ind.id}`, { sortOrder: idx + 1 })
+    ));
   };
 
   if (loading) {
@@ -434,7 +460,7 @@ const SettingsIndicators = () => {
 
       <div className="px-6 py-6 space-y-6">
         {programs.map((program, progIdx) => {
-          const programCategories = categories.filter(c => c.program_id === program.id);
+          const programCategories = categories.filter(c => c.programId === program.id);
           if (programCategories.length === 0) return null;
 
           return (
@@ -443,7 +469,6 @@ const SettingsIndicators = () => {
                 <CollapsibleTrigger asChild>
                   <button className="flex w-full items-center gap-3 px-5 py-4 hover:bg-accent/20 transition-colors">
                     <ChevronRight className="h-5 w-5 text-accent-foreground/70 transition-transform group-data-[state=open]/prog:rotate-90" />
-                    
                     <p className="font-bold text-foreground text-left flex-1 text-base">{program.name}</p>
                     <span className="text-xs text-muted-foreground">
                       {programCategories.length} หมวด
@@ -454,8 +479,8 @@ const SettingsIndicators = () => {
                 <CollapsibleContent>
                   <div className="px-3 pb-3 space-y-3">
                     {programCategories.map((cat, catIdx) => {
-                      const color = "210 70% 45%"; // consistent blue for all categories
-                      const catTopics = topics.filter((t) => t.category_id === cat.id);
+                      const color = "210 70% 45%";
+                      const catTopics = topics.filter((t) => t.categoryId === cat.id);
 
                       return (
                         <Collapsible key={cat.id} defaultOpen={catIdx === 0} className="group/cat">
@@ -468,14 +493,14 @@ const SettingsIndicators = () => {
                                 <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]/cat:rotate-90" />
                                 <p className="font-bold text-foreground text-left flex-1">{cat.name}</p>
                                 <span className="text-xs text-muted-foreground">
-                                  {catTopics.length} ประเด็น · {indicators.filter(i => catTopics.some(t => t.id === i.topic_id)).length} ตัวชี้วัด · คะแนนเต็ม {cat.max_score}
+                                  {catTopics.length} ประเด็น · {indicators.filter(i => catTopics.some(t => t.id === i.topicId)).length} ตัวชี้วัด · คะแนนเต็ม {cat.maxScore}
                                 </span>
                               </button>
                             </CollapsibleTrigger>
 
                             <CollapsibleContent>
                               {catTopics.map((topic) => {
-                                const topicInds = indicators.filter((i) => i.topic_id === topic.id).sort((a, b) => a.sort_order - b.sort_order);
+                                const topicInds = indicators.filter((i) => i.topicId === topic.id).sort((a, b) => a.sortOrder - b.sortOrder);
                                 return (
                                   <Collapsible key={topic.id} defaultOpen className="group/topic border-b last:border-b-0">
                                     <div
