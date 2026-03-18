@@ -518,10 +518,13 @@ export default function SettingsPrograms() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingProgram ? "แก้ไขโครงการ" : "เพิ่มโครงการใหม่"}</DialogTitle>
-          </DialogHeader>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden p-0 flex flex-col">
+          <div className="px-6 pt-6 pb-3 flex-shrink-0">
+            <DialogHeader>
+              <DialogTitle>{editingProgram ? "แก้ไขโครงการ" : "เพิ่มโครงการใหม่"}</DialogTitle>
+            </DialogHeader>
+          </div>
+          <div className="overflow-y-auto scrollbar-thin flex-1 px-6 pb-2 mr-2">
           <Tabs defaultValue="about" className="w-full">
             <TabsList className="w-full">
               <TabsTrigger value="about" className="flex-1">เกี่ยวกับโครงการ</TabsTrigger>
@@ -643,12 +646,15 @@ export default function SettingsPrograms() {
               </div>
             </TabsContent>
           </Tabs>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>ยกเลิก</Button>
-            <Button onClick={handleSave} disabled={upsertMutation.isPending}>
-              {upsertMutation.isPending ? "กำลังบันทึก..." : "บันทึก"}
-            </Button>
-          </DialogFooter>
+          </div>
+          <div className="px-6 py-4 flex-shrink-0 border-t">
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>ยกเลิก</Button>
+              <Button onClick={handleSave} disabled={upsertMutation.isPending}>
+                {upsertMutation.isPending ? "กำลังบันทึก..." : "บันทึก"}
+              </Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
