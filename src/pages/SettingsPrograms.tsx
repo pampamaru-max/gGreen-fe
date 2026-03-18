@@ -479,34 +479,43 @@ export default function SettingsPrograms() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">จัดการโครงการ</h1>
-          <p className="text-sm text-muted-foreground">เพิ่ม แก้ไข หรือลบโครงการภายใต้ G-Green</p>
+    <div className="min-h-full bg-background">
+      <div className="border-b bg-card/50 px-6 py-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
+            <Building2 className="h-5 w-5 text-primary-foreground" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-lg font-bold text-foreground">จัดการโครงการ</h2>
+            <p className="text-xs text-muted-foreground">เพิ่ม แก้ไข หรือลบโครงการภายใต้ G-Green</p>
+          </div>
+          <Button onClick={openAdd}>
+            <Plus className="mr-2 h-4 w-4" /> เพิ่มโครงการ
+          </Button>
         </div>
-        <Button onClick={openAdd}>
-          <Plus className="mr-2 h-4 w-4" /> เพิ่มโครงการ
-        </Button>
       </div>
 
-      {isLoading ? (
-        <p className="text-muted-foreground">กำลังโหลด...</p>
-      ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleProgramDragEnd}>
-          <SortableContext items={programs.map((p) => p.id)} strategy={verticalListSortingStrategy}>
-            <div className="grid gap-3">
-              {programs.map((p) => (
-                <SortableProgramCard key={p.id} program={p} onEdit={openEdit} onDelete={(prog) => {
-                  if (confirm(`ต้องการลบโครงการ "${prog.name}" หรือไม่?`)) {
-                    deleteMutation.mutate(prog.id);
-                  }
-                }} />
-              ))}
-            </div>
-          </SortableContext>
-        </DndContext>
-      )}
+      <div className="px-6 py-4 space-y-4">
+        {isLoading ? (
+          <div className="flex items-center justify-center min-h-[300px]">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleProgramDragEnd}>
+            <SortableContext items={programs.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+              <div className="grid gap-3">
+                {programs.map((p) => (
+                  <SortableProgramCard key={p.id} program={p} onEdit={openEdit} onDelete={(prog) => {
+                    if (confirm(`ต้องการลบโครงการ "${prog.name}" หรือไม่?`)) {
+                      deleteMutation.mutate(prog.id);
+                    }
+                  }} />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        )}
+      </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
@@ -645,3 +654,4 @@ export default function SettingsPrograms() {
     </div>
   );
 }
+
