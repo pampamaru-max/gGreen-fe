@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
 import { AddCategoryDialog } from "@/components/AddCategoryDialog";
 import { EditCategoryDialog } from "@/components/EditCategoryDialog";
-import { getCategoryColor } from "@/components/CategoryCard";
 import { Trash2, FolderTree, Loader2, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import apiClient from "@/lib/axios";
 import { toast } from "@/hooks/use-toast";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import {
@@ -20,40 +19,39 @@ import {
 interface DbCategory {
   id: number;
   name: string;
-  max_score: number;
-  sort_order: number;
-  is_default: boolean;
-  program_id: string | null;
+  maxScore: number;
+  sortOrder: number;
+  isDefault: boolean;
+  programId: string | null;
 }
 
 interface DbProgram {
   id: string;
   name: string;
   icon: string;
-  sort_order: number;
+  sortOrder: number;
 }
 
 interface CategoryItemProps {
   cat: DbCategory;
-  idx: number;
   topicCount: number;
   indicatorCount: number;
   onEdit: (updated: DbCategory) => void;
   onDelete: (id: number) => void;
 }
 
-const CategoryItem = ({ cat, idx, topicCount, indicatorCount, onEdit, onDelete }: CategoryItemProps) => {
+const CategoryItem = ({ cat, topicCount, indicatorCount, onEdit, onDelete }: CategoryItemProps) => {
   return (
     <div className="flex items-center gap-3 rounded-lg border bg-background p-3 shadow-sm">
       <div className="flex-1 min-w-0">
         <p className="font-medium text-sm text-foreground">{cat.name}</p>
         <p className="text-xs text-muted-foreground">
-          ลำดับที่ {cat.sort_order} · {topicCount} ประเด็น · {indicatorCount} ตัวชี้วัด · คะแนนเต็ม {cat.max_score}
+          ลำดับที่ {cat.sortOrder} · {topicCount} ประเด็น · {indicatorCount} ตัวชี้วัด · คะแนนเต็ม {cat.maxScore}
         </p>
       </div>
       <EditCategoryDialog
-        category={{ id: cat.id, name: cat.name, maxScore: cat.max_score, sortOrder: cat.sort_order }}
-        onSave={(updated) => onEdit({ ...cat, name: updated.name, max_score: updated.maxScore, sort_order: updated.sortOrder })}
+        category={{ id: cat.id, name: cat.name, maxScore: cat.maxScore, sortOrder: cat.sortOrder }}
+        onSave={(updated) => onEdit({ ...cat, name: updated.name, maxScore: updated.maxScore, sortOrder: updated.sortOrder })}
       />
       {topicCount > 0 ? (
         <Tooltip>
@@ -110,8 +108,8 @@ interface ProgramCardProps {
 
 const ProgramCard = ({ program, categories, topicCounts, indicatorCounts, onAddCategory, onEditCategory, onDeleteCategory }: ProgramCardProps) => {
   const [open, setOpen] = useState(false);
-  const totalMax = categories.reduce((sum, c) => sum + c.max_score, 0);
-  const nextSortOrder = categories.length > 0 ? Math.max(...categories.map((c) => c.sort_order)) + 1 : 1;
+  const totalMax = categories.reduce((sum, c) => sum + c.maxScore, 0);
+  const nextSortOrder = categories.length > 0 ? Math.max(...categories.map((c) => c.sortOrder)) + 1 : 1;
 
   const isUnder = totalMax < 100;
   const isExact = totalMax === 100;
@@ -142,11 +140,10 @@ const ProgramCard = ({ program, categories, topicCounts, indicatorCounts, onAddC
             {categories.length === 0 && (
               <p className="text-sm text-muted-foreground text-center py-4">ยังไม่มีหมวดในโครงการนี้</p>
             )}
-            {categories.map((cat, idx) => (
+            {categories.map((cat) => (
               <CategoryItem
                 key={cat.id}
                 cat={cat}
-                idx={idx}
                 topicCount={topicCounts[cat.id] || 0}
                 indicatorCount={indicatorCounts[cat.id] || 0}
                 onEdit={onEditCategory}
@@ -174,37 +171,36 @@ const SettingsCategories = () => {
   const [loading, setLoading] = useState(true);
 
   const fetchData = async () => {
-    const [catRes, progRes, topicRes, indRes] = await Promise.all([
-      supabase.from("categories").select("*").order("sort_order"),
-      supabase.from("programs").select("id, name, icon, sort_order").order("sort_order"),
-      supabase.from("topics").select("id, category_id"),
-      supabase.from("indicators").select("id, topic_id"),
-    ]);
+    try {
+      const [catRes, progRes, topicRes, indRes] = await Promise.all([
+        apiClient.get<DbCategory[]>("categories"),
+        apiClient.get<DbProgram[]>("programs/names-with-sort"),
+        apiClient.get<any[]>("topics"),
+        apiClient.get<any[]>("indicators"),
+      ]);
 
-    if (catRes.error) {
-      toast({ title: "เกิดข้อผิดพลาด", description: catRes.error.message, variant: "destructive" });
-      return;
+      setCategories(catRes.data);
+      setPrograms(progRes.data);
+
+      const tCounts: Record<number, number> = {};
+      const iCounts: Record<number, number> = {};
+      const topicToCat: Record<string, number> = {};
+
+      topicRes.data.forEach((t) => {
+        tCounts[t.categoryId] = (tCounts[t.categoryId] || 0) + 1;
+        topicToCat[t.id] = t.categoryId;
+      });
+
+      indRes.data.forEach((ind) => {
+        const catId = topicToCat[ind.topicId];
+        if (catId) iCounts[catId] = (iCounts[catId] || 0) + 1;
+      });
+
+      setTopicCounts(tCounts);
+      setIndicatorCounts(iCounts);
+    } catch (err: any) {
+      toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
     }
-
-    setCategories((catRes.data || []) as DbCategory[]);
-    setPrograms((progRes.data || []) as DbProgram[]);
-
-    const tCounts: Record<number, number> = {};
-    const iCounts: Record<number, number> = {};
-    const topicToCat: Record<string, number> = {};
-
-    (topicRes.data || []).forEach((t: any) => {
-      tCounts[t.category_id] = (tCounts[t.category_id] || 0) + 1;
-      topicToCat[t.id] = t.category_id;
-    });
-
-    (indRes.data || []).forEach((ind: any) => {
-      const catId = topicToCat[ind.topic_id];
-      if (catId) iCounts[catId] = (iCounts[catId] || 0) + 1;
-    });
-
-    setTopicCounts(tCounts);
-    setIndicatorCounts(iCounts);
   };
 
   useEffect(() => {
@@ -212,44 +208,43 @@ const SettingsCategories = () => {
   }, []);
 
   const handleAddCategory = async (data: { name: string; maxScore: number; sortOrder: number }, programId: string) => {
-    const { error } = await supabase.from("categories").insert({
-      name: data.name,
-      max_score: data.maxScore,
-      sort_order: data.sortOrder,
-      is_default: false,
-      program_id: programId,
-    });
-
-    if (error) {
-      toast({ title: "เกิดข้อผิดพลาด", description: error.message, variant: "destructive" });
-      return;
+    try {
+      await apiClient.post("categories", {
+        name: data.name,
+        maxScore: data.maxScore,
+        sortOrder: data.sortOrder,
+        isDefault: false,
+        programId,
+      });
+      toast({ title: "เพิ่มหมวดสำเร็จ" });
+      fetchData();
+    } catch (err: any) {
+      toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
     }
-    toast({ title: "เพิ่มหมวดสำเร็จ" });
-    fetchData();
   };
 
   const handleDeleteCategory = async (id: number) => {
-    const { error } = await supabase.from("categories").delete().eq("id", id);
-    if (error) {
-      toast({ title: "เกิดข้อผิดพลาด", description: error.message, variant: "destructive" });
-      return;
+    try {
+      await apiClient.delete(`categories/${id}`);
+      toast({ title: "ลบหมวดสำเร็จ" });
+      fetchData();
+    } catch (err: any) {
+      toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
     }
-    toast({ title: "ลบหมวดสำเร็จ" });
-    fetchData();
   };
 
   const handleEditCategory = async (updated: DbCategory) => {
-    const { error } = await supabase
-      .from("categories")
-      .update({ name: updated.name, max_score: updated.max_score, sort_order: updated.sort_order })
-      .eq("id", updated.id);
-
-    if (error) {
-      toast({ title: "เกิดข้อผิดพลาด", description: error.message, variant: "destructive" });
-      return;
+    try {
+      await apiClient.patch(`categories/${updated.id}`, {
+        name: updated.name,
+        maxScore: updated.maxScore,
+        sortOrder: updated.sortOrder,
+      });
+      toast({ title: "แก้ไขหมวดสำเร็จ" });
+      fetchData();
+    } catch (err: any) {
+      toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
     }
-    toast({ title: "แก้ไขหมวดสำเร็จ" });
-    fetchData();
   };
 
   if (loading) {
@@ -280,8 +275,8 @@ const SettingsCategories = () => {
         )}
         {programs.map((program) => {
           const programCategories = categories
-            .filter((c) => c.program_id === program.id)
-            .sort((a, b) => a.sort_order - b.sort_order);
+            .filter((c) => c.programId === program.id)
+            .sort((a, b) => a.sortOrder - b.sortOrder);
 
           return (
             <ProgramCard
@@ -298,14 +293,13 @@ const SettingsCategories = () => {
         })}
 
         {/* Show unassigned categories if any */}
-        {categories.some((c) => !c.program_id) && (
+        {categories.some((c) => !c.programId) && (
           <div className="rounded-xl border border-dashed bg-muted/30 p-4 space-y-2">
             <p className="font-semibold text-sm text-muted-foreground">หมวดที่ยังไม่ได้ผูกกับโครงการ</p>
-            {categories.filter((c) => !c.program_id).map((cat, idx) => (
+            {categories.filter((c) => !c.programId).map((cat) => (
               <CategoryItem
                 key={cat.id}
                 cat={cat}
-                idx={idx}
                 topicCount={topicCounts[cat.id] || 0}
                 indicatorCount={indicatorCounts[cat.id] || 0}
                 onEdit={handleEditCategory}
