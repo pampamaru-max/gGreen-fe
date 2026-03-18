@@ -241,6 +241,7 @@ export default function AboutContentEditor({ blocks, onChange, programId }: Prop
       formData.append("folder", `programs/${programId}`);
       const { data } = await apiClient.post<{ url: string }>("files/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
+        timeout: 60000,
       });
       if (type === "image") {
         onChange([...blocks, { type: "image", url: data.url, caption: "" }]);
