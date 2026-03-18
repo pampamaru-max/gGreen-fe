@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import RegistrationDetailDialog from "@/components/RegistrationDetailDialog";
+import apiClient from "@/lib/axios";
+import { useQuery } from "@tanstack/react-query";
 
 interface Registration {
   id: string;
@@ -50,6 +52,14 @@ export default function RegistrationManagement() {
   const [fName, setFName] = useState("");
   const [fProvince, setFProvince] = useState(ALL);
 
+  const { data: provinces = [] } = useQuery({
+    queryKey: ["provinces"],
+    queryFn: async () => {
+      const { data } = await apiClient.get("provinces");
+      return data ?? [];
+    },
+  });
+
   useEffect(() => {
     const fetchData = async () => {
       const [regRes, progRes] = await Promise.all([
@@ -75,9 +85,12 @@ export default function RegistrationManagement() {
   }, [registrations]);
 
   const uniqueProvinces = useMemo(() => {
-    const provs = new Set(registrations.map((r) => r.province).filter(Boolean));
+    const provs = new Set(registrations.map((r) => {
+      const found = provinces.find((p: any) => String(p.id) === r.province);
+      return found ? found.nameTh : r.province;
+    }).filter(Boolean));
     return Array.from(provs).sort();
-  }, [registrations]);
+  }, [registrations, provinces]);
 
   const programName = (id: string) => programs.find((p) => p.id === id)?.name ?? id;
 
@@ -87,11 +100,14 @@ export default function RegistrationManagement() {
       if (fYear !== ALL && new Date(r.created_at).getFullYear().toString() !== fYear) return false;
       if (fStatus !== ALL && r.status !== fStatus) return false;
       if (fType !== ALL && r.organization_type !== fType) return false;
-      if (fProvince !== ALL && r.province !== fProvince) return false;
+      if (fProvince !== ALL) {
+        const rProvName = provinces.find((p: any) => String(p.id) === r.province)?.nameTh || r.province;
+        if (rProvName !== fProvince) return false;
+      }
       if (fName && !r.organization_name.toLowerCase().includes(fName.toLowerCase())) return false;
       return true;
     });
-  }, [registrations, fProgram, fYear, fStatus, fType, fName, fProvince]);
+  }, [registrations, fProgram, fYear, fStatus, fType, fName, fProvince, provinces]);
 
   const hasActiveFilter = fProgram !== ALL || fYear !== ALL || fStatus !== ALL || fType !== ALL || fProvince !== ALL || fName !== "";
 
@@ -264,7 +280,12 @@ export default function RegistrationManagement() {
                         <TableCell>{programName(r.program_id)}</TableCell>
                         <TableCell className="font-medium">{r.organization_name}</TableCell>
                         <TableCell>{r.organization_type || "-"}</TableCell>
-                        <TableCell>{r.province || "-"}</TableCell>
+                        <TableCell>
+                          {(() => {
+                            const found = provinces.find((p: any) => String(p.id) === r.province);
+                            return found ? found.nameTh : (r.province || "-");
+                          })()}
+                        </TableCell>
                         <TableCell>{new Date(r.created_at).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" })}</TableCell>
                         <TableCell>
                           <Badge variant={status.variant}>{status.label}</Badge>

@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import apiClient from "@/lib/axios";
+import { useQuery } from "@tanstack/react-query";
 
 interface RegistrationRow {
   id: string;
@@ -28,6 +30,14 @@ const EvaluationPage = () => {
   const { isAdmin, role, accessibleProgramIds, loading: roleLoading } = useUserRole();
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  const { data: provinces = [] } = useQuery({
+    queryKey: ["provinces"],
+    queryFn: async () => {
+      const { data } = await apiClient.get("provinces");
+      return data ?? [];
+    },
+  });
 
   // Filter states
   const [searchOrg, setSearchOrg] = useState("");
@@ -139,7 +149,13 @@ const EvaluationPage = () => {
 
   // Derived unique values for dropdowns
   const programOptions = useMemo(() => [...new Set(rows.map((r) => r.program_name))].filter(Boolean).sort(), [rows]);
-  const provinceOptions = useMemo(() => [...new Set(rows.map((r) => r.province))].filter(Boolean).sort(), [rows]);
+  const provinceOptions = useMemo(() => {
+    const provs = new Set(rows.map((r) => {
+      const found = provinces.find((p: any) => String(p.id) === r.province);
+      return found ? found.nameTh : r.province;
+    }).filter(Boolean));
+    return Array.from(provs).sort();
+  }, [rows, provinces]);
   const yearOptions = useMemo(() => [...new Set(rows.map((r) => String(r.created_year)))].sort().reverse(), [rows]);
 
   // Filtering logic
@@ -147,7 +163,10 @@ const EvaluationPage = () => {
     return rows.filter((row) => {
       if (searchOrg && !row.organization_name.toLowerCase().includes(searchOrg.toLowerCase())) return false;
       if (filterProgram !== "all" && row.program_name !== filterProgram) return false;
-      if (filterProvince !== "all" && row.province !== filterProvince) return false;
+      if (filterProvince !== "all") {
+        const rProvName = provinces.find((p: any) => String(p.id) === row.province)?.nameTh || row.province;
+        if (rProvName !== filterProvince) return false;
+      }
       if (filterYear !== "all" && String(row.created_year) !== filterYear) return false;
 
       if (filterSelfStatus !== "all") {
@@ -323,7 +342,12 @@ const EvaluationPage = () => {
                     <TableCell className="text-center text-muted-foreground">{idx + 1}</TableCell>
                     <TableCell className="font-medium">{row.organization_name}</TableCell>
                     <TableCell>{row.program_name}</TableCell>
-                    <TableCell>{row.province}</TableCell>
+                    <TableCell>
+                      {(() => {
+                        const found = provinces.find((p: any) => String(p.id) === row.province);
+                        return found ? found.nameTh : row.province;
+                      })()}
+                    </TableCell>
                     <TableCell className="text-center">{row.created_year}</TableCell>
                     <TableCell className="text-center">{getSelfAssessmentBadge(row.evaluation_status)}</TableCell>
                     <TableCell className="text-center">{getCommitteeBadge(row.has_committee_score, row.evaluation_id)}</TableCell>

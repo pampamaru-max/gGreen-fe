@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Upload, FileText, Trash2, Loader2, Download, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import apiClient from "@/lib/axios";
+import { useQuery } from "@tanstack/react-query";
 
 interface Registration {
   id: string;
@@ -14,6 +16,7 @@ interface Registration {
   organization_type: string;
   address: string;
   province: string;
+  provinceName?: string;
   contact_name: string;
   contact_phone: string;
   contact_email: string;
@@ -63,6 +66,21 @@ export default function RegistrationDetailDialog({ registration, programName, op
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const { data: provinces = [] } = useQuery({
+    queryKey: ["provinces"],
+    queryFn: async () => {
+      const { data } = await apiClient.get("provinces");
+      return data ?? [];
+    },
+    enabled: open,
+  });
+
+  const provinceName = useMemo(() => {
+    if (!registration?.province) return "-";
+    const found = provinces.find((p: any) => String(p.id) === registration.province);
+    return found ? `${found.nameTh} (${found.id})` : registration.province;
+  }, [registration?.province, provinces]);
 
   useEffect(() => {
     if (!registration) return;
@@ -164,7 +182,7 @@ export default function RegistrationDetailDialog({ registration, programName, op
           <DetailRow label="ชื่อหน่วยงาน" value={registration.organization_name} />
           <DetailRow label="ประเภทองค์กร" value={registration.organization_type} />
           <DetailRow label="ที่อยู่" value={registration.address} />
-          <DetailRow label="จังหวัด" value={registration.province} />
+          <DetailRow label="จังหวัด" value={provinceName} />
           <DetailRow label="ผู้ติดต่อ" value={registration.contact_name} />
           <DetailRow label="โทรศัพท์" value={registration.contact_phone} />
           <DetailRow label="อีเมล" value={registration.contact_email} />
