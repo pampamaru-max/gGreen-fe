@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, UserPlus, Building2, MapPin, Phone, Mail, User } from "lucide-react";
+import { Loader2, UserPlus, Building2, MapPin, Phone, Mail, User, Check, ChevronsUpDown } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -27,10 +27,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import apiClient from "@/lib/axios";
 import { useQuery } from "@tanstack/react-query";
+import { cn } from "@/lib/utils";
 
 const registrationSchema = z.object({
   program_id: z.string().min(1, "กรุณาเลือกโครงการ"),
@@ -53,11 +67,20 @@ interface Props {
 export default function ProjectRegistrationDialog({ open, onOpenChange }: Props) {
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
+  const [provinceOpen, setProvinceOpen] = useState(false);
 
   const { data: programs = [] } = useQuery({
     queryKey: ["programs"],
     queryFn: async () => {
       const { data } = await apiClient.get("programs/names");
+      return data ?? [];
+    },
+  });
+
+  const { data: provinces = [] } = useQuery({
+    queryKey: ["provinces"],
+    queryFn: async () => {
+      const { data } = await apiClient.get("provinces");
       return data ?? [];
     },
   });
@@ -75,6 +98,13 @@ export default function ProjectRegistrationDialog({ open, onOpenChange }: Props)
       contact_email: "",
     },
   });
+
+  const formatPhoneNumber = (value: string) => {
+    const numbers = value.replace(/\D/g, "");
+    if (numbers.length <= 3) return numbers;
+    if (numbers.length <= 6) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
+    return `${numbers.slice(0, 3)}-${numbers.slice(3, 6)}-${numbers.slice(6, 10)}`;
+  };
 
   const onSubmit = async (values: RegistrationForm) => {
     setSubmitting(true);
@@ -212,9 +242,60 @@ export default function ProjectRegistrationDialog({ open, onOpenChange }: Props)
                   control={form.control}
                   name="province"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="flex flex-col">
                       <FormLabel>จังหวัด</FormLabel>
-                      <FormControl><Input placeholder="เช่น กรุงเทพมหานคร" {...field} /></FormControl>
+                      <Popover open={provinceOpen} onOpenChange={setProvinceOpen}>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={provinceOpen}
+                              className={cn(
+                                "w-full justify-between font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {(() => {
+                                if (!field.value) return "เลือกจังหวัด";
+                                const found = provinces.find((p: any) => String(p.id) === field.value);
+                                return found ? found.nameTh : field.value;
+                              })()}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                          <Command>
+                            <CommandInput placeholder="ค้นหาจังหวัด..." />
+                            <CommandList>
+                              <CommandEmpty>ไม่พบข้อมูลจังหวัด</CommandEmpty>
+                              <CommandGroup>
+                                {provinces.map((province: any) => (
+                                  <CommandItem
+                                    value={province.nameTh}
+                                    key={province.id}
+                                    onSelect={() => {
+                                      form.setValue("province", String(province.id));
+                                      setProvinceOpen(false);
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        String(province.id) === field.value
+                                          ? "opacity-100"
+                                          : "opacity-0"
+                                      )}
+                                    />
+                                    {province.nameTh}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -248,7 +329,16 @@ export default function ProjectRegistrationDialog({ open, onOpenChange }: Props)
                         <FormLabel className="flex items-center gap-1.5">
                           <Phone className="h-3.5 w-3.5 text-primary" /> เบอร์โทรศัพท์
                         </FormLabel>
-                        <FormControl><Input placeholder="0xx-xxx-xxxx" {...field} /></FormControl>
+                        <FormControl>
+                          <Input
+                            placeholder="0xx-xxx-xxxx"
+                            {...field}
+                            onChange={(e) => {
+                              const formatted = formatPhoneNumber(e.target.value);
+                              field.onChange(formatted);
+                            }}
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
