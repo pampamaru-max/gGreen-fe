@@ -1,0 +1,1 @@
+ALTER TABLE public.indicators ADD COLUMN evidence_description text DEFAULT '';
