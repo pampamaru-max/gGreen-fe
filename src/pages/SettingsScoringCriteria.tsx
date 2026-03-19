@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Award, Trophy, Medal, Plus, Trash2, Loader2, Save, Pencil, GripVertical, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
@@ -24,19 +24,19 @@ import apiClient from "@/lib/axios";
 interface ScoringLevel {
   id: number;
   name: string;
-  min_score: number;
-  max_score: number;
+  minScore: number;
+  maxScore: number;
   color: string;
   icon: string;
-  sort_order: number;
-  program_id: string | null;
+  sortOrder: number;
+  programId: string | null;
 }
 
 interface DbProgram {
   id: string;
   name: string;
   icon: string;
-  sort_order: number;
+  sortOrder: number;
 }
 
 const ICON_OPTIONS = [
@@ -52,15 +52,16 @@ const getIconComponent = (icon: string) => {
 
 interface LevelFormProps {
   initial?: Partial<ScoringLevel>;
-  onSubmit: (data: Omit<ScoringLevel, "id" | "sort_order" | "program_id">) => void;
+  onSubmit: (data: Omit<ScoringLevel, "id" | "sortOrder" | "programId">) => void;
   trigger: React.ReactNode;
   title: string;
 }
 
 const LevelFormDialog = ({ initial, onSubmit, trigger, title }: LevelFormProps) => {
+  const { toast } = useToast();
   const [name, setName] = useState(initial?.name || "");
-  const [minScore, setMinScore] = useState(String(initial?.min_score ?? ""));
-  const [maxScore, setMaxScore] = useState(String(initial?.max_score ?? ""));
+  const [minScore, setMinScore] = useState(String(initial?.minScore ?? ""));
+  const [maxScore, setMaxScore] = useState(String(initial?.maxScore ?? ""));
   const [color, setColor] = useState(initial?.color || "#22c55e");
   const [icon, setIcon] = useState(initial?.icon || "trophy");
   const [open, setOpen] = useState(false);
@@ -68,8 +69,8 @@ const LevelFormDialog = ({ initial, onSubmit, trigger, title }: LevelFormProps) 
   useEffect(() => {
     if (open) {
       setName(initial?.name || "");
-      setMinScore(String(initial?.min_score ?? ""));
-      setMaxScore(String(initial?.max_score ?? ""));
+      setMinScore(String(initial?.minScore ?? ""));
+      setMaxScore(String(initial?.maxScore ?? ""));
       setColor(initial?.color || "#22c55e");
       setIcon(initial?.icon || "trophy");
     }
@@ -82,8 +83,8 @@ const LevelFormDialog = ({ initial, onSubmit, trigger, title }: LevelFormProps) 
     }
     onSubmit({
       name: name.trim(),
-      min_score: Number(minScore),
-      max_score: Number(maxScore),
+      minScore: Number(minScore),
+      maxScore: Number(maxScore),
       color,
       icon,
     });
@@ -183,7 +184,7 @@ const SortableLevelCard = ({ level, onEdit, onDelete }: { level: ScoringLevel; o
       </div>
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-foreground">{level.name}</p>
-        <p className="text-xs text-muted-foreground">ช่วงคะแนน: {level.min_score}% – {level.max_score}%</p>
+        <p className="text-xs text-muted-foreground">ช่วงคะแนน: {level.minScore}% – {level.maxScore}%</p>
       </div>
       <div className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: level.color }} />
       <LevelFormDialog
@@ -227,18 +228,18 @@ const ScoreBar = ({ levels }: { levels: ScoringLevel[] }) => (
         </div>
       ) : (
         levels.map((level) => {
-          const left = level.min_score;
-          const width = level.max_score - level.min_score;
+          const left = level.minScore;
+          const width = Math.max(0, level.maxScore - level.minScore);
           return (
             <div
               key={level.id}
-              className="absolute top-0 bottom-0 flex items-center justify-center text-xs font-bold text-white"
+              className="absolute top-0 bottom-0 flex items-center justify-center text-xs font-bold text-white overflow-hidden"
               style={{
                 left: `${left}%`,
                 width: `${width}%`,
                 backgroundColor: level.color,
               }}
-              title={`${level.name}: ${level.min_score}–${level.max_score}%`}
+              title={`${level.name}: ${level.minScore}–${level.maxScore}%`}
             >
               {width > 8 ? level.name.split(" ")[0] : ""}
             </div>
@@ -257,125 +258,122 @@ const ScoreBar = ({ levels }: { levels: ScoringLevel[] }) => (
 );
 
 const SettingsScoringCriteria = () => {
+  const { toast } = useToast();
   const [levels, setLevels] = useState<ScoringLevel[]>([]);
   const [programs, setPrograms] = useState<DbProgram[]>([]);
   const [loading, setLoading] = useState(true);
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
 
   const fetchAll = async () => {
-  try {
-    const [levelsRes, progRes] = await Promise.all([
-      apiClient.get("categories"),
-      apiClient.get("programs"),
-    ]);
-
-   setLevels(
-  levelsRes.data.map((c: any) => ({
-    ...c,
-    program_id: c.programId, // 🔥 map ตรงนี้
-  }))
-);
-    setPrograms(progRes.data);
-
-  } catch (error: any) {
-    console.error(error);
-  }
-};
+    try {
+      const [levelsRes, progRes] = await Promise.all([
+        apiClient.get("scoring-levels"),
+        apiClient.get("programs"),
+      ]);
+      setLevels(levelsRes.data);
+      setPrograms(progRes.data);
+    } catch (error: any) {
+      console.error(error);
+      toast({
+        title: "เกิดข้อผิดพลาดในการโหลดข้อมูล",
+        description: error.response?.data?.message || error.message,
+        variant: "destructive",
+      });
+    }
+  };
 
   useEffect(() => {
     fetchAll().finally(() => setLoading(false));
   }, []);
 
   const handleAdd = async (
-  data: Omit<ScoringLevel, "id" | "sort_order" | "program_id">,
-  programId: string
-) => {
-  const programLevels = levels.filter(l => l.program_id === programId);
-  const nextOrder =
-    programLevels.length > 0
-      ? Math.max(...programLevels.map((l) => l.sort_order)) + 1
-      : 1;
+    data: Omit<ScoringLevel, "id" | "sortOrder" | "programId">,
+    programId: string
+  ) => {
+    const programLevels = levels.filter(l => l.programId === programId);
+    const nextOrder =
+      programLevels.length > 0
+        ? Math.max(...programLevels.map((l) => l.sortOrder)) + 1
+        : 1;
 
-  try {
-    await apiClient.post("categories", {
-      ...data,
-      program_id: programId,
-      sort_order: nextOrder,
-    });
+    try {
+      await apiClient.post("scoring-levels", {
+        ...data,
+        programId: programId,
+        sortOrder: nextOrder,
+      });
 
-    toast({ title: "เพิ่มระดับสำเร็จ" });
-    fetchAll();
+      toast({ title: "เพิ่มระดับสำเร็จ" });
+      fetchAll();
+    } catch (error: any) {
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: error.response?.data?.message || error.message,
+        variant: "destructive",
+      });
+    }
+  };
 
-  } catch (error: any) {
-    toast({
-      title: "เกิดข้อผิดพลาด",
-      description: error.response?.data?.message,
-      variant: "destructive",
-    });
-  }
-};
+  const handleEdit = async (
+    id: number,
+    data: Omit<ScoringLevel, "id" | "sortOrder" | "programId">
+  ) => {
+    try {
+      await apiClient.patch(`scoring-levels/${id}`, data);
+      toast({ title: "แก้ไขระดับสำเร็จ" });
+      fetchAll();
+    } catch (error: any) {
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: error.response?.data?.message || error.message,
+        variant: "destructive",
+      });
+    }
+  };
 
- const handleEdit = async (
-  id: number,
-  data: Omit<ScoringLevel, "id" | "sort_order" | "program_id">
-) => {
-  try {
-    await apiClient.patch(`categories/${id}`, data);
-
-    toast({ title: "แก้ไขระดับสำเร็จ" });
-    fetchAll();
-
-  } catch (error: any) {
-    toast({
-      title: "เกิดข้อผิดพลาด",
-      description: error.response?.data?.message,
-      variant: "destructive",
-    });
-  }
-};
-
- const handleDelete = async (id: number) => {
-  try {
-    await apiClient.delete(`categories/${id}`);
-
-    toast({ title: "ลบระดับสำเร็จ" });
-    fetchAll();
-
-  } catch (error: any) {
-    toast({
-      title: "เกิดข้อผิดพลาด",
-      description: error.response?.data?.message,
-      variant: "destructive",
-    });
-  }
-};
+  const handleDelete = async (id: number) => {
+    try {
+      await apiClient.delete(`scoring-levels/${id}`);
+      toast({ title: "ลบระดับสำเร็จ" });
+      fetchAll();
+    } catch (error: any) {
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: error.response?.data?.message || error.message,
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleDragEnd = async (programId: string, event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    const programLevels = levels.filter(l => l.program_id === programId).sort((a, b) => a.sort_order - b.sort_order);
+    const programLevels = levels.filter(l => l.programId === programId).sort((a, b) => a.sortOrder - b.sortOrder);
     const oldIndex = programLevels.findIndex((l) => l.id === active.id);
     const newIndex = programLevels.findIndex((l) => l.id === over.id);
     const reordered = arrayMove(programLevels, oldIndex, newIndex);
 
     // Optimistic update
     setLevels(prev => {
-      const others = prev.filter(l => l.program_id !== programId);
-      return [...others, ...reordered.map((l, i) => ({ ...l, sort_order: i + 1 }))];
+      const others = prev.filter(l => l.programId !== programId);
+      return [...others, ...reordered.map((l, i) => ({ ...l, sortOrder: i + 1 }))];
     });
 
-   try {
-  await apiClient.patch("scoring-levels/reorder", {
-    levels: reordered.map((l, i) => ({
-      id: l.id,
-      sort_order: i + 1,
-    })),
-  });
-} catch (error) {
-  console.error(error);
-
-}
+    try {
+      // Note: Reorder endpoint might not exist yet, or uses a different format
+      // For now, let's just update each one or wait for reorder endpoint implementation
+      // Assuming a generic reorder endpoint exists as per previous code attempt
+      await apiClient.patch("scoring-levels/reorder", {
+        levels: reordered.map((l, i) => ({
+          id: l.id,
+          sortOrder: i + 1,
+        })),
+      });
+    } catch (error) {
+      console.error("Reorder error:", error);
+      fetchAll(); // Revert to server state on error
+    }
   };
 
   if (loading) {
@@ -408,11 +406,11 @@ const SettingsScoringCriteria = () => {
 
         {programs.map((program) => {
           const programLevels = levels
-            .filter(l => l.program_id === program.id)
-            .sort((a, b) => a.sort_order - b.sort_order);
+            .filter(l => l.programId === program.id)
+            .sort((a, b) => a.sortOrder - b.sortOrder);
 
           return (
-            <Collapsible key={program.id} className="group/prog">
+            <Collapsible key={program.id} className="group/prog" defaultOpen>
               <div className="rounded-xl border border-accent/30 bg-accent/10 overflow-hidden shadow-sm">
                 <CollapsibleTrigger asChild>
                   <button className="flex w-full items-center gap-3 px-5 py-4 hover:bg-accent/20 transition-colors">
@@ -425,7 +423,7 @@ const SettingsScoringCriteria = () => {
                 </CollapsibleTrigger>
 
                 <CollapsibleContent>
-                  <div className="border-t px-4 py-4 space-y-4">
+                  <div className="border-t px-4 py-4 space-y-4 bg-white/50">
                     {/* Score bar for this program */}
                     <ScoreBar levels={programLevels} />
 
@@ -452,7 +450,7 @@ const SettingsScoringCriteria = () => {
                       title="เพิ่มระดับใหม่"
                       onSubmit={(data) => handleAdd(data, program.id)}
                       trigger={
-                        <Button variant="outline" size="sm" className="gap-1.5">
+                        <Button variant="outline" size="sm" className="gap-1.5 mt-2">
                           <Plus className="h-4 w-4" /> เพิ่มระดับ
                         </Button>
                       }
@@ -465,10 +463,10 @@ const SettingsScoringCriteria = () => {
         })}
 
         {/* Unassigned levels */}
-        {levels.some(l => !l.program_id) && (
+        {levels.some(l => !l.programId) && (
           <div className="rounded-xl border border-dashed bg-muted/30 p-4 space-y-3">
             <p className="font-semibold text-sm text-muted-foreground">ระดับที่ยังไม่ได้ผูกกับโครงการ</p>
-            {levels.filter(l => !l.program_id).map((level) => (
+            {levels.filter(l => !l.programId).map((level) => (
               <SortableLevelCard key={level.id} level={level} onEdit={handleEdit} onDelete={handleDelete} />
             ))}
           </div>
