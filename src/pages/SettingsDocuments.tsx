@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import apiClient from "@/lib/axios";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -46,14 +45,7 @@ export default function SettingsDocuments() {
         if (data.length > 0 && !selectedProgram) setSelectedProgram(data[0].id);
       }
     }).catch(error => {
-      console.error("Error fetching programs:", error);
-      // Fallback to Supabase if API fails
-      supabase.from("programs").select("id, name").order("sort_order").then(({ data }) => {
-        if (data) {
-          setPrograms(data);
-          if (data.length > 0 && !selectedProgram) setSelectedProgram(data[0].id);
-        }
-      });
+      toast({ title: "เกิดข้อผิดพลาดในการโหลดโครงการ", description: error.response?.data?.message || error.message, variant: "destructive" });
     });
   }, []);
 

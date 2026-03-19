@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useUserRole, AppRole } from "@/hooks/useUserRole";
+import apiClient from "@/lib/axios";
+import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
 import { Loader2, Users, Shield, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ interface UserWithRole {
   userId: string;
   email: string;
   displayName: string;
-  role: AppRole | null;
+  role: string | null;
   programIds: string[];
 }
 
@@ -24,15 +24,17 @@ interface Program {
 }
 
 const roleLabelMap: Record<string, string> = {
-  admin: "ผู้ดูแลระบบ",
-  evaluator: "ผู้ประเมิน",
-  user: "ผู้ใช้งาน",
+  SUPERADMIN: "ซูเปอร์แอดมิน",
+  ADMIN: "ผู้ดูแลระบบ",
+  EVALUATOR: "ผู้ประเมิน",
+  EVALUATEE: "ผู้ถูกประเมิน",
 };
 
 const roleBadgeVariant: Record<string, "default" | "secondary" | "outline"> = {
-  admin: "default",
-  evaluator: "secondary",
-  user: "outline",
+  SUPERADMIN: "default",
+  ADMIN: "default",
+  EVALUATOR: "secondary",
+  EVALUATEE: "outline",
 };
 
 const SettingsUsers = () => {
@@ -45,41 +47,18 @@ const SettingsUsers = () => {
 
   const fetchUsers = async () => {
     setLoading(true);
-
-    // Fetch all profiles
-    const { data: profiles } = await supabase.from("profiles").select("user_id, display_name");
-    const { data: roles } = await supabase.from("user_roles").select("user_id, role");
-    const { data: access } = await supabase.from("user_program_access").select("user_id, program_id");
-    const { data: progs } = await supabase.from("programs").select("id, name").order("sort_order");
-
-    setPrograms(progs || []);
-
-    // We need emails - fetch from profiles (display_name may contain email as fallback)
-    // Since we can't query auth.users, we'll use profiles
-    const userMap = new Map<string, UserWithRole>();
-
-    profiles?.forEach((p) => {
-      userMap.set(p.user_id, {
-        userId: p.user_id,
-        email: "",
-        displayName: p.display_name || "",
-        role: null,
-        programIds: [],
-      });
-    });
-
-    roles?.forEach((r) => {
-      const u = userMap.get(r.user_id);
-      if (u) u.role = r.role as AppRole;
-    });
-
-    access?.forEach((a) => {
-      const u = userMap.get(a.user_id);
-      if (u) u.programIds.push(a.program_id);
-    });
-
-    setUsers(Array.from(userMap.values()));
-    setLoading(false);
+    try {
+      const [usersRes, programsRes] = await Promise.all([
+        apiClient.get("/users"),
+        apiClient.get("/programs"),
+      ]);
+      setUsers(usersRes.data);
+      setPrograms(programsRes.data);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -87,53 +66,41 @@ const SettingsUsers = () => {
   }, [roleLoading, isAdmin]);
 
   const handleRoleChange = async (userId: string, newRole: string) => {
-    // Delete existing role
-    await supabase.from("user_roles").delete().eq("user_id", userId);
-
-    if (newRole) {
-      const { error } = await supabase.from("user_roles").insert({
-        user_id: userId,
-        role: newRole as AppRole,
-      });
-      if (error) {
-        toast.error("ไม่สามารถเปลี่ยน role ได้");
-        return;
-      }
+    try {
+      await apiClient.patch(`/users/${userId}/role`, { role: newRole });
+      toast.success("เปลี่ยน role เรียบร้อยแล้ว");
+      fetchUsers();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "ไม่สามารถเปลี่ยน role ได้");
     }
-
-    toast.success("เปลี่ยน role เรียบร้อยแล้ว");
-    fetchUsers();
   };
 
   const handleAssignProgram = async () => {
     if (!assignDialog || !selectedProgram) return;
 
-    const { error } = await supabase.from("user_program_access").insert({
-      user_id: assignDialog.userId,
-      program_id: selectedProgram,
-    });
-
-    if (error) {
-      if (error.code === "23505") {
+    try {
+      await apiClient.post(`/users/${assignDialog.userId}/programs`, { programId: selectedProgram });
+      toast.success("กำหนดโครงการเรียบร้อยแล้ว");
+      setAssignDialog(null);
+      setSelectedProgram("");
+      fetchUsers();
+    } catch (error: any) {
+      if (error.response?.status === 409) {
         toast.error("ผู้ใช้นี้ถูกกำหนดโครงการนี้แล้ว");
       } else {
-        toast.error("ไม่สามารถกำหนดโครงการได้");
+        toast.error(error.response?.data?.message || "ไม่สามารถกำหนดโครงการได้");
       }
-      return;
     }
-
-    toast.success("กำหนดโครงการเรียบร้อยแล้ว");
-    setAssignDialog(null);
-    setSelectedProgram("");
-    fetchUsers();
   };
 
   const handleRemoveAccess = async (userId: string, programId: string) => {
-    await supabase.from("user_program_access").delete()
-      .eq("user_id", userId)
-      .eq("program_id", programId);
-    toast.success("ลบสิทธิ์เข้าถึงโครงการเรียบร้อยแล้ว");
-    fetchUsers();
+    try {
+      await apiClient.delete(`/users/${userId}/programs/${programId}`);
+      toast.success("ลบสิทธิ์เข้าถึงโครงการเรียบร้อยแล้ว");
+      fetchUsers();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || error.message);
+    }
   };
 
   const getProgramName = (id: string) => programs.find((p) => p.id === id)?.name || id;
@@ -203,15 +170,16 @@ const SettingsUsers = () => {
                           <SelectValue placeholder="เลือก role" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="admin">ผู้ดูแลระบบ</SelectItem>
-                          <SelectItem value="evaluator">ผู้ประเมิน</SelectItem>
-                          <SelectItem value="user">ผู้ใช้งาน</SelectItem>
+                          <SelectItem value="SUPERADMIN">ซูเปอร์แอดมิน</SelectItem>
+                          <SelectItem value="ADMIN">ผู้ดูแลระบบ</SelectItem>
+                          <SelectItem value="EVALUATOR">ผู้ประเมิน</SelectItem>
+                          <SelectItem value="EVALUATEE">ผู้ถูกประเมิน</SelectItem>
                         </SelectContent>
                       </Select>
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1.5">
-                        {u.role === "admin" ? (
+                        {u.role === "ADMIN" || u.role === "SUPERADMIN" ? (
                           <Badge variant="default">ทุกโครงการ</Badge>
                         ) : (
                           <>

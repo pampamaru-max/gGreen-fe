@@ -250,8 +250,17 @@ const SettingsCertificate = () => {
   const { data: levels = [], isLoading: levelsLoading } = useQuery({
     queryKey: ["scoring-levels"],
     queryFn: async () => {
-      const { data } = await apiClient.get<ScoringLevel[]>("scoring-levels");
-      return data;
+      const { data } = await apiClient.get<any[]>("scoring-levels");
+      return data.map((l) => ({
+        id: l.id,
+        name: l.name,
+        min_score: l.minScore ?? l.min_score,
+        max_score: l.maxScore ?? l.max_score,
+        color: l.color,
+        icon: l.icon,
+        sort_order: l.sortOrder ?? l.sort_order,
+        program_id: l.programId ?? l.program_id,
+      })) as ScoringLevel[];
     },
   });
 
@@ -271,8 +280,20 @@ const SettingsCertificate = () => {
   const { data: templatesRaw = [], isLoading: templatesLoading } = useQuery({
     queryKey: ["certificate-templates"],
     queryFn: async () => {
-      const { data } = await apiClient.get<CertTemplate[]>("certificate-templates");
-      return data;
+      const { data } = await apiClient.get<any[]>("certificate-templates");
+      return data.map((t) => ({
+        id: t.id,
+        scoring_level_id: t.scoringLevelId ?? t.scoring_level_id,
+        title: t.title,
+        subtitle: t.subtitle,
+        body_text: t.bodyText ?? t.body_text,
+        footer_text: t.footerText ?? t.footer_text,
+        signer_name: t.signerName ?? t.signer_name,
+        signer_title: t.signerTitle ?? t.signer_title,
+        bg_image_url: t.bgImageUrl ?? t.bg_image_url,
+        logo_url: t.logoUrl ?? t.logo_url,
+        primary_color: t.primaryColor ?? t.primary_color,
+      })) as CertTemplate[];
     },
   });
 
