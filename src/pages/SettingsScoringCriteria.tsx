@@ -3,7 +3,6 @@ import { Award, Trophy, Medal, Plus, Trash2, Loader2, Save, Pencil, GripVertical
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose,
@@ -20,6 +19,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import apiClient from "@/lib/axios";
 
 interface ScoringLevel {
   id: number;
@@ -263,49 +263,92 @@ const SettingsScoringCriteria = () => {
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
 
   const fetchAll = async () => {
+  try {
     const [levelsRes, progRes] = await Promise.all([
-      supabase.from("scoring_levels").select("*").order("sort_order"),
-      supabase.from("programs").select("id, name, icon, sort_order").order("sort_order"),
+      apiClient.get("categories"),
+      apiClient.get("programs"),
     ]);
-    if (levelsRes.data) setLevels(levelsRes.data as ScoringLevel[]);
-    if (progRes.data) setPrograms(progRes.data as DbProgram[]);
-  };
+
+   setLevels(
+  levelsRes.data.map((c: any) => ({
+    ...c,
+    program_id: c.programId, // 🔥 map ตรงนี้
+  }))
+);
+    setPrograms(progRes.data);
+
+  } catch (error: any) {
+    console.error(error);
+  }
+};
 
   useEffect(() => {
     fetchAll().finally(() => setLoading(false));
   }, []);
 
-  const handleAdd = async (data: Omit<ScoringLevel, "id" | "sort_order" | "program_id">, programId: string) => {
-    const programLevels = levels.filter(l => l.program_id === programId);
-    const nextOrder = programLevels.length > 0 ? Math.max(...programLevels.map((l) => l.sort_order)) + 1 : 1;
-    const { error } = await supabase.from("scoring_levels").insert({ ...data, sort_order: nextOrder, program_id: programId });
-    if (error) {
-      toast({ title: "เกิดข้อผิดพลาด", description: error.message, variant: "destructive" });
-      return;
-    }
+  const handleAdd = async (
+  data: Omit<ScoringLevel, "id" | "sort_order" | "program_id">,
+  programId: string
+) => {
+  const programLevels = levels.filter(l => l.program_id === programId);
+  const nextOrder =
+    programLevels.length > 0
+      ? Math.max(...programLevels.map((l) => l.sort_order)) + 1
+      : 1;
+
+  try {
+    await apiClient.post("categories", {
+      ...data,
+      program_id: programId,
+      sort_order: nextOrder,
+    });
+
     toast({ title: "เพิ่มระดับสำเร็จ" });
     fetchAll();
-  };
 
-  const handleEdit = async (id: number, data: Omit<ScoringLevel, "id" | "sort_order" | "program_id">) => {
-    const { error } = await supabase.from("scoring_levels").update(data).eq("id", id);
-    if (error) {
-      toast({ title: "เกิดข้อผิดพลาด", description: error.message, variant: "destructive" });
-      return;
-    }
+  } catch (error: any) {
+    toast({
+      title: "เกิดข้อผิดพลาด",
+      description: error.response?.data?.message,
+      variant: "destructive",
+    });
+  }
+};
+
+ const handleEdit = async (
+  id: number,
+  data: Omit<ScoringLevel, "id" | "sort_order" | "program_id">
+) => {
+  try {
+    await apiClient.patch(`categories/${id}`, data);
+
     toast({ title: "แก้ไขระดับสำเร็จ" });
     fetchAll();
-  };
 
-  const handleDelete = async (id: number) => {
-    const { error } = await supabase.from("scoring_levels").delete().eq("id", id);
-    if (error) {
-      toast({ title: "เกิดข้อผิดพลาด", description: error.message, variant: "destructive" });
-      return;
-    }
+  } catch (error: any) {
+    toast({
+      title: "เกิดข้อผิดพลาด",
+      description: error.response?.data?.message,
+      variant: "destructive",
+    });
+  }
+};
+
+ const handleDelete = async (id: number) => {
+  try {
+    await apiClient.delete(`categories/${id}`);
+
     toast({ title: "ลบระดับสำเร็จ" });
     fetchAll();
-  };
+
+  } catch (error: any) {
+    toast({
+      title: "เกิดข้อผิดพลาด",
+      description: error.response?.data?.message,
+      variant: "destructive",
+    });
+  }
+};
 
   const handleDragEnd = async (programId: string, event: DragEndEvent) => {
     const { active, over } = event;
@@ -322,10 +365,17 @@ const SettingsScoringCriteria = () => {
       return [...others, ...reordered.map((l, i) => ({ ...l, sort_order: i + 1 }))];
     });
 
-    const updates = reordered.map((l, i) =>
-      supabase.from("scoring_levels").update({ sort_order: i + 1 }).eq("id", l.id)
-    );
-    await Promise.all(updates);
+   try {
+  await apiClient.patch("scoring-levels/reorder", {
+    levels: reordered.map((l, i) => ({
+      id: l.id,
+      sort_order: i + 1,
+    })),
+  });
+} catch (error) {
+  console.error(error);
+
+}
   };
 
   if (loading) {
