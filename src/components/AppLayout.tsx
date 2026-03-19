@@ -3,7 +3,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { Outlet } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import apiClient from "@/lib/axios";
 import { User } from "lucide-react";
 
 export function AppLayout() {
@@ -12,12 +12,8 @@ export function AppLayout() {
 
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from("profiles")
-      .select("display_name")
-      .eq("user_id", user.id)
-      .maybeSingle()
-      .then(({ data }) => setDisplayName(data?.display_name || user.email || ""));
+    apiClient.get("/auth/me")
+      .then(({ data }) => setDisplayName(data?.user?.name || user.email || ""));
   }, [user]);
 
   return (
