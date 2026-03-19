@@ -120,8 +120,7 @@ export default function RegistrationDetailDialog({ registration, programName, op
     if (!registration) return;
     setUploading((prev) => ({ ...prev, [templateId]: true }));
 
-    const sanitized = sanitizeFileName(file.name);
-    const filePath = `${registration.id}/${templateId}/${Date.now()}_${sanitized}`;
+    const filePath = `${registration.id}/${templateId}/${Date.now()}_${file.name}`;
 
     const { error: uploadError } = await supabase.storage
       .from("registration-documents")
@@ -185,6 +184,11 @@ export default function RegistrationDetailDialog({ registration, programName, op
   if (!registration) return null;
 
   const status = statusMap[registration.status] ?? { label: registration.status, variant: "outline" as const };
+
+  const getDownloadUrl = (id: string,fileName: string | null) =>{
+    const base = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5001/api/").replace(/\/$/, "");
+    return `${base}/document-templates/${id}/download/${encodeURIComponent(fileName ?? "")}`;
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -307,7 +311,7 @@ export default function RegistrationDetailDialog({ registration, programName, op
                       </div>
                       {tpl.sampleFileUrl && (
                         <a
-                          href={tpl.sampleFileUrl}
+                          href={getDownloadUrl(tpl.id, tpl.sampleFileName)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-xs text-primary hover:underline flex items-center gap-1 shrink-0"
