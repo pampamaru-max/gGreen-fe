@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import apiClient from "@/lib/axios";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
@@ -114,20 +115,17 @@ const EditTemplateDialog = ({
 
   const set = (key: keyof CertTemplate, value: string) => setForm((f) => ({ ...f, [key]: value }));
 
-  const uploadFile = async (file: File, folder: string) => {
-    const ext = file.name.split(".").pop();
-    const path = `${folder}/${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("certificate-assets").upload(path, file, { upsert: true });
-    if (error) throw error;
-    const { data } = supabase.storage.from("certificate-assets").getPublicUrl(path);
-    return data.publicUrl;
-  };
-
   const handleFileUpload = async (file: File, field: "logo_url" | "bg_image_url") => {
     setUploading(true);
     try {
-      const url = await uploadFile(file, field === "logo_url" ? "logos" : "backgrounds");
-      setForm((f) => ({ ...f, [field]: url }));
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("folder", `certificate-assets/${field === "logo_url" ? "logos" : "backgrounds"}`);
+      const { data } = await apiClient.post<{ url: string }>("files/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+        timeout: 60000,
+      });
+      setForm((f) => ({ ...f, [field]: data.url }));
       toast({ title: "อัปโหลดสำเร็จ" });
     } catch (e: any) {
       toast({ title: "อัปโหลดล้มเหลว", description: e.message, variant: "destructive" });
@@ -205,7 +203,6 @@ const LevelCertCard = ({
   return (
     <div className="rounded-xl border bg-card p-4">
       <div className="grid lg:grid-cols-2 gap-4">
-        {/* Info */}
         <div className="space-y-3">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: `${level.color}20`, color: level.color }}>
@@ -234,7 +231,6 @@ const LevelCertCard = ({
           </div>
           <EditTemplateDialog template={template} levelName={level.name} onSave={onSave} />
         </div>
-        {/* Preview */}
         <div>
           <div className="flex items-center gap-2 mb-2">
             <Eye className="h-4 w-4 text-muted-foreground" />
@@ -249,49 +245,65 @@ const LevelCertCard = ({
 
 /* ──────────────── Main Page ──────────────── */
 const SettingsCertificate = () => {
-  const [levels, setLevels] = useState<ScoringLevel[]>([]);
-  const [programs, setPrograms] = useState<DbProgram[]>([]);
-  const [templates, setTemplates] = useState<Record<number, CertTemplate>>({});
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  const fetchData = async () => {
-    const [levelsRes, templatesRes, progRes] = await Promise.all([
-      supabase.from("scoring_levels").select("*").order("sort_order"),
-      supabase.from("certificate_templates").select("*"),
-      supabase.from("programs").select("id, name, icon, sort_order").order("sort_order"),
-    ]);
+  const { data: levels = [], isLoading: levelsLoading } = useQuery({
+    queryKey: ["scoring-levels"],
+    queryFn: async () => {
+      const { data } = await apiClient.get<ScoringLevel[]>("scoring-levels");
+      return data;
+    },
+  });
 
-    if (levelsRes.error) {
-      toast({ title: "เกิดข้อผิดพลาด", description: levelsRes.error.message, variant: "destructive" });
-      return;
-    }
+  const { data: programs = [], isLoading: programsLoading } = useQuery({
+    queryKey: ["programs"],
+    queryFn: async () => {
+      const { data } = await apiClient.get<any[]>("programs");
+      return data.map((p) => ({
+        id: p.id,
+        name: p.name,
+        icon: p.icon,
+        sort_order: p.sortOrder ?? p.sort_order,
+      })) as DbProgram[];
+    },
+  });
 
-    setLevels((levelsRes.data || []) as ScoringLevel[]);
-    setPrograms((progRes.data || []) as DbProgram[]);
+  const { data: templatesRaw = [], isLoading: templatesLoading } = useQuery({
+    queryKey: ["certificate-templates"],
+    queryFn: async () => {
+      const { data } = await apiClient.get<CertTemplate[]>("certificate-templates");
+      return data;
+    },
+  });
 
-    const tMap: Record<number, CertTemplate> = {};
-    (templatesRes.data || []).forEach((t: any) => { tMap[t.scoring_level_id] = t; });
-    setTemplates(tMap);
+  const templates: Record<number, CertTemplate> = {};
+  templatesRaw.forEach((t) => { templates[t.scoring_level_id] = t; });
+
+  const saveMutation = useMutation({
+    mutationFn: async ({ levelId, template }: { levelId: number; template: CertTemplate }) => {
+      const existing = templates[levelId];
+      if (existing?.id) {
+        const { id, ...rest } = template;
+        await apiClient.patch(`certificate-templates/${existing.id}`, rest);
+      } else {
+        const { id, ...rest } = template;
+        await apiClient.post("certificate-templates", rest);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["certificate-templates"] });
+      toast({ title: "บันทึกสำเร็จ" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "เกิดข้อผิดพลาด", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const handleSave = (levelId: number, template: CertTemplate) => {
+    saveMutation.mutate({ levelId, template });
   };
 
-  useEffect(() => { fetchData().finally(() => setLoading(false)); }, []);
-
-  const handleSave = async (levelId: number, template: CertTemplate) => {
-    const existing = templates[levelId];
-    if (existing?.id) {
-      const { id, ...rest } = template;
-      const { error } = await supabase.from("certificate_templates").update(rest).eq("id", existing.id);
-      if (error) { toast({ title: "เกิดข้อผิดพลาด", description: error.message, variant: "destructive" }); return; }
-    } else {
-      const { id, ...rest } = template;
-      const { error } = await supabase.from("certificate_templates").insert(rest);
-      if (error) { toast({ title: "เกิดข้อผิดพลาด", description: error.message, variant: "destructive" }); return; }
-    }
-    toast({ title: "บันทึกสำเร็จ" });
-    fetchData();
-  };
-
-  if (loading) {
+  if (levelsLoading || programsLoading || templatesLoading) {
     return (
       <div className="flex items-center justify-center min-h-[300px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -301,7 +313,6 @@ const SettingsCertificate = () => {
 
   return (
     <div className="min-h-full bg-background">
-      {/* Header */}
       <div className="border-b bg-card/50 px-6 py-4">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
@@ -326,7 +337,6 @@ const SettingsCertificate = () => {
           const programLevels = levels
             .filter((l) => l.program_id === program.id)
             .sort((a, b) => a.sort_order - b.sort_order);
-
           const configuredCount = programLevels.filter((l) => !!templates[l.id]).length;
 
           return (
@@ -336,9 +346,7 @@ const SettingsCertificate = () => {
                   <button className="flex w-full items-center gap-3 px-5 py-4 hover:bg-accent/20 transition-colors">
                     <ChevronRight className="h-5 w-5 text-accent-foreground/70 transition-transform group-data-[state=open]/prog:rotate-90" />
                     <p className="font-bold text-foreground text-left flex-1 text-base">{program.name}</p>
-                    <span className="text-xs text-muted-foreground">
-                      {configuredCount}/{programLevels.length} ระดับตั้งค่าแล้ว
-                    </span>
+                    <span className="text-xs text-muted-foreground">{configuredCount}/{programLevels.length} ระดับตั้งค่าแล้ว</span>
                   </button>
                 </CollapsibleTrigger>
 
@@ -369,7 +377,6 @@ const SettingsCertificate = () => {
           );
         })}
 
-        {/* Unassigned levels */}
         {levels.some((l) => !l.program_id) && (
           <div className="rounded-xl border border-dashed bg-muted/30 p-4 space-y-4">
             <p className="text-sm font-semibold text-muted-foreground">ระดับที่ยังไม่ได้ผูกกับโครงการ</p>
