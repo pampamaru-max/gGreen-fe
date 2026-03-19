@@ -4,7 +4,6 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import apiClient from "@/lib/axios";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -268,12 +267,9 @@ export default function SettingsPrograms() {
 
   const reorderMutation = useMutation({
     mutationFn: async (reordered: Program[]) => {
-      const updates = reordered.map((p, i) =>
-        supabase.from("programs").update({ sort_order: i }).eq("id", p.id)
+      await Promise.all(
+        reordered.map((p, i) => apiClient.patch(`programs/${p.id}`, { sortOrder: i }))
       );
-      const results = await Promise.all(updates);
-      const err = results.find((r) => r.error);
-      if (err?.error) throw err.error;
     },
     onMutate: async (reordered) => {
       await queryClient.cancelQueries({ queryKey: ["programs"] });
