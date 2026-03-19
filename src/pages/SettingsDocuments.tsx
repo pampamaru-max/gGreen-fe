@@ -107,18 +107,19 @@ export default function SettingsDocuments() {
         formData.append("file", file);
       }
 
+      const uploadConfig = {
+        headers: { "Content-Type": "multipart/form-data" },
+        timeout: 120000, // 2 minutes for large file uploads
+      };
+
       if (editing) {
         // Use backend API to update (bypasses RLS)
-        await apiClient.patch(`/document-templates/${editing.id}`, formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
+        await apiClient.patch(`/document-templates/${editing.id}`, formData, uploadConfig);
         toast({ title: "บันทึกสำเร็จ" });
       } else {
         // Use backend API to create (bypasses RLS)
         formData.append("sortOrder", String(docs.length));
-        await apiClient.post("/document-templates", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
+        await apiClient.post("/document-templates", formData, uploadConfig);
         toast({ title: "เพิ่มเอกสารสำเร็จ" });
       }
 
@@ -147,6 +148,11 @@ export default function SettingsDocuments() {
   };
 
   const programName = useMemo(() => programs.find((p) => p.id === selectedProgram)?.name ?? "", [programs, selectedProgram]);
+
+  const getDownloadUrl = (id: string, fileName: string | null) => {
+    const base = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5000/api/").replace(/\/$/, "");
+    return `${base}/document-templates/${id}/download/${encodeURIComponent(fileName ?? "")}`;
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -199,7 +205,7 @@ export default function SettingsDocuments() {
                       <TableCell className="font-medium">{doc.name}</TableCell>
                       <TableCell>
                         {doc.sampleFileUrl ? (
-                          <a href={doc.sampleFileUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1 text-sm">
+                          <a href={getDownloadUrl(doc.id, doc.sampleFileName)} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1 text-sm">
                             <ExternalLink className="h-3.5 w-3.5" />
                             {doc.sampleFileName || "ดูตัวอย่าง"}
                           </a>
