@@ -1,8 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { ClipboardCheck, Loader2, Plus, Pencil, Search, X } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 
 interface RegistrationRow {
   id: string;
+  user_id: string;
   organization_name: string;
   province: string;
   program_id: string;
@@ -27,8 +26,7 @@ interface RegistrationRow {
 const EvaluationPage = () => {
   const [rows, setRows] = useState<RegistrationRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const { isAdmin, role, accessibleProgramIds, loading: roleLoading } = useUserRole();
-  const { user } = useAuth();
+  const { loading: roleLoading } = useUserRole();
   const navigate = useNavigate();
 
   const { data: provinces = [] } = useQuery({
@@ -53,99 +51,13 @@ const EvaluationPage = () => {
     const fetchData = async () => {
       setLoading(true);
 
-      let regQuery = supabase
-        .from("project_registrations")
-        .select("id, organization_name, province, program_id, status, created_at, user_id")
-        .eq("status", "selected");
-
-      if (isAdmin) {
-        // Admin sees all
-      } else if (role === "user" || role === "evaluator") {
-        // User and evaluator see registrations in their assigned programs
-        if (accessibleProgramIds.length > 0) {
-          regQuery = regQuery.in("program_id", accessibleProgramIds);
-        } else if (role === "user" && user) {
-          // Fallback: show own registrations if no program access assigned
-          regQuery = regQuery.eq("user_id", user.id);
-        } else {
-          setRows([]);
-          setLoading(false);
-          return;
-        }
-      } else {
-        setRows([]);
-        setLoading(false);
-        return;
-      }
-
-      const { data: registrations } = await regQuery;
-      if (!registrations || registrations.length === 0) {
-        setRows([]);
-        setLoading(false);
-        return;
-      }
-
-      const programIds = [...new Set(registrations.map((r) => r.program_id))];
-      const { data: programs } = await supabase
-        .from("programs")
-        .select("id, name")
-        .in("id", programIds);
-      const programMap = new Map(programs?.map((p) => [p.id, p.name]) || []);
-
-      // Fetch evaluations with user_id to correctly map per-user
-      let evalQuery = supabase
-        .from("evaluations")
-        .select("id, program_id, status, user_id")
-        .in("program_id", programIds);
-
-      // For "user" role, only fetch their own evaluations
-      if (role === "user" && user) {
-        evalQuery = evalQuery.eq("user_id", user.id);
-      }
-
-      const { data: evaluations } = await evalQuery;
-
-      // Use composite key "program_id:user_id" to support multiple evaluations per program
-      const evalMap = new Map(
-        evaluations?.map((e) => [`${e.program_id}:${e.user_id}`, { id: e.id, status: e.status }]) || []
-      );
-
-      const evalIds = evaluations?.map((e) => e.id) || [];
-      let committeeMap = new Map<string, boolean>();
-      if (evalIds.length > 0) {
-        const { data: scores } = await supabase
-          .from("evaluation_scores")
-          .select("evaluation_id, committee_score")
-          .in("evaluation_id", evalIds)
-          .not("committee_score", "is", null)
-          .gt("committee_score", 0);
-
-        const evalIdsWithCommittee = new Set(scores?.map((s) => s.evaluation_id) || []);
-        evalIds.forEach((id) => committeeMap.set(id, evalIdsWithCommittee.has(id)));
-      }
-
-      const result: RegistrationRow[] = registrations.map((reg) => {
-        const evalKey = `${reg.program_id}:${reg.user_id}`;
-        const eval_ = evalMap.get(evalKey);
-        return {
-          id: reg.id,
-          organization_name: reg.organization_name,
-          province: reg.province,
-          program_id: reg.program_id,
-          program_name: programMap.get(reg.program_id) || "",
-          evaluation_id: eval_?.id || null,
-          evaluation_status: eval_?.status || null,
-          has_committee_score: eval_ ? (committeeMap.get(eval_.id) || false) : false,
-          created_year: new Date(reg.created_at).getFullYear() + 543,
-        };
-      });
-
+      const { data: result } = await apiClient.get("evaluation/summary");
       setRows(result);
       setLoading(false);
     };
 
     fetchData();
-  }, [isAdmin, role, user, accessibleProgramIds, roleLoading]);
+  }, [roleLoading]);
 
   // Derived unique values for dropdowns
   const programOptions = useMemo(() => [...new Set(rows.map((r) => r.program_name))].filter(Boolean).sort(), [rows]);
@@ -355,7 +267,7 @@ const EvaluationPage = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => navigate(`/evaluation/${row.program_id}`)}
+                        onClick={() => navigate(`/evaluation/${row.program_id}${row.user_id ? `?evaluateeId=${row.user_id}` : ""}`)}
                         title={row.evaluation_id ? "แก้ไขการประเมิน" : "เพิ่มการประเมิน"}
                       >
                         {row.evaluation_id ? (
