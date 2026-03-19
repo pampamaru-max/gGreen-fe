@@ -25,6 +25,8 @@ jobs:
           push: true
           # 💡 เปลี่ยนชื่อกล่องเป็น ggreen-fe ให้ตรงกับโปรเจกต์
           tags: ${{ secrets.DOCKER_USERNAME }}/ggreen-fe:latest
+          build-args: |
+            VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }}
 
       - name: 🚀 Deploy to GCP
         uses: appleboy/ssh-action@v1.0.3
