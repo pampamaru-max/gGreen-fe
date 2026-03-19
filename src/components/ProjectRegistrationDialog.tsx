@@ -317,7 +317,18 @@ export default function ProjectRegistrationDialog({ open, onOpenChange }: Props)
                       <FormLabel className="flex items-center gap-1.5">
                         <User className="h-3.5 w-3.5 text-primary" /> ชื่อ-นามสกุล ผู้ติดต่อ
                       </FormLabel>
-                      <FormControl><Input placeholder="ชื่อ-นามสกุล" {...field} /></FormControl>
+                      <FormControl>
+                        <Input
+                          placeholder="ชื่อ-นามสกุล"
+                          {...field}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            // Allow only letters (EN/TH), space, and dot. No numbers.
+                            const filtered = value.replace(/[^a-zA-Z\u0E00-\u0E7F\s.]/g, "");
+                            field.onChange(filtered);
+                          }}
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
