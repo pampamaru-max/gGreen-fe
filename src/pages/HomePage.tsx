@@ -26,36 +26,36 @@ export default function HomePage() {
   });
 
   return (
-    <><div className="flex flex-col gap-8 p-6 lg:p-8 max-w-7xl mx-auto w-full">
+    <><div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
       {/* Hero Text Section */}
-      <div className="relative overflow-hidden rounded-2xl border border-border/60 p-8 sm:p-12 min-h-[260px]" style={{ backgroundColor: '#dfe8e6' }}>
+      <div className="relative overflow-hidden rounded-2xl border border-border/60 p-5 sm:p-8 lg:p-12" style={{ backgroundColor: '#dfe8e6' }}>
         <img
           src={gLogo}
           alt=""
-          className="absolute right-6 top-1/2 -translate-y-1/2 h-[200px] w-[200px] sm:h-[240px] sm:w-[240px] object-contain opacity-80 pointer-events-none select-none mix-blend-multiply animate-fade-in [animation-duration:1.2s] [animation-delay:0.3s] [animation-fill-mode:backwards]" />
-        
+          className="absolute right-3 top-1/2 -translate-y-1/2 h-[110px] w-[110px] sm:h-[200px] sm:w-[200px] lg:h-[240px] lg:w-[240px] object-contain opacity-70 pointer-events-none select-none mix-blend-multiply animate-fade-in [animation-duration:1.2s] [animation-delay:0.3s] [animation-fill-mode:backwards]" />
+
         <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-3">
-            <img src={dcceLogo} alt="กรมการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม" className="h-12 w-12 object-contain" />
-            <p className="text-accent leading-relaxed">
+          <div className="flex items-center gap-2 sm:gap-3 mb-3">
+            <img src={dcceLogo} alt="กรมการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม" className="h-9 w-9 sm:h-12 sm:w-12 object-contain shrink-0" />
+            <p className="text-accent leading-relaxed text-xs sm:text-sm">
               กรมการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม
               <br />
-              <span className="text-sm">Department of Climate Change and Environment</span>
+              <span className="text-xs text-accent/70">Department of Climate Change and Environment</span>
             </p>
           </div>
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground leading-tight mb-3 max-w-[calc(100%-220px)] sm:max-w-[calc(100%-260px)]">
+          <h1 className="text-lg sm:text-2xl lg:text-4xl font-bold text-foreground leading-tight mb-3 max-w-[calc(100%-120px)] sm:max-w-[calc(100%-220px)] lg:max-w-[calc(100%-260px)]">
             โครงการพัฒนาระบบบริการข้อมูลการผลิต การบริการและการบริโภคที่เป็นมิตรกับสิ่งแวดล้อม
           </h1>
-          <div className="flex flex-wrap gap-3 mt-6">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-4 sm:mt-6">
             <button
               onClick={() => setRegOpen(true)}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-accent text-accent-foreground text-base font-bold shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
-              สมัครเข้าร่วมโครงการ <UserPlus className="h-5 w-5" />
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl bg-accent text-accent-foreground text-sm sm:text-base font-bold shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
+              สมัครเข้าร่วมโครงการ <UserPlus className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
             <button
               onClick={() => navigate("/register")}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground text-base font-bold shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
-              เข้าประเมิน G-Green <ArrowRight className="h-5 w-5" />
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl bg-primary text-primary-foreground text-sm sm:text-base font-bold shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
+              เข้าประเมิน G-Green <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
           </div>
         </div>
@@ -64,14 +64,14 @@ export default function HomePage() {
       {/* Tabs Section */}
       <Tabs defaultValue="programs">
         <TabsList className="w-full justify-start">
-          <TabsTrigger value="programs">โครงการภายใต้ G-Green</TabsTrigger>
-          <TabsTrigger value="reports">รายงาน</TabsTrigger>
+          <TabsTrigger value="programs" className="text-xs sm:text-sm">โครงการภายใต้ G-Green</TabsTrigger>
+          <TabsTrigger value="reports" className="text-xs sm:text-sm">รายงาน</TabsTrigger>
         </TabsList>
         <TabsContent value="programs">
           {programsLoading ? (
             <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
               {programs.map((p) => {
                 const IconComp = iconMap[p.icon] ?? Building2;
                 return (
@@ -79,12 +79,12 @@ export default function HomePage() {
                     key={p.id}
                     className="group hover:shadow-lg transition-shadow border-border/60 cursor-pointer"
                     onClick={() => navigate(`/program/${p.id}`)}>
-                    <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-                      <div className="h-12 w-12 rounded-xl bg-accent/10 flex items-center justify-center group-hover:bg-accent/20 transition-colors">
-                        <IconComp className="h-6 w-6 text-accent" />
+                    <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center gap-2">
+                      <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-accent/10 flex items-center justify-center group-hover:bg-accent/20 transition-colors">
+                        <IconComp className="h-5 w-5 sm:h-6 sm:w-6 text-accent" />
                       </div>
-                      <span className="text-sm font-semibold text-foreground">{p.name}</span>
-                      <span className="text-xs text-muted-foreground leading-tight">{p.description}</span>
+                      <span className="text-xs sm:text-sm font-semibold text-foreground">{p.name}</span>
+                      <span className="text-xs text-muted-foreground leading-tight hidden sm:block">{p.description}</span>
                     </CardContent>
                   </Card>
                 );
@@ -131,7 +131,7 @@ export default function HomePage() {
 
 
       {/* Footer */}
-      <footer className="border-t border-border/60 mt-8 pt-8 pb-4">
+      <footer className="border-t border-border/60 mt-4 sm:mt-8 pt-6 sm:pt-8 pb-4">
         <div className="flex flex-col md:flex-row gap-8 items-start justify-between">
           <div className="flex-1 space-y-4">
             <h3 className="text-lg font-bold text-accent">
