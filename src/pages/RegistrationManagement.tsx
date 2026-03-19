@@ -13,16 +13,17 @@ import { useQuery } from "@tanstack/react-query";
 
 interface Registration {
   id: string;
-  program_id: string;
-  organization_name: string;
-  organization_type: string;
+  programId: string;
+  organizationName: string;
+  organizationType: string;
   address: string;
   province: string;
-  contact_name: string;
-  contact_phone: string;
-  contact_email: string;
+  provinceName?: string;
+  contactName: string;
+  contactPhone: string;
+  contactEmail: string;
   status: string;
-  created_at: string;
+  createdAt: string;
 }
 
 interface Program {
@@ -62,52 +63,56 @@ export default function RegistrationManagement() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const [regRes, progRes] = await Promise.all([
-        supabase.from("project_registrations").select("*").order("created_at", { ascending: false }),
-        supabase.from("programs").select("id, name").order("sort_order"),
-      ]);
-      setRegistrations(regRes.data ?? []);
-      setPrograms(progRes.data ?? []);
-      setLoading(false);
+      try {
+        const [regRes, progRes] = await Promise.all([
+          apiClient.get("project-registrations"),
+          apiClient.get("programs/names"),
+        ]);
+        setRegistrations(regRes.data ?? []);
+        setPrograms(progRes.data ?? []);
+      } catch (error) {
+        console.error("Error fetching registrations:", error);
+      } finally {
+        setLoading(false);
+      }
     };
     fetchData();
   }, []);
 
   // Derive unique values for dropdowns
   const uniqueYears = useMemo(() => {
-    const years = new Set(registrations.map((r) => new Date(r.created_at).getFullYear()));
+    const years = new Set(registrations.map((r) => new Date(r.createdAt).getFullYear()));
     return Array.from(years).sort((a, b) => b - a);
   }, [registrations]);
 
   const uniqueTypes = useMemo(() => {
-    const types = new Set(registrations.map((r) => r.organization_type).filter(Boolean));
+    const types = new Set(registrations.map((r) => r.organizationType).filter(Boolean));
     return Array.from(types).sort();
   }, [registrations]);
 
   const uniqueProvinces = useMemo(() => {
     const provs = new Set(registrations.map((r) => {
-      const found = provinces.find((p: any) => String(p.id) === r.province);
-      return found ? found.nameTh : r.province;
+      return r.provinceName || r.province;
     }).filter(Boolean));
     return Array.from(provs).sort();
-  }, [registrations, provinces]);
+  }, [registrations]);
 
   const programName = (id: string) => programs.find((p) => p.id === id)?.name ?? id;
 
   const filtered = useMemo(() => {
     return registrations.filter((r) => {
-      if (fProgram !== ALL && r.program_id !== fProgram) return false;
-      if (fYear !== ALL && new Date(r.created_at).getFullYear().toString() !== fYear) return false;
+      if (fProgram !== ALL && r.programId !== fProgram) return false;
+      if (fYear !== ALL && new Date(r.createdAt).getFullYear().toString() !== fYear) return false;
       if (fStatus !== ALL && r.status !== fStatus) return false;
-      if (fType !== ALL && r.organization_type !== fType) return false;
+      if (fType !== ALL && r.organizationType !== fType) return false;
       if (fProvince !== ALL) {
-        const rProvName = provinces.find((p: any) => String(p.id) === r.province)?.nameTh || r.province;
+        const rProvName = r.provinceName || r.province;
         if (rProvName !== fProvince) return false;
       }
-      if (fName && !r.organization_name.toLowerCase().includes(fName.toLowerCase())) return false;
+      if (fName && !r.organizationName.toLowerCase().includes(fName.toLowerCase())) return false;
       return true;
     });
-  }, [registrations, fProgram, fYear, fStatus, fType, fName, fProvince, provinces]);
+  }, [registrations, fProgram, fYear, fStatus, fType, fName, fProvince]);
 
   const hasActiveFilter = fProgram !== ALL || fYear !== ALL || fStatus !== ALL || fType !== ALL || fProvince !== ALL || fName !== "";
 
@@ -277,16 +282,13 @@ export default function RegistrationManagement() {
                     return (
                       <TableRow key={r.id}>
                         <TableCell className="text-muted-foreground">{i + 1}</TableCell>
-                        <TableCell>{programName(r.program_id)}</TableCell>
-                        <TableCell className="font-medium">{r.organization_name}</TableCell>
-                        <TableCell>{r.organization_type || "-"}</TableCell>
+                        <TableCell>{programName(r.programId)}</TableCell>
+                        <TableCell className="font-medium">{r.organizationName}</TableCell>
+                        <TableCell>{r.organizationType || "-"}</TableCell>
                         <TableCell>
-                          {(() => {
-                            const found = provinces.find((p: any) => String(p.id) === r.province);
-                            return found ? found.nameTh : (r.province || "-");
-                          })()}
+                          {r.provinceName || r.province || "-"}
                         </TableCell>
-                        <TableCell>{new Date(r.created_at).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" })}</TableCell>
+                        <TableCell>{new Date(r.createdAt).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" })}</TableCell>
                         <TableCell>
                           <Badge variant={status.variant}>{status.label}</Badge>
                         </TableCell>
@@ -307,7 +309,7 @@ export default function RegistrationManagement() {
 
       <RegistrationDetailDialog
         registration={selected}
-        programName={selected ? programName(selected.program_id) : ""}
+        programName={selected ? programName(selected.programId) : ""}
         open={!!selected}
         onOpenChange={() => setSelected(null)}
         onStatusChange={(id, newStatus) => {

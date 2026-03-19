@@ -11,34 +11,34 @@ import { useQuery } from "@tanstack/react-query";
 
 interface Registration {
   id: string;
-  program_id: string;
-  organization_name: string;
-  organization_type: string;
+  programId: string;
+  organizationName: string;
+  organizationType: string;
   address: string;
   province: string;
   provinceName?: string;
-  contact_name: string;
-  contact_phone: string;
-  contact_email: string;
+  contactName: string;
+  contactPhone: string;
+  contactEmail: string;
   status: string;
-  created_at: string;
+  createdAt: string;
 }
 
 interface DocumentTemplate {
   id: string;
   name: string;
-  is_required: boolean;
-  sample_file_url: string | null;
-  sample_file_name: string | null;
-  sort_order: number;
+  isRequired: boolean;
+  sampleFileUrl: string | null;
+  sampleFileName: string | null;
+  sortOrder: number;
 }
 
 interface RegistrationDocument {
   id: string;
-  document_template_id: string;
-  file_name: string;
-  file_url: string;
-  file_path: string;
+  documentTemplateId: string;
+  fileName: string;
+  fileUrl: string;
+  filePath: string;
 }
 
 const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -76,34 +76,45 @@ export default function RegistrationDetailDialog({ registration, programName, op
     enabled: open,
   });
 
-  const provinceName = useMemo(() => {
-    if (!registration?.province) return "-";
+  const provinceDisplay = useMemo(() => {
+    if (!registration) return "-";
+    if (registration.provinceName) return registration.provinceName;
     const found = provinces.find((p: any) => String(p.id) === registration.province);
-    return found ? `${found.nameTh} (${found.id})` : registration.province;
-  }, [registration?.province, provinces]);
+    return found ? `${found.nameTh}` : registration.province;
+  }, [registration, provinces]);
 
   useEffect(() => {
     if (!registration) return;
-    setLoading(true);
-    Promise.all([
-      supabase
-        .from("document_templates")
-        .select("*")
-        .eq("program_id", registration.program_id)
-        .order("sort_order"),
-      supabase
-        .from("registration_documents")
-        .select("*")
-        .eq("registration_id", registration.id),
-    ]).then(([tplRes, docRes]) => {
-      setTemplates(tplRes.data ?? []);
-      setDocuments(docRes.data ?? []);
-      setLoading(false);
-    });
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [tplRes, docRes] = await Promise.all([
+          apiClient.get("document-templates", { params: { programId: registration.programId } }),
+          supabase
+            .from("registration_documents")
+            .select("*")
+            .eq("registration_id", registration.id),
+        ]);
+        setTemplates(tplRes.data ?? []);
+        const mappedDocs = (docRes.data ?? []).map((d: any) => ({
+          id: d.id,
+          documentTemplateId: d.document_template_id,
+          fileName: d.file_name,
+          fileUrl: d.file_url,
+          filePath: d.file_path,
+        }));
+        setDocuments(mappedDocs);
+      } catch (error) {
+        console.error("Error fetching registration details:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
   }, [registration]);
 
   const getDocForTemplate = (templateId: string) =>
-    documents.find((d) => d.document_template_id === templateId);
+    documents.find((d) => d.documentTemplateId === templateId);
 
   const handleUpload = async (templateId: string, file: File) => {
     if (!registration) return;
@@ -129,7 +140,7 @@ export default function RegistrationDetailDialog({ registration, programName, op
     // Remove old doc if exists
     const existing = getDocForTemplate(templateId);
     if (existing) {
-      await supabase.storage.from("registration-documents").remove([existing.file_path]);
+      await supabase.storage.from("registration-documents").remove([existing.filePath]);
       await supabase.from("registration_documents").delete().eq("id", existing.id);
     }
 
@@ -149,8 +160,14 @@ export default function RegistrationDetailDialog({ registration, programName, op
       toast.error("บันทึกข้อมูลไม่สำเร็จ: " + insertError.message);
     } else if (newDoc) {
       setDocuments((prev) => [
-        ...prev.filter((d) => d.document_template_id !== templateId),
-        newDoc,
+        ...prev.filter((d) => d.documentTemplateId !== templateId),
+        {
+          id: newDoc.id,
+          documentTemplateId: newDoc.document_template_id,
+          fileName: newDoc.file_name,
+          fileUrl: newDoc.file_url,
+          filePath: newDoc.file_path,
+        },
       ]);
       toast.success("อัปโหลดไฟล์สำเร็จ");
     }
@@ -159,7 +176,7 @@ export default function RegistrationDetailDialog({ registration, programName, op
   };
 
   const handleDelete = async (doc: RegistrationDocument) => {
-    await supabase.storage.from("registration-documents").remove([doc.file_path]);
+    await supabase.storage.from("registration-documents").remove([doc.filePath]);
     await supabase.from("registration_documents").delete().eq("id", doc.id);
     setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
     toast.success("ลบไฟล์สำเร็จ");
@@ -179,20 +196,20 @@ export default function RegistrationDetailDialog({ registration, programName, op
         {/* Registration Info */}
         <div className="space-y-2 text-sm">
           <DetailRow label="โครงการ" value={programName} />
-          <DetailRow label="ชื่อหน่วยงาน" value={registration.organization_name} />
-          <DetailRow label="ประเภทองค์กร" value={registration.organization_type} />
+          <DetailRow label="ชื่อหน่วยงาน" value={registration.organizationName} />
+          <DetailRow label="ประเภทองค์กร" value={registration.organizationType} />
           <DetailRow label="ที่อยู่" value={registration.address} />
-          <DetailRow label="จังหวัด" value={provinceName} />
-          <DetailRow label="ผู้ติดต่อ" value={registration.contact_name} />
-          <DetailRow label="โทรศัพท์" value={registration.contact_phone} />
-          <DetailRow label="อีเมล" value={registration.contact_email} />
+          <DetailRow label="จังหวัด" value={provinceDisplay} />
+          <DetailRow label="ผู้ติดต่อ" value={registration.contactName} />
+          <DetailRow label="โทรศัพท์" value={registration.contactPhone} />
+          <DetailRow label="อีเมล" value={registration.contactEmail} />
           <div className="flex gap-2 items-center">
             <span className="font-medium text-muted-foreground min-w-[120px]">สถานะ:</span>
             <Badge variant={status.variant}>{status.label}</Badge>
           </div>
           <DetailRow
             label="วันที่สมัคร"
-            value={new Date(registration.created_at).toLocaleDateString("th-TH", {
+            value={new Date(registration.createdAt).toLocaleDateString("th-TH", {
               year: "numeric",
               month: "long",
               day: "numeric",
@@ -212,17 +229,15 @@ export default function RegistrationDetailDialog({ registration, programName, op
               className="bg-emerald-600 hover:bg-emerald-700 text-white"
               onClick={async () => {
                 setUpdatingStatus(true);
-                const { error } = await supabase
-                  .from("project_registrations")
-                  .update({ status: "selected" })
-                  .eq("id", registration.id);
-                if (error) {
-                  toast.error("เปลี่ยนสถานะไม่สำเร็จ");
-                } else {
+                try {
+                  await apiClient.patch(`project-registrations/${registration.id}/status`, { status: "selected" });
                   toast.success("เปลี่ยนสถานะเป็น ผ่านการคัดเลือก");
                   onStatusChange?.(registration.id, "selected");
+                } catch (error) {
+                  toast.error("เปลี่ยนสถานะไม่สำเร็จ");
+                } finally {
+                  setUpdatingStatus(false);
                 }
-                setUpdatingStatus(false);
               }}
             >
               {updatingStatus ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
@@ -234,17 +249,15 @@ export default function RegistrationDetailDialog({ registration, programName, op
               variant="destructive"
               onClick={async () => {
                 setUpdatingStatus(true);
-                const { error } = await supabase
-                  .from("project_registrations")
-                  .update({ status: "rejected" })
-                  .eq("id", registration.id);
-                if (error) {
-                  toast.error("เปลี่ยนสถานะไม่สำเร็จ");
-                } else {
+                try {
+                  await apiClient.patch(`project-registrations/${registration.id}/status`, { status: "rejected" });
                   toast.success("เปลี่ยนสถานะเป็น ไม่ผ่านการคัดเลือก");
                   onStatusChange?.(registration.id, "rejected");
+                } catch (error) {
+                  toast.error("เปลี่ยนสถานะไม่สำเร็จ");
+                } finally {
+                  setUpdatingStatus(false);
                 }
-                setUpdatingStatus(false);
               }}
             >
               {updatingStatus ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <XCircle className="h-3.5 w-3.5 mr-1" />}
@@ -254,6 +267,7 @@ export default function RegistrationDetailDialog({ registration, programName, op
         </div>
 
         {/* Document Templates Section */}
+        <Separator className="my-4" />
         <div>
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
             <FileText className="h-4 w-4 text-primary" />
@@ -285,15 +299,15 @@ export default function RegistrationDetailDialog({ registration, programName, op
                           {idx + 1}.
                         </span>
                         <span className="text-sm font-medium">{tpl.name}</span>
-                        {tpl.is_required && (
+                        {tpl.isRequired && (
                           <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
                             จำเป็น
                           </Badge>
                         )}
                       </div>
-                      {tpl.sample_file_url && (
+                      {tpl.sampleFileUrl && (
                         <a
-                          href={tpl.sample_file_url}
+                          href={tpl.sampleFileUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-xs text-primary hover:underline flex items-center gap-1 shrink-0"
@@ -308,12 +322,12 @@ export default function RegistrationDetailDialog({ registration, programName, op
                       <div className="flex items-center gap-2 bg-muted/50 rounded-md px-3 py-2">
                         <FileText className="h-4 w-4 text-primary shrink-0" />
                         <a
-                          href={doc.file_url}
+                          href={doc.fileUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-sm text-primary hover:underline truncate flex-1"
                         >
-                          {doc.file_name}
+                          {doc.fileName}
                         </a>
                         <Button
                           size="icon"
@@ -350,7 +364,7 @@ export default function RegistrationDetailDialog({ registration, programName, op
                           )}
                           อัปโหลดไฟล์
                         </Button>
-                        {tpl.is_required && !doc && (
+                        {tpl.isRequired && !doc && (
                           <span className="text-[11px] text-destructive flex items-center gap-1 mt-1">
                             <AlertCircle className="h-3 w-3" />
                             ยังไม่ได้แนบเอกสาร
