@@ -155,7 +155,7 @@ export default function HomePage() {
               <div className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-accent shrink-0" />
                 <span>0-2278-8400-19</span>
-                <span> เวอร์ชั่น 1.0</span>
+                <span> เวอร์ชั่น 1.1</span>
               </div>
             </div>
           </div>
