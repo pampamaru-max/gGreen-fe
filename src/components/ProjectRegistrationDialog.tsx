@@ -48,11 +48,21 @@ import { cn } from "@/lib/utils";
 
 const registrationSchema = z.object({
   program_id: z.string().min(1, "กรุณาเลือกโครงการ"),
-  organization_name: z.string().trim().min(1, "กรุณาระบุชื่อหน่วยงาน/สถานประกอบการ").max(200),
+  organization_name: z.string().trim().min(1, "กรุณาระบุชื่อหน่วยงาน (ไทย)").max(200),
+  organization_name_en: z.string().trim().optional(),
   organization_type: z.string().trim().min(1, "กรุณาระบุประเภทหน่วยงาน").max(100),
   address: z.string().trim().min(1, "กรุณาระบุที่อยู่").max(500),
+  organization_phone: z.string().trim().optional(),
   province: z.string().trim().min(1, "กรุณาระบุจังหวัด").max(100),
+  district: z.string().trim().optional(),
+  subdistrict: z.string().trim().optional(),
+  postal_code: z.string().trim().optional(),
+  map_link: z.string().trim().optional(),
+  latitude: z.string().trim().optional(),
+  longitude: z.string().trim().optional(),
   contact_name: z.string().trim().min(1, "กรุณาระบุชื่อผู้ติดต่อ").max(100),
+  contact_last_name: z.string().trim().optional(),
+  contact_position: z.string().trim().optional(),
   contact_phone: z.string().trim().min(1, "กรุณาระบุเบอร์โทรศัพท์").max(20),
   contact_email: z.string().trim().email("รูปแบบอีเมลไม่ถูกต้อง").max(255),
 });
@@ -68,6 +78,8 @@ export default function ProjectRegistrationDialog({ open, onOpenChange }: Props)
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
   const [provinceOpen, setProvinceOpen] = useState(false);
+  const [districtOpen, setDistrictOpen] = useState(false);
+  const [subdistrictOpen, setSubdistrictOpen] = useState(false);
 
   const { data: programs = [] } = useQuery({
     queryKey: ["programs"],
@@ -90,13 +102,46 @@ export default function ProjectRegistrationDialog({ open, onOpenChange }: Props)
     defaultValues: {
       program_id: "",
       organization_name: "",
+      organization_name_en: "",
       organization_type: "",
       address: "",
+      organization_phone: "",
       province: "",
+      district: "",
+      subdistrict: "",
+      postal_code: "",
+      map_link: "",
+      latitude: "",
+      longitude: "",
       contact_name: "",
+      contact_last_name: "",
+      contact_position: "",
       contact_phone: "",
       contact_email: "",
     },
+  });
+
+  const selectedProvince = form.watch("province");
+  const selectedDistrict = form.watch("district");
+
+  const { data: districts = [] } = useQuery({
+    queryKey: ["districts", selectedProvince],
+    queryFn: async () => {
+      if (!selectedProvince) return [];
+      const { data } = await apiClient.get(`provinces/${selectedProvince}/districts`);
+      return data ?? [];
+    },
+    enabled: !!selectedProvince,
+  });
+
+  const { data: subdistricts = [] } = useQuery({
+    queryKey: ["subdistricts", selectedDistrict],
+    queryFn: async () => {
+      if (!selectedDistrict) return [];
+      const { data } = await apiClient.get(`provinces/districts/${selectedDistrict}/subdistricts`);
+      return data ?? [];
+    },
+    enabled: !!selectedDistrict,
   });
 
   const formatPhoneNumber = (value: string) => {
@@ -112,10 +157,20 @@ export default function ProjectRegistrationDialog({ open, onOpenChange }: Props)
       await apiClient.post("project-registrations", {
         programId: values.program_id,
         organizationName: values.organization_name,
+        organizationNameEn: values.organization_name_en,
         organizationType: values.organization_type,
         address: values.address,
+        organizationPhone: values.organization_phone,
         province: values.province,
+        district: values.district,
+        subdistrict: values.subdistrict,
+        postalCode: values.postal_code,
+        mapLink: values.map_link,
+        latitude: values.latitude,
+        longitude: values.longitude,
         contactName: values.contact_name,
+        contactLastName: values.contact_last_name,
+        contactPosition: values.contact_position,
         contactPhone: values.contact_phone,
         contactEmail: values.contact_email,
       });
@@ -185,7 +240,7 @@ export default function ProjectRegistrationDialog({ open, onOpenChange }: Props)
                   name="organization_name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>ชื่อหน่วยงาน/สถานประกอบการ</FormLabel>
+                      <FormLabel>ชื่อหน่วยงาน/สถานประกอบการ (ไทย)</FormLabel>
                       <FormControl><Input placeholder="เช่น บริษัท ABC จำกัด" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -193,40 +248,64 @@ export default function ProjectRegistrationDialog({ open, onOpenChange }: Props)
                 />
                 <FormField
                   control={form.control}
-                  name="organization_type"
+                  name="organization_name_en"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>ประเภทหน่วยงาน</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="-- กรุณาเลือก --" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {[
-                            "หน่วยงาน กส.",
-                            "หน่วยงาน สส.",
-                            "หน่วยงานภาครัฐ (ส่วนราชการ)",
-                            "หน่วยงานภาครัฐ (รัฐวิสาหกิจ)",
-                            "หน่วยงานภาครัฐ (องค์กรปกครองส่วนท้องถิ่น)",
-                            "หน่วยงานภาครัฐ (องค์การมหาชน)",
-                            "ภาคเอกชน",
-                            "สถาบันการศึกษา (โรงเรียน)",
-                            "สถาบันการศึกษา (มหาวิทยาลัย)",
-                            "สถานพยาบาล",
-                            "โรงแรม/รีสอร์ท",
-                            "ร้านอาหาร/สวนอาหาร",
-                            "อื่น ๆ",
-                          ].map((opt) => (
-                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>ชื่อหน่วยงาน/สถานประกอบการ (อังกฤษ)</FormLabel>
+                      <FormControl><Input placeholder="เช่น ABC Company Limited" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="organization_type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>ประเภทหน่วยงาน</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="-- กรุณาเลือก --" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {[
+                              "หน่วยงาน กส.",
+                              "หน่วยงาน สส.",
+                              "หน่วยงานภาครัฐ (ส่วนราชการ)",
+                              "หน่วยงานภาครัฐ (รัฐวิสาหกิจ)",
+                              "หน่วยงานภาครัฐ (องค์กรปกครองส่วนท้องถิ่น)",
+                              "หน่วยงานภาครัฐ (องค์การมหาชน)",
+                              "ภาคเอกชน",
+                              "สถาบันการศึกษา (โรงเรียน)",
+                              "สถาบันการศึกษา (มหาวิทยาลัย)",
+                              "สถานพยาบาล",
+                              "โรงแรม/รีสอร์ท",
+                              "ร้านอาหาร/สวนอาหาร",
+                              "อื่น ๆ",
+                            ].map((opt) => (
+                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="organization_phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>โทรศัพท์หน่วยงาน</FormLabel>
+                        <FormControl><Input placeholder="02-xxx-xxxx" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
                 <FormField
                   control={form.control}
                   name="address"
@@ -240,64 +319,222 @@ export default function ProjectRegistrationDialog({ open, onOpenChange }: Props)
                     </FormItem>
                   )}
                 />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="province"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>จังหวัด</FormLabel>
+                        <Popover open={provinceOpen} onOpenChange={setProvinceOpen}>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={provinceOpen}
+                                className={cn(
+                                  "w-full justify-between font-normal",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                {(() => {
+                                  if (!field.value) return "เลือกจังหวัด";
+                                  const found = provinces.find((p: any) => String(p.code) === field.value);
+                                  return found ? found.name : field.value;
+                                })()}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                            <Command>
+                              <CommandInput placeholder="ค้นหาจังหวัด..." />
+                              <CommandList>
+                                <CommandEmpty>ไม่พบข้อมูลจังหวัด</CommandEmpty>
+                                <CommandGroup>
+                                  {provinces.map((province: any) => (
+                                    <CommandItem
+                                      value={province.name}
+                                      key={province.code}
+                                      onSelect={() => {
+                                        form.setValue("province", String(province.code));
+                                        form.setValue("district", "");
+                                        form.setValue("subdistrict", "");
+                                        form.setValue("postal_code", "");
+                                        setProvinceOpen(false);
+                                      }}
+                                    >
+                                      <Check
+                                        className={cn(
+                                          "mr-2 h-4 w-4",
+                                          String(province.code) === field.value
+                                            ? "opacity-100"
+                                            : "opacity-0"
+                                        )}
+                                      />
+                                      {province.name}
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="district"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>อำเภอ/เขต</FormLabel>
+                        <Popover open={districtOpen} onOpenChange={setDistrictOpen}>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={districtOpen}
+                                disabled={!selectedProvince}
+                                className={cn(
+                                  "w-full justify-between font-normal",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                {(() => {
+                                  if (!field.value) return "เลือกอำเภอ";
+                                  const found = districts.find((d: any) => String(d.code) === field.value);
+                                  return found ? found.name : field.value;
+                                })()}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                            <Command>
+                              <CommandInput placeholder="ค้นหาอำเภอ..." />
+                              <CommandList>
+                                <CommandEmpty>ไม่พบข้อมูลอำเภอ</CommandEmpty>
+                                <CommandGroup>
+                                  {districts.map((district: any) => (
+                                    <CommandItem
+                                      value={district.name}
+                                      key={district.code}
+                                      onSelect={() => {
+                                        form.setValue("district", String(district.code));
+                                        form.setValue("subdistrict", "");
+                                        form.setValue("postal_code", "");
+                                        setDistrictOpen(false);
+                                      }}
+                                    >
+                                      <Check
+                                        className={cn(
+                                          "mr-2 h-4 w-4",
+                                          String(district.code) === field.value
+                                            ? "opacity-100"
+                                            : "opacity-0"
+                                        )}
+                                      />
+                                      {district.name}
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="subdistrict"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>ตำบล/แขวง</FormLabel>
+                        <Popover open={subdistrictOpen} onOpenChange={setSubdistrictOpen}>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={subdistrictOpen}
+                                disabled={!selectedDistrict}
+                                className={cn(
+                                  "w-full justify-between font-normal",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                {(() => {
+                                  if (!field.value) return "เลือกตำบล";
+                                  const found = subdistricts.find((s: any) => String(s.code) === field.value);
+                                  return found ? found.name : field.value;
+                                })()}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                            <Command>
+                              <CommandInput placeholder="ค้นหาตำบล..." />
+                              <CommandList>
+                                <CommandEmpty>ไม่พบข้อมูลตำบล</CommandEmpty>
+                                <CommandGroup>
+                                  {subdistricts.map((sub: any) => (
+                                    <CommandItem
+                                      value={sub.name}
+                                      key={sub.code}
+                                      onSelect={() => {
+                                        form.setValue("subdistrict", String(sub.code));
+                                        form.setValue("postal_code", String(sub.postalCode));
+                                        setSubdistrictOpen(false);
+                                      }}
+                                    >
+                                      <Check
+                                        className={cn(
+                                          "mr-2 h-4 w-4",
+                                          String(sub.code) === field.value
+                                            ? "opacity-100"
+                                            : "opacity-0"
+                                        )}
+                                      />
+                                      {sub.name}
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="postal_code"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>รหัสไปรษณีย์</FormLabel>
+                        <FormControl><Input placeholder="xxxxx" {...field} readOnly /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
                 <FormField
                   control={form.control}
-                  name="province"
+                  name="map_link"
                   render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>จังหวัด</FormLabel>
-                      <Popover open={provinceOpen} onOpenChange={setProvinceOpen}>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant="outline"
-                              role="combobox"
-                              aria-expanded={provinceOpen}
-                              className={cn(
-                                "w-full justify-between font-normal",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              {(() => {
-                                if (!field.value) return "เลือกจังหวัด";
-                                const found = provinces.find((p: any) => String(p.id) === field.value);
-                                return found ? found.nameTh : field.value;
-                              })()}
-                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                          <Command>
-                            <CommandInput placeholder="ค้นหาจังหวัด..." />
-                            <CommandList>
-                              <CommandEmpty>ไม่พบข้อมูลจังหวัด</CommandEmpty>
-                              <CommandGroup>
-                                {provinces.map((province: any) => (
-                                  <CommandItem
-                                    value={province.nameTh}
-                                    key={province.id}
-                                    onSelect={() => {
-                                      form.setValue("province", String(province.id));
-                                      setProvinceOpen(false);
-                                    }}
-                                  >
-                                    <Check
-                                      className={cn(
-                                        "mr-2 h-4 w-4",
-                                        String(province.id) === field.value
-                                          ? "opacity-100"
-                                          : "opacity-0"
-                                      )}
-                                    />
-                                    {province.nameTh}
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
+                    <FormItem>
+                      <FormLabel>Link แผนที่ (Google Maps)</FormLabel>
+                      <FormControl><Input placeholder="https://goo.gl/maps/..." {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -309,26 +546,59 @@ export default function ProjectRegistrationDialog({ open, onOpenChange }: Props)
             <div className="space-y-1.5">
               <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">ข้อมูลผู้ติดต่อ</p>
               <div className="rounded-xl border border-border/60 bg-muted/30 p-4 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="contact_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-1.5">
+                          <User className="h-3.5 w-3.5 text-primary" /> ชื่อ ผู้ติดต่อ
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="ชื่อ"
+                            {...field}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              const filtered = value.replace(/[^a-zA-Z\u0E00-\u0E7F\s.]/g, "");
+                              field.onChange(filtered);
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="contact_last_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>นามสกุล</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="นามสกุล"
+                            {...field}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              const filtered = value.replace(/[^a-zA-Z\u0E00-\u0E7F\s.]/g, "");
+                              field.onChange(filtered);
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
                 <FormField
                   control={form.control}
-                  name="contact_name"
+                  name="contact_position"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="flex items-center gap-1.5">
-                        <User className="h-3.5 w-3.5 text-primary" /> ชื่อ-นามสกุล ผู้ติดต่อ
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="ชื่อ-นามสกุล"
-                          {...field}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            // Allow only letters (EN/TH), space, and dot. No numbers.
-                            const filtered = value.replace(/[^a-zA-Z\u0E00-\u0E7F\s.]/g, "");
-                            field.onChange(filtered);
-                          }}
-                        />
-                      </FormControl>
+                      <FormLabel>ตำแหน่ง</FormLabel>
+                      <FormControl><Input placeholder="เช่น ผู้จัดการอาคาร" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

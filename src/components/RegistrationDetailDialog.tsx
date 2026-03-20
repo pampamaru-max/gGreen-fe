@@ -13,11 +13,23 @@ interface Registration {
   id: string;
   programId: string;
   organizationName: string;
+  organizationNameEn: string;
   organizationType: string;
   address: string;
+  organizationPhone : string;
   province: string;
   provinceName?: string;
+  district: string;
+  districtName?: string;
+  subdistrict: string;
+  subdistrictName?: string;
+  postalCode: string;
+  mapLink: string;
+  latitude: string;
+  longitude: string;
   contactName: string;
+  contactLastName : string;
+  contactPosition : string;
   contactPhone: string;
   contactEmail: string;
   status: string;
@@ -79,8 +91,8 @@ export default function RegistrationDetailDialog({ registration, programName, op
   const provinceDisplay = useMemo(() => {
     if (!registration) return "-";
     if (registration.provinceName) return registration.provinceName;
-    const found = provinces.find((p: any) => String(p.id) === registration.province);
-    return found ? `${found.nameTh}` : registration.province;
+    const found = provinces.find((p: any) => String(p.code) === registration.province);
+    return found ? `${found.name}` : registration.province;
   }, [registration, provinces]);
 
   useEffect(() => {
@@ -200,11 +212,29 @@ export default function RegistrationDetailDialog({ registration, programName, op
         {/* Registration Info */}
         <div className="space-y-2 text-sm">
           <DetailRow label="โครงการ" value={programName} />
-          <DetailRow label="ชื่อหน่วยงาน" value={registration.organizationName} />
+          <DetailRow label="ชื่อหน่วยงาน (ไทย)" value={registration.organizationName} />
+          <DetailRow label="ชื่อหน่วยงาน (อังกฤษ)" value={registration.organizationNameEn} />
           <DetailRow label="ประเภทองค์กร" value={registration.organizationType} />
           <DetailRow label="ที่อยู่" value={registration.address} />
+          <DetailRow label="โทรศัพท์หน่วยงาน" value={registration.organizationPhone} />
           <DetailRow label="จังหวัด" value={provinceDisplay} />
-          <DetailRow label="ผู้ติดต่อ" value={registration.contactName} />
+          <DetailRow label="อำเภอ/เขต" value={registration.districtName || registration.district} />
+          <DetailRow label="ตำบล/แขวง" value={registration.subdistrictName || registration.subdistrict} />
+          <DetailRow label="รหัสไปรษณีย์" value={registration.postalCode} />
+          {registration.mapLink && (
+            <div className="flex gap-2">
+              <span className="font-medium text-muted-foreground min-w-[120px]">Link แผนที่:</span>
+              <a href={registration.mapLink} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate">
+                {registration.mapLink}
+              </a>
+            </div>
+          )}
+          {(registration.latitude || registration.longitude) && (
+            <DetailRow label="พิกัด" value={`${registration.latitude || "-"}, ${registration.longitude || "-"}`} />
+          )}
+          <Separator className="my-2" />
+          <DetailRow label="ผู้ติดต่อ" value={[registration.contactName, registration.contactLastName].filter(Boolean).join(" ")} />
+          <DetailRow label="ตำแหน่ง" value={registration.contactPosition} />
           <DetailRow label="โทรศัพท์" value={registration.contactPhone} />
           <DetailRow label="อีเมล" value={registration.contactEmail} />
           <div className="flex gap-2 items-center">

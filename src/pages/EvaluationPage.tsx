@@ -20,7 +20,10 @@ interface RegistrationRow {
   evaluation_id: string | null;
   evaluation_status: string | null;
   has_committee_score: boolean;
+  has_self_score: boolean;
   created_year: number;
+  total_score?: number;
+  total_max?: number;
 }
 
 const EvaluationPage = () => {
@@ -51,9 +54,20 @@ const EvaluationPage = () => {
     const fetchData = async () => {
       setLoading(true);
 
-      const { data: result } = await apiClient.get("evaluation/summary");
-      setRows(result);
-      setLoading(false);
+      try {
+        const { data: result } = await apiClient.get("evaluation/summary");
+        if (Array.isArray(result)) {
+          setRows(result);
+        } else {
+          console.error("API returned non-array data:", result);
+          setRows([]);
+        }
+      } catch (error) {
+        console.error("Failed to fetch evaluation summary:", error);
+        setRows([]);
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchData();
@@ -83,9 +97,11 @@ const EvaluationPage = () => {
 
       if (filterSelfStatus !== "all") {
         const status = row.evaluation_status;
-        if (filterSelfStatus === "none" && status) return false;
-        if (filterSelfStatus === "draft" && status !== "draft") return false;
-        if (filterSelfStatus === "completed" && (status === "draft" || !status)) return false;
+        const hasProgress = row.has_self_score;
+        
+        if (filterSelfStatus === "none" && (status || hasProgress)) return false;
+        if (filterSelfStatus === "draft" && status !== "draft" && !hasProgress) return false;
+        if (filterSelfStatus === "completed" && status !== "completed") return false;
       }
 
       if (filterCommitteeStatus !== "all") {
@@ -108,16 +124,25 @@ const EvaluationPage = () => {
     setFilterYear("all");
   };
 
-  const getSelfAssessmentBadge = (status: string | null) => {
-    if (!status) return <Badge variant="outline" className="text-muted-foreground">ยังไม่ประเมิน</Badge>;
-    if (status === "draft") return <Badge variant="secondary">ร่าง</Badge>;
-    return <Badge className="bg-green-600 hover:bg-green-700">ประเมินแล้ว</Badge>;
+  const getSelfAssessmentBadge = (status: string | null, hasProgress: boolean) => {
+    if (status === "completed") {
+      return <Badge className="bg-green-600 hover:bg-green-700">ประเมินแล้ว</Badge>;
+    }
+
+    if (status === "draft" || hasProgress) {
+      return (
+        <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100">
+          ร่าง
+        </Badge>
+      );
+    }
+
+    return <Badge variant="outline" className="text-muted-foreground">ยังไม่ได้ประเมิน</Badge>;
   };
 
-  const getCommitteeBadge = (hasScore: boolean, evaluationId: string | null) => {
-    if (!evaluationId) return <Badge variant="outline" className="text-muted-foreground">-</Badge>;
+  const getCommitteeBadge = (hasScore: boolean) => {
     if (hasScore) return <Badge className="bg-green-600 hover:bg-green-700">ประเมินแล้ว</Badge>;
-    return <Badge variant="outline" className="text-muted-foreground">ยังไม่ประเมิน</Badge>;
+    return <span className="text-muted-foreground">-</span>;
   };
 
   if (loading || roleLoading) {
@@ -261,16 +286,16 @@ const EvaluationPage = () => {
                       })()}
                     </TableCell>
                     <TableCell className="text-center">{row.created_year}</TableCell>
-                    <TableCell className="text-center">{getSelfAssessmentBadge(row.evaluation_status)}</TableCell>
-                    <TableCell className="text-center">{getCommitteeBadge(row.has_committee_score, row.evaluation_id)}</TableCell>
+                    <TableCell className="text-center">{getSelfAssessmentBadge(row.evaluation_status, row.has_self_score)}</TableCell>
+                    <TableCell className="text-center">{getCommitteeBadge(row.has_committee_score)}</TableCell>
                     <TableCell className="text-center">
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => navigate(`/evaluation/${row.program_id}${row.user_id ? `?evaluateeId=${row.user_id}` : ""}`)}
-                        title={row.evaluation_id ? "แก้ไขการประเมิน" : "เพิ่มการประเมิน"}
+                        title={row.evaluation_id || (row.total_max ?? 0) > 0 ? "แก้ไขการประเมิน" : "เพิ่มการประเมิน"}
                       >
-                        {row.evaluation_id ? (
+                        {row.evaluation_id || (row.total_max ?? 0) > 0 ? (
                           <Pencil className="h-4 w-4 text-primary" />
                         ) : (
                           <Plus className="h-4 w-4 text-primary" />
