@@ -25,6 +25,14 @@ export default function HomePage() {
     },
   });
 
+  const { data: health } = useQuery({
+    queryKey: ["health"],
+    queryFn: async () => {
+      const { data } = await apiClient.get("health");
+      return data;
+    },
+  });
+
   return (
     <><div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
       {/* Hero Text Section */}
@@ -155,6 +163,7 @@ export default function HomePage() {
               <div className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-accent shrink-0" />
                 <span>0-2278-8400-19</span>
+                <span>เวอร์ชัน {health?.version ?? "..."}</span>
               </div>
             </div>
           </div>
