@@ -17,7 +17,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { checkAuth } = useAuth();
+  const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,12 +25,8 @@ export default function LoginPage() {
     try {
       const response = await apiClient.post("auth/login", { email, password });
       if (response.data.token) {
-        localStorage.setItem("auth_token", response.data.token);
         const userData = response.data.user;
-        if (userData) {
-          localStorage.setItem("auth_user", JSON.stringify(userData));
-        }
-        checkAuth();
+        login(userData, response.data.token);
         const role = userData?.role?.toUpperCase();
         if (role === "SUPERADMIN" || role === "ADMIN") {
           navigate("/settings/programs");

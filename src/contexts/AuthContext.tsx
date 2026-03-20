@@ -11,6 +11,7 @@ interface AuthContextType {
   loading: boolean;
   signOut: () => Promise<void>;
   checkAuth: () => void;
+  login: (userData: AuthUser, token: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -18,6 +19,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   signOut: async () => {},
   checkAuth: () => {},
+  login: () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -45,6 +47,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuth();
   }, [checkAuth]);
 
+  const login = (userData: AuthUser, token: string) => {
+    localStorage.setItem("auth_token", token);
+    localStorage.setItem("auth_user", JSON.stringify(userData));
+    setUser(userData);
+    setLoading(false);
+  };
+
   const signOut = async () => {
     localStorage.removeItem("auth_token");
     localStorage.removeItem("auth_user");
@@ -52,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signOut, checkAuth }}>
+    <AuthContext.Provider value={{ user, loading, signOut, checkAuth, login }}>
       {children}
     </AuthContext.Provider>
   );
