@@ -15,6 +15,7 @@ import { ScoringLevelBadges } from "@/components/self-eval/ScoringLevelBadges";
 import { Category } from "@/data/evaluationData";
 import apiClient from "@/lib/axios";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,21 +45,6 @@ export interface ScoringLevel {
   sortOrder: number;
 }
 
-// ─── Mock: TODO — เปลี่ยนเป็น GET /project-registrations/my ──────────────────
-const MOCK_REGISTRATION: Registration = {
-  id: "mock-reg-001",
-  programId: "green-hotel",
-  programName: "โรงแรมสีเขียว",
-  organizationName: "โรงแรมตัวอย่าง จำกัด",
-  organizationType: "โรงแรม/รีสอร์ท",
-  address: "123 ถนนสุขุมวิท แขวงคลองเตย เขตคลองเตย",
-  province: "กรุงเทพมหานคร",
-  contactName: "นายสมชาย ใจดี",
-  contactPhone: "081-234-5678",
-  contactEmail: "contact@example-hotel.com",
-  status: "pending",
-  createdAt: new Date().toISOString(),
-};
 
 const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   pending:  { label: "รอดำเนินการ",         variant: "secondary" },
@@ -69,8 +55,20 @@ const statusMap: Record<string, { label: string; variant: "default" | "secondary
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function ProjectRegistration() {
-  // Registration (mocked — replace with real API)
-  const [registration] = useState<Registration>(MOCK_REGISTRATION);
+  const { user } = useAuth();
+  const [registration, setRegistration] = useState<Registration | null>(null);
+  const [regLoading, setRegLoading] = useState(true);
+
+  // Fetch user's registration — fallback to programAccess[0] if no record
+  useEffect(() => {
+    apiClient.get("project-registrations/my")
+      .then(({ data }) => { if (data) setRegistration(data); })
+      .catch(() => {/* no registration record — use programAccess fallback */})
+      .finally(() => setRegLoading(false));
+  }, []);
+
+  // programId: จาก registration record หรือ fallback จาก user.programAccess[0]
+  const programId = registration?.programId ?? user?.programAccess?.[0] ?? null;
 
   // Evaluation form state
   const [evalLoading, setEvalLoading]       = useState(true);
@@ -87,7 +85,7 @@ export default function ProjectRegistration() {
 
   // ── Fetch evaluation form + existing answers ───────────────────────────────
   useEffect(() => {
-    const programId = registration.programId;
+    if (!programId) return;
 
     const load = async () => {
       setEvalLoading(true);
@@ -147,7 +145,7 @@ export default function ProjectRegistration() {
     };
 
     load();
-  }, [registration.programId]);
+  }, [programId]);
 
   // ── Score handlers ─────────────────────────────────────────────────────────
   const handleScoreChange     = (id: string, v: number)  => setScores(p => ({ ...p, [id]: v }));
@@ -156,8 +154,9 @@ export default function ProjectRegistration() {
 
   // POST /evaluation/score — auto-save per indicator
   const handleSaveIndicator = useCallback(async (indicatorId: string) => {
+    if (!programId) return;
     const { data } = await apiClient.post("evaluation/score", {
-      programId: registration.programId,
+      programId,
       indicatorId,
       score: scores[indicatorId] ?? 0,
       notes: implDetails[indicatorId] ?? "",
@@ -165,10 +164,11 @@ export default function ProjectRegistration() {
     });
     if (data?.evaluationId && !evaluationId) setEvaluationId(data.evaluationId);
     toast.success("บันทึกเรียบร้อยแล้ว");
-  }, [evaluationId, scores, implDetails, registration.programId]);
+  }, [evaluationId, scores, implDetails, programId]);
 
   // POST /evaluation/:id/submit — final submit
   const handleSubmitAll = async () => {
+    if (!programId) return;
     setSubmitting(true);
     try {
       // Save any unsaved scores first
@@ -177,7 +177,7 @@ export default function ProjectRegistration() {
         for (const topic of cat.topics) {
           for (const ind of topic.indicators) {
             const { data } = await apiClient.post("evaluation/score", {
-              programId: registration.programId,
+              programId,
               indicatorId: ind.id,
               score: scores[ind.id] ?? 0,
               notes: implDetails[ind.id] ?? "",
@@ -223,9 +223,19 @@ export default function ProjectRegistration() {
   const grandMax      = summaryData.reduce((s, c) => s + c.totalPossible, 0);
   const totalTopics   = categories.reduce((s, c) => s + c.topics.length, 0);
   const totalIndicators = categories.reduce((s, c) => s + c.topics.reduce((ts, t) => ts + t.indicators.length, 0), 0);
-  const status        = statusMap[registration.status] ?? { label: registration.status, variant: "outline" as const };
+  const status = registration
+    ? (statusMap[registration.status] ?? { label: registration.status, variant: "outline" as const })
+    : { label: "ผ่านการคัดเลือก", variant: "default" as const };
 
   // ── Render ─────────────────────────────────────────────────────────────────
+  if (regLoading || !programId) {
+    return (
+      <div className="flex items-center justify-center min-h-full py-24">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-full bg-background">
 
@@ -245,36 +255,47 @@ export default function ProjectRegistration() {
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-lg font-bold text-foreground">{registration.organizationName}</h2>
+              <h2 className="text-lg font-bold text-foreground">
+                {registration?.organizationName ?? user?.name ?? "-"}
+              </h2>
               <Badge variant={status.variant}>{status.label}</Badge>
             </div>
-            <p className="text-sm text-muted-foreground">{registration.organizationType}</p>
+            <p className="text-sm text-muted-foreground">{registration?.organizationType ?? ""}</p>
           </div>
         </div>
 
         {/* รายละเอียด */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-sm">
           <InfoTile icon={<ClipboardCheck className="h-4 w-4 text-primary" />} label="โครงการ">
-            <span className="font-semibold text-foreground">{registration.programName}</span>
+            <span className="font-semibold text-foreground">{registration?.programName ?? programId}</span>
           </InfoTile>
           <InfoTile icon={<MapPin className="h-4 w-4 text-muted-foreground" />} label="ที่อยู่">
-            <span>{registration.address}</span>
-            <span className="text-muted-foreground">{registration.provinceName ?? registration.province}</span>
+            <span>{registration?.address ?? ""}</span>
+            <span className="text-muted-foreground">
+              {registration?.provinceName ?? registration?.province ?? user?.province ?? ""}
+            </span>
           </InfoTile>
           <InfoTile icon={<User className="h-4 w-4 text-muted-foreground" />} label="ผู้ติดต่อ">
-            <span className="font-medium">{registration.contactName}</span>
+            <span className="font-medium">{registration?.contactName ?? user?.name ?? "-"}</span>
+            {registration?.contactPhone && (
+              <span className="flex items-center gap-1 text-muted-foreground text-xs">
+                <Phone className="h-3 w-3" />{registration.contactPhone}
+              </span>
+            )}
             <span className="flex items-center gap-1 text-muted-foreground text-xs">
-              <Phone className="h-3 w-3" />{registration.contactPhone}
-            </span>
-            <span className="flex items-center gap-1 text-muted-foreground text-xs">
-              <Mail className="h-3 w-3" />{registration.contactEmail}
+              <Mail className="h-3 w-3" />{registration?.contactEmail ?? user?.email ?? "-"}
             </span>
           </InfoTile>
-          <InfoTile icon={<CalendarDays className="h-4 w-4 text-muted-foreground" />} label="วันที่สมัคร">
-            <span>{new Date(registration.createdAt).toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric" })}</span>
-            <span className="flex items-center gap-1 text-muted-foreground text-xs">
-              <Hash className="h-3 w-3" />เลขที่ {registration.id.slice(0, 8).toUpperCase()}
+          <InfoTile icon={<CalendarDays className="h-4 w-4 text-muted-foreground" />} label="วันที่เข้าร่วม">
+            <span>
+              {new Date(registration?.createdAt ?? user?.createdAt ?? Date.now())
+                .toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric" })}
             </span>
+            {registration && (
+              <span className="flex items-center gap-1 text-muted-foreground text-xs">
+                <Hash className="h-3 w-3" />เลขที่ {registration.id.slice(0, 8).toUpperCase()}
+              </span>
+            )}
           </InfoTile>
         </div>
       </div>

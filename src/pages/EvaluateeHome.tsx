@@ -1,28 +1,15 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Building2, MapPin, Phone, Mail, User, ClipboardCheck,
   CalendarDays, Hash, ArrowRight, Trophy, TrendingUp,
-  CheckCircle2, Clock, ChevronRight,
+  CheckCircle2, Clock, ChevronRight, Loader2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-
-// ─── Mock data: TODO — เปลี่ยนเป็น GET /project-registrations/my ──────────────
-const MOCK_REGISTRATION = {
-  id: "mock-reg-001",
-  programId: "green-hotel",
-  programName: "โรงแรมสีเขียว",
-  organizationName: "โรงแรมตัวอย่าง จำกัด",
-  organizationType: "โรงแรม/รีสอร์ท",
-  address: "123 ถนนสุขุมวิท แขวงคลองเตย เขตคลองเตย",
-  province: "กรุงเทพมหานคร",
-  contactName: "นายสมชาย ใจดี",
-  contactPhone: "081-234-5678",
-  contactEmail: "contact@example-hotel.com",
-  status: "selected",
-  createdAt: new Date("2026-01-10").toISOString(),
-};
+import apiClient from "@/lib/axios";
 
 // ─── Mock data: TODO — เปลี่ยนเป็น GET /evaluation/history ──────────────────
 const MOCK_HISTORY = [
@@ -85,6 +72,21 @@ const MOCK_HISTORY = [
   },
 ];
 
+interface Registration {
+  id: string;
+  programId: string;
+  programName?: string;
+  organizationName: string;
+  organizationType: string;
+  address?: string;
+  province: string;
+  contactName: string;
+  contactPhone: string;
+  contactEmail: string;
+  status: string;
+  createdAt: string;
+}
+
 const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   pending:  { label: "รอดำเนินการ",         variant: "secondary" },
   selected: { label: "ผ่านการคัดเลือก",      variant: "default" },
@@ -93,8 +95,40 @@ const statusMap: Record<string, { label: string; variant: "default" | "secondary
 
 export default function EvaluateeHome() {
   const navigate = useNavigate();
-  const reg = MOCK_REGISTRATION;
-  const status = statusMap[reg.status] ?? { label: reg.status, variant: "outline" as const };
+  const { user } = useAuth();
+  const [reg, setReg] = useState<Registration | null>(null);
+  const [regLoading, setRegLoading] = useState(true);
+
+  useEffect(() => {
+    apiClient.get("project-registrations/my")
+      .then(({ data }) => setReg(data))
+      .catch(() => {/* no registration record — use auth fallback */})
+      .finally(() => setRegLoading(false));
+  }, []);
+
+  // ถ้าไม่มี registration record แต่มี programAccess → ใช้ข้อมูล auth แทน
+  const programId = reg?.programId ?? user?.programAccess?.[0] ?? null;
+  const hasAccess = !!programId;
+
+  const status = reg
+    ? (statusMap[reg.status] ?? { label: reg.status, variant: "outline" as const })
+    : { label: "ผ่านการคัดเลือก", variant: "default" as const };
+
+  if (regLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-full py-24">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!hasAccess) {
+    return (
+      <div className="flex items-center justify-center min-h-full py-24 text-muted-foreground">
+        ไม่พบข้อมูลการเข้าร่วมโครงการ
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-full bg-background">
@@ -119,40 +153,50 @@ export default function EvaluateeHome() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-lg font-bold text-foreground">{reg.organizationName}</h2>
+                    <h2 className="text-lg font-bold text-foreground">
+                      {reg?.organizationName ?? user?.name ?? "-"}
+                    </h2>
                     <Badge variant={status.variant}>{status.label}</Badge>
                   </div>
-                  <p className="text-sm text-muted-foreground">{reg.organizationType}</p>
+                  <p className="text-sm text-muted-foreground">{reg?.organizationType ?? ""}</p>
                 </div>
               </div>
 
               {/* Info grid */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 text-sm">
                 <InfoTile icon={<ClipboardCheck className="h-4 w-4 text-primary" />} label="โครงการ">
-                  <span className="font-semibold text-foreground">{reg.programName}</span>
+                  <span className="font-semibold text-foreground">{reg?.programName ?? programId}</span>
                 </InfoTile>
                 <InfoTile icon={<MapPin className="h-4 w-4 text-muted-foreground" />} label="จังหวัด">
-                  <span>{reg.province}</span>
+                  <span>{reg?.province ?? user?.province ?? "-"}</span>
                 </InfoTile>
                 <InfoTile icon={<User className="h-4 w-4 text-muted-foreground" />} label="ผู้ติดต่อ">
-                  <span className="font-medium truncate">{reg.contactName}</span>
-                  <span className="flex items-center gap-1 text-muted-foreground text-xs">
-                    <Phone className="h-3 w-3 shrink-0" />{reg.contactPhone}
-                  </span>
+                  <span className="font-medium truncate">{reg?.contactName ?? user?.name ?? "-"}</span>
+                  {reg?.contactPhone && (
+                    <span className="flex items-center gap-1 text-muted-foreground text-xs">
+                      <Phone className="h-3 w-3 shrink-0" />{reg.contactPhone}
+                    </span>
+                  )}
                   <span className="flex items-center gap-1 text-muted-foreground text-xs truncate">
-                    <Mail className="h-3 w-3 shrink-0" />{reg.contactEmail}
+                    <Mail className="h-3 w-3 shrink-0" />{reg?.contactEmail ?? user?.email ?? "-"}
                   </span>
                 </InfoTile>
-                <InfoTile icon={<CalendarDays className="h-4 w-4 text-muted-foreground" />} label="วันที่สมัคร">
-                  <span>{new Date(reg.createdAt).toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric" })}</span>
-                  <span className="flex items-center gap-1 text-muted-foreground text-xs">
-                    <Hash className="h-3 w-3" />{reg.id.slice(0, 8).toUpperCase()}
+                <InfoTile icon={<CalendarDays className="h-4 w-4 text-muted-foreground" />} label="วันที่เข้าร่วม">
+                  <span>
+                    {reg
+                      ? new Date(reg.createdAt).toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric" })
+                      : new Date(user?.createdAt ?? Date.now()).toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric" })}
                   </span>
+                  {reg && (
+                    <span className="flex items-center gap-1 text-muted-foreground text-xs">
+                      <Hash className="h-3 w-3" />{reg.id.slice(0, 8).toUpperCase()}
+                    </span>
+                  )}
                 </InfoTile>
               </div>
 
               {/* CTA */}
-              {reg.status !== "rejected" ? (
+              {(!reg || reg.status === "selected") ? (
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-xl bg-primary/5 border border-primary/15 p-4">
                   <div className="space-y-0.5">
                     <p className="font-semibold text-foreground">พร้อมประเมินตนเองแล้วหรือยัง?</p>
@@ -169,6 +213,14 @@ export default function EvaluateeHome() {
                     เริ่มประเมินตนเอง
                     <ArrowRight className="h-4 w-4" />
                   </Button>
+                </div>
+              ) : reg.status === "pending" ? (
+                <div className="flex items-center gap-3 rounded-xl border border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20 dark:border-yellow-900/40 p-4">
+                  <Clock className="h-5 w-5 text-yellow-600 dark:text-yellow-400 shrink-0" />
+                  <div>
+                    <p className="font-semibold text-yellow-800 dark:text-yellow-300">รอการพิจารณาจากเจ้าหน้าที่</p>
+                    <p className="text-sm text-yellow-700/70 dark:text-yellow-400/70">ใบสมัครของท่านอยู่ระหว่างการตรวจสอบ กรุณารอการแจ้งผล</p>
+                  </div>
                 </div>
               ) : (
                 <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
@@ -304,8 +356,6 @@ function HistoryCard({ data }: { data: typeof MOCK_HISTORY[0] }) {
 }
 
 // ─── Small helpers ────────────────────────────────────────────────────────────
-import { useState } from "react";
-
 function InfoTile({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-start gap-2.5 bg-muted/40 rounded-xl p-3">
