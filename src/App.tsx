@@ -50,7 +50,8 @@ const App = () => (
               <Route path="/evaluation" element={<EvaluationPage />} />
               <Route path="/evaluation/:programId" element={<EvaluationByProgramPage />} />
               <Route path="/projects" element={<ProjectOperations />} />
-              <Route path="/register" element={<ProjectRegistration />} />
+              <Route path="/register" element={<EvaluateeHome />} />
+              <Route path="/register/evaluate" element={<ProjectRegistration />} />
               <Route path="/settings/programs" element={<SettingsPrograms />} />
               <Route path="/settings/categories" element={<SettingsCategories />} />
               <Route path="/settings/indicators" element={<SettingsIndicators />} />
