@@ -4,7 +4,7 @@ import { Category } from "@/data/evaluationData";
 import type { UploadedFile, IndicatorNavItem } from "@/components/CategoryCard";
 import { CategoryCard, IndicatorDialog, getCategoryColor } from "@/components/CategoryCard";
 import { ScoreSummary } from "@/components/ScoreSummary";
-import { ClipboardCheck, Loader2, ArrowLeft } from "lucide-react";
+import { ClipboardCheck, Loader2, ArrowLeft, RotateCcw, CheckCircle2 } from "lucide-react";
 import apiClient from "@/lib/axios";
 import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -89,19 +89,19 @@ const EvaluationByProgramPage = () => {
         if (evalData) {
           setEvaluationId(evalData.id);
           const scoresData = evalData.evaluationScores || [];
-          
+
           const loaded: Record<string, number> = {};
           const loadedDetails: Record<string, string> = {};
           const loadedCommittee: Record<string, number> = {};
           const loadedComments: Record<string, string> = {};
-          
+
           scoresData.forEach((s: any) => {
             loaded[s.indicatorId] = Number(s.score);
             if (s.notes) loadedDetails[s.indicatorId] = s.notes;
-            if (s.committeeScore) loadedCommittee[s.indicatorId] = Number(s.committeeScore);
+            if (s.committeeScore !== null && s.committeeScore !== undefined) loadedCommittee[s.indicatorId] = Number(s.committeeScore);
             if (s.evidenceUrl) loadedComments[s.indicatorId] = s.evidenceUrl;
           });
-          
+
           setScores(loaded);
           setImplementationDetails(loadedDetails);
           setCommitteeScores(loadedCommittee);
@@ -136,7 +136,7 @@ const EvaluationByProgramPage = () => {
   const handleSaveIndicator = useCallback(async (indicatorId: string) => {
     const score = scores[indicatorId] || 0;
     const detail = implementationDetails[indicatorId] || "";
-    const cScore = committeeScores[indicatorId] || 0;
+    const cScore = committeeScores[indicatorId] ?? 0;
     const cComment = committeeComments[indicatorId] || "";
 
     const { data } = await apiClient.post("evaluation/score", {
@@ -184,7 +184,7 @@ const EvaluationByProgramPage = () => {
       let totalMax = 0;
       cat.topics.forEach((topic) => {
         topic.indicators.forEach((ind) => {
-          totalScore += committeeScores[ind.id] || 0;
+          totalScore += committeeScores[ind.id] ?? 0;
           totalMax += ind.maxScore;
         });
       });
@@ -220,13 +220,65 @@ const EvaluationByProgramPage = () => {
     flatIndicators.map(({ indicator, colorIndex }) => ({
       id: indicator.id,
       name: indicator.name,
-      // ใช้ self score เพื่อแสดงสีว่า "item นี้ evaluatee กรอกแล้ว"
-      // committee score ใช้แสดงค่า แต่ self score ใช้เป็น color indicator
       score: (scores[indicator.id] ?? 0) || (committeeScores[indicator.id] ?? 0),
       maxScore: indicator.maxScore,
       color: getCategoryColor(colorIndex),
+      isScored: role !== "user"
+        ? committeeScores[indicator.id] !== undefined
+        : (scores[indicator.id] ?? 0) > 0,
     })),
-  [flatIndicators, scores, committeeScores]);
+  [flatIndicators, scores, committeeScores, role]);
+
+  const allCommitteeScored = useMemo(() => {
+    if (role === "user") return true;
+    return flatIndicators.every(({ indicator }) => committeeScores[indicator.id] !== undefined);
+  }, [flatIndicators, committeeScores, role]);
+
+  const handleFillRandom = async () => {
+    const newScores: Record<string, number> = {};
+    for (const { indicator } of flatIndicators) {
+      const criteria = indicator.scoringCriteria;
+      if (criteria && criteria.length > 0) {
+        newScores[indicator.id] = criteria[Math.floor(Math.random() * criteria.length)].score;
+      } else {
+        newScores[indicator.id] = Math.floor(Math.random() * (indicator.maxScore + 1));
+      }
+    }
+    setCommitteeScores((prev) => ({ ...prev, ...newScores }));
+
+    await Promise.all(
+      flatIndicators.map(({ indicator }) =>
+        apiClient.post("evaluation/score", {
+          evaluationId,
+          indicatorId: indicator.id,
+          score: scores[indicator.id] ?? 0,
+          notes: implementationDetails[indicator.id] ?? "",
+          committeeScore: newScores[indicator.id],
+          committeeComment: committeeComments[indicator.id] ?? "",
+          programId,
+          programName,
+          evaluateeId,
+        }).then((res) => {
+          if (res.data.evaluationId && !evaluationId) setEvaluationId(res.data.evaluationId);
+        })
+      )
+    );
+    toast.success(`กรอกสุ่มครบ ${flatIndicators.length} ข้อแล้ว`);
+  };
+
+  const handleComplete = async () => {
+    if (!evaluationId) return;
+    await apiClient.post(`evaluation/${evaluationId}/complete`);
+    toast.success("ยืนยันผลการประเมินเรียบร้อย");
+    navigate(`/evaluation/${programId}/summary?evaluateeId=${evaluateeId || ""}`);
+  };
+
+  const handleReturn = async () => {
+    if (!evaluationId) return;
+    await apiClient.post(`evaluation/${evaluationId}/return`);
+    toast.success("ส่งกลับให้ผู้ถูกประเมินเรียบร้อย");
+    navigate("/evaluation");
+  };
 
   if (loading || roleLoading) {
     return (
@@ -258,6 +310,23 @@ const EvaluationByProgramPage = () => {
               {grandTotal}<span className="text-sm font-normal text-muted-foreground">/{grandMax}</span>
             </p>
           </div>
+          {role !== "user" && import.meta.env.DEV && (
+            <Button variant="outline" size="sm" onClick={handleFillRandom} className="gap-1.5 text-purple-600 border-purple-300 hover:bg-purple-50 text-xs">
+              🎲 สุ่ม
+            </Button>
+          )}
+          {role !== "user" && evaluationId && (
+            <div className="flex items-center gap-2 ml-2">
+              <Button variant="outline" size="sm" onClick={handleReturn} className="gap-1.5 text-amber-600 border-amber-300 hover:bg-amber-50">
+                <RotateCcw className="h-4 w-4" />
+                ส่งกลับ
+              </Button>
+              <Button size="sm" onClick={handleComplete} disabled={!allCommitteeScored} className="gap-1.5 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50">
+                <CheckCircle2 className="h-4 w-4" />
+                ยืนยันผลการประเมิน
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -304,11 +373,12 @@ const EvaluationByProgramPage = () => {
           onSave={() => handleSaveIndicator(wizardItem.indicator.id)}
           implementationDetail={implementationDetails[wizardItem.indicator.id] ?? ""}
           onImplementationDetailChange={(v) => handleImplementationDetailChange(wizardItem.indicator.id, v)}
-          committeeScore={committeeScores[wizardItem.indicator.id] ?? 0}
+          committeeScore={committeeScores[wizardItem.indicator.id]}
           onCommitteeScoreChange={(v) => handleCommitteeScoreChange(wizardItem.indicator.id, v)}
           committeeComment={committeeComments[wizardItem.indicator.id] ?? ""}
           onCommitteeCommentChange={(v) => handleCommitteeCommentChange(wizardItem.indicator.id, v)}
           userRole={role}
+          viewOnly={scoreView === "self" && role !== "user"}
           hasPrev={wizardIndex! > 0}
           hasNext={wizardIndex! < flatIndicators.length - 1}
           onPrev={() => setWizardIndex((i) => (i !== null ? i - 1 : i))}

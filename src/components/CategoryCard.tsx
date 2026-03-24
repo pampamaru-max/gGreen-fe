@@ -83,6 +83,7 @@ export function IndicatorDialog({
   committeeComment,
   onCommitteeCommentChange,
   userRole,
+  viewOnly = false,
   // Wizard / navigation props
   hasPrev,
   hasNext,
@@ -109,6 +110,7 @@ export function IndicatorDialog({
   committeeComment?: string;
   onCommitteeCommentChange?: (value: string) => void;
   userRole?: string | null;
+  viewOnly?: boolean;
   // Wizard / navigation
   hasPrev?: boolean;
   hasNext?: boolean;
@@ -132,7 +134,7 @@ export function IndicatorDialog({
   };
 
   const doSave = async () => {
-    if (onSave) {
+    if (onSave && !viewOnly) {
       setSaving(true);
       await onSave();
       setSaving(false);
@@ -327,60 +329,121 @@ export function IndicatorDialog({
 
             {/* คะแนนประเมินตนเอง */}
             {userRole !== "user" ? (
-              /* Evaluator: compact read-only reference */
-              <div className="rounded-lg border bg-muted/20 px-4 py-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    คะแนนจากการประเมินตนเอง
-                  </p>
-                  <span
-                    className="text-sm font-bold px-2 py-0.5 rounded-md"
-                    style={{
-                      backgroundColor: score > 0 ? `hsl(${getScoreColor(score)} / 0.12)` : "hsl(var(--muted))",
-                      color: score > 0 ? `hsl(${getScoreColor(score)})` : "hsl(var(--muted-foreground))",
-                    }}
-                  >
-                    {score}/{indicator.maxScore}
-                  </span>
-                </div>
-                {criteria.length > 0 ? (
-                  (() => {
-                    const selected = criteria.find((c: ScoringCriterion) => c.score === score);
-                    return selected ? (
-                      <div
-                        className="flex items-start gap-2.5 rounded-md px-3 py-2 text-sm select-none"
-                        style={{ backgroundColor: `hsl(${getScoreColor(selected.score)} / 0.08)`, border: `1px solid hsl(${getScoreColor(selected.score)} / 0.25)` }}
-                      >
-                        <span
-                          className="shrink-0 flex h-6 w-6 items-center justify-center rounded text-xs font-bold mt-0.5"
-                          style={{ backgroundColor: `hsl(${getScoreColor(selected.score)})`, color: "white" }}
-                        >
-                          {selected.score}
-                        </span>
-                        <span className="leading-snug text-foreground/80">{selected.label}</span>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-muted-foreground italic">ยังไม่ได้ประเมิน</p>
-                    );
-                  })()
-                ) : (
-                  <div className="flex items-center gap-1.5 select-none">
-                    {Array.from({ length: indicator.maxScore + 1 }, (_, i) => i).map((opt) => (
-                      <div
-                        key={opt}
-                        className="flex h-8 w-8 items-center justify-center rounded-md text-sm font-semibold"
-                        style={
-                          opt === score
-                            ? { backgroundColor: `hsl(${getScoreColor(opt)})`, color: "white" }
-                            : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }
-                        }
-                      >
-                        {opt}
-                      </div>
-                    ))}
+              viewOnly ? (
+                /* viewOnly=true: ดูฝั่งผู้ถูกประเมิน — แสดงทุกตัวเลือก read-only */
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      คะแนนจากการประเมินตนเอง
+                    </p>
+                    <div>
+                      <span className="text-xl font-bold" style={{ color: score > 0 ? `hsl(${getScoreColor(score)})` : "hsl(var(--muted-foreground))" }}>{score}</span>
+                      <span className="text-sm text-muted-foreground">/{indicator.maxScore}</span>
+                    </div>
                   </div>
-                )}
-              </div>
+                  {criteria.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {criteria.map((c: ScoringCriterion) => (
+                        <div
+                          key={c.score}
+                          className="flex items-start gap-3 w-full text-left rounded-lg px-3 py-2.5 text-sm select-none cursor-default"
+                          style={
+                            c.score === score
+                              ? { backgroundColor: `hsl(${getScoreColor(c.score)} / 0.12)`, border: `1.5px solid hsl(${getScoreColor(c.score)} / 0.4)` }
+                              : { backgroundColor: "hsl(var(--muted)/0.4)", border: "1.5px solid hsl(var(--border))", opacity: 0.5 }
+                          }
+                        >
+                          <span
+                            className="shrink-0 flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold mt-0.5"
+                            style={
+                              c.score === score
+                                ? { backgroundColor: `hsl(${getScoreColor(c.score)})`, color: "white" }
+                                : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }
+                            }
+                          >
+                            {c.score}
+                          </span>
+                          <span className="leading-snug pt-1" style={{ color: c.score === score ? `hsl(${getScoreColor(c.score)})` : "hsl(var(--muted-foreground))" }}>
+                            {c.label}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 select-none">
+                      {Array.from({ length: indicator.maxScore + 1 }, (_, i) => i).map((opt) => (
+                        <div
+                          key={opt}
+                          className="flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold cursor-default"
+                          style={
+                            opt === score
+                              ? { backgroundColor: `hsl(${getScoreColor(opt)})`, color: "white" }
+                              : { backgroundColor: "hsl(var(--muted)/0.4)", color: "hsl(var(--muted-foreground))", border: "1.5px solid hsl(var(--border))", opacity: 0.5 }
+                          }
+                        >
+                          {opt}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {score === 0 && <p className="text-xs text-muted-foreground italic">ยังไม่ได้ประเมิน</p>}
+                </div>
+              ) : (
+                /* viewOnly=false: ฝั่งผู้ประเมิน — compact แสดงแค่ข้อที่เลือก */
+                <div className="rounded-lg border bg-muted/20 px-4 py-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      คะแนนจากการประเมินตนเอง
+                    </p>
+                    <span
+                      className="text-sm font-bold px-2 py-0.5 rounded-md"
+                      style={{
+                        backgroundColor: score > 0 ? `hsl(${getScoreColor(score)} / 0.12)` : "hsl(var(--muted))",
+                        color: score > 0 ? `hsl(${getScoreColor(score)})` : "hsl(var(--muted-foreground))",
+                      }}
+                    >
+                      {score}/{indicator.maxScore}
+                    </span>
+                  </div>
+                  {criteria.length > 0 ? (
+                    (() => {
+                      const selected = criteria.find((c: ScoringCriterion) => c.score === score);
+                      return selected ? (
+                        <div
+                          className="flex items-start gap-2.5 rounded-md px-3 py-2 text-sm select-none"
+                          style={{ backgroundColor: `hsl(${getScoreColor(selected.score)} / 0.08)`, border: `1px solid hsl(${getScoreColor(selected.score)} / 0.25)` }}
+                        >
+                          <span
+                            className="shrink-0 flex h-6 w-6 items-center justify-center rounded text-xs font-bold mt-0.5"
+                            style={{ backgroundColor: `hsl(${getScoreColor(selected.score)})`, color: "white" }}
+                          >
+                            {selected.score}
+                          </span>
+                          <span className="leading-snug text-foreground/80">{selected.label}</span>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground italic">ยังไม่ได้ประเมิน</p>
+                      );
+                    })()
+                  ) : (
+                    <div className="flex items-center gap-1.5 select-none">
+                      {Array.from({ length: indicator.maxScore + 1 }, (_, i) => i).map((opt) => (
+                        <div
+                          key={opt}
+                          className="flex h-8 w-8 items-center justify-center rounded-md text-sm font-semibold"
+                          style={
+                            opt === score
+                              ? { backgroundColor: `hsl(${getScoreColor(opt)})`, color: "white" }
+                              : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }
+                          }
+                        >
+                          {opt}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
             ) : (
               /* Evaluatee: editable full criteria */
               <div className="space-y-2">
@@ -444,7 +507,7 @@ export function IndicatorDialog({
             )}
 
             {/* กรรมการให้คะแนน */}
-            <div className="space-y-2">
+            {!viewOnly && <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   {userRole === "user" ? "คะแนนกรรมการ" : "ให้คะแนน"}
@@ -550,10 +613,10 @@ export function IndicatorDialog({
                   </div>
                 )
               )}
-            </div>
+            </div>}
 
             {/* ความเห็นกรรมการ */}
-            <div className="space-y-1.5">
+            {!viewOnly && <div className="space-y-1.5">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 ความเห็นกรรมการ
               </p>
@@ -569,7 +632,7 @@ export function IndicatorDialog({
                   className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 />
               )}
-            </div>
+            </div>}
 
             {indicator.notes && (
               <div className="space-y-1.5">
@@ -663,19 +726,21 @@ export function IndicatorDialog({
             >
               {isWizardMode ? "ปิด" : "ยกเลิก"}
             </Button>
-            <Button
-              size="sm"
-              disabled={saving}
-              onClick={async () => {
-                setSaving(true);
-                if (onSave) await onSave();
-                setSaving(false);
-                if (!isWizardMode) onOpenChange(false);
-              }}
-            >
-              {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
-              บันทึก
-            </Button>
+            {!viewOnly && (
+              <Button
+                size="sm"
+                disabled={saving}
+                onClick={async () => {
+                  setSaving(true);
+                  if (onSave) await onSave();
+                  setSaving(false);
+                  if (!isWizardMode) onOpenChange(false);
+                }}
+              >
+                {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
+                บันทึก
+              </Button>
+            )}
           </div>
         </div>
       </DialogContent>
