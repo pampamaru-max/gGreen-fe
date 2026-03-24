@@ -101,7 +101,7 @@ const EvaluationPage = () => {
         
         if (filterSelfStatus === "none" && (status || hasProgress)) return false;
         if (filterSelfStatus === "draft" && status !== "draft" && !hasProgress) return false;
-        if (filterSelfStatus === "completed" && status !== "completed") return false;
+        if (filterSelfStatus === "completed" && status !== "completed" && status !== "submitted") return false;
       }
 
       if (filterCommitteeStatus !== "all") {
@@ -125,7 +125,7 @@ const EvaluationPage = () => {
   };
 
   const getSelfAssessmentBadge = (status: string | null, hasProgress: boolean) => {
-    if (status === "completed") {
+    if (status === "completed" || status === "submitted") {
       return <Badge className="bg-green-600 hover:bg-green-700">ประเมินแล้ว</Badge>;
     }
 

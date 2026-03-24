@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Category } from "@/data/evaluationData";
-import type { UploadedFile } from "@/components/CategoryCard";
-import { CategoryCard } from "@/components/CategoryCard";
+import type { UploadedFile, IndicatorNavItem } from "@/components/CategoryCard";
+import { CategoryCard, IndicatorDialog, getCategoryColor } from "@/components/CategoryCard";
 import { ScoreSummary } from "@/components/ScoreSummary";
 import { ClipboardCheck, Loader2, ArrowLeft } from "lucide-react";
 import apiClient from "@/lib/axios";
@@ -18,6 +18,7 @@ const EvaluationByProgramPage = () => {
   const { isAdmin, role, accessibleProgramIds, loading: roleLoading } = useUserRole();
 
   const [programName, setProgramName] = useState("");
+  const [scoreView, setScoreView] = useState<"self" | "committee">(role !== "user" ? "committee" : "self");
   const [categories, setCategories] = useState<Category[]>([]);
   const [scores, setScores] = useState<Record<string, number>>({});
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, UploadedFile[]>>({});
@@ -176,8 +177,56 @@ const EvaluationByProgramPage = () => {
     });
   }, [scores, categories]);
 
-  const grandTotal = summaryData.reduce((s, c) => s + c.score, 0);
+  const committeeSummaryData = useMemo(() => {
+    if (role === "user") return undefined;
+    return categories.map((cat) => {
+      let totalScore = 0;
+      let totalMax = 0;
+      cat.topics.forEach((topic) => {
+        topic.indicators.forEach((ind) => {
+          totalScore += committeeScores[ind.id] || 0;
+          totalMax += ind.maxScore;
+        });
+      });
+      return { id: cat.id, name: cat.name, score: totalScore, maxScore: cat.maxScore, totalPossible: totalMax };
+    });
+  }, [committeeScores, categories]);
+
+  const grandTotal = (scoreView === "committee" && committeeSummaryData ? committeeSummaryData : summaryData).reduce((s, c) => s + c.score, 0);
   const grandMax = summaryData.reduce((s, c) => s + c.totalPossible, 0);
+
+  // ── Wizard ──────────────────────────────────────────────────────────────────
+  const flatIndicators = useMemo(() => {
+    const items: Array<{ indicator: Category["topics"][0]["indicators"][0]; colorIndex: number }> = [];
+    categories.forEach((cat, catIdx) => {
+      cat.topics.forEach((topic) => {
+        topic.indicators.forEach((indicator) => {
+          items.push({ indicator, colorIndex: catIdx });
+        });
+      });
+    });
+    return items;
+  }, [categories]);
+
+  const [wizardIndex, setWizardIndex] = useState<number | null>(null);
+  const wizardItem = wizardIndex !== null ? flatIndicators[wizardIndex] : null;
+
+  const handleOpenWizard = useCallback((indicator: Category["topics"][0]["indicators"][0]) => {
+    const idx = flatIndicators.findIndex((item) => item.indicator.id === indicator.id);
+    if (idx !== -1) setWizardIndex(idx);
+  }, [flatIndicators]);
+
+  const navItems: IndicatorNavItem[] = useMemo(() =>
+    flatIndicators.map(({ indicator, colorIndex }) => ({
+      id: indicator.id,
+      name: indicator.name,
+      // ใช้ self score เพื่อแสดงสีว่า "item นี้ evaluatee กรอกแล้ว"
+      // committee score ใช้แสดงค่า แต่ self score ใช้เป็น color indicator
+      score: (scores[indicator.id] ?? 0) || (committeeScores[indicator.id] ?? 0),
+      maxScore: indicator.maxScore,
+      color: getCategoryColor(colorIndex),
+    })),
+  [flatIndicators, scores, committeeScores]);
 
   if (loading || roleLoading) {
     return (
@@ -213,7 +262,12 @@ const EvaluationByProgramPage = () => {
       </div>
 
       <div className="px-6 py-6 space-y-6">
-        <ScoreSummary data={summaryData} />
+        <ScoreSummary
+          data={summaryData}
+          committeeData={committeeSummaryData}
+          view={scoreView}
+          onViewChange={setScoreView}
+        />
         {categories.map((category, idx) => (
           <CategoryCard
             key={category.id}
@@ -231,9 +285,40 @@ const EvaluationByProgramPage = () => {
             committeeComments={committeeComments}
             onCommitteeCommentChange={handleCommitteeCommentChange}
             userRole={role}
+            scoreView={scoreView}
+            onIndicatorClick={handleOpenWizard}
           />
         ))}
       </div>
+
+      {wizardItem && (
+        <IndicatorDialog
+          indicator={wizardItem.indicator}
+          score={scores[wizardItem.indicator.id] ?? 0}
+          onScoreChange={(v) => handleScoreChange(wizardItem.indicator.id, v)}
+          color={getCategoryColor(wizardItem.colorIndex)}
+          files={uploadedFiles[wizardItem.indicator.id] ?? []}
+          onFilesChange={(f) => handleFilesChange(wizardItem.indicator.id, f)}
+          open={wizardIndex !== null}
+          onOpenChange={(open) => { if (!open) setWizardIndex(null); }}
+          onSave={() => handleSaveIndicator(wizardItem.indicator.id)}
+          implementationDetail={implementationDetails[wizardItem.indicator.id] ?? ""}
+          onImplementationDetailChange={(v) => handleImplementationDetailChange(wizardItem.indicator.id, v)}
+          committeeScore={committeeScores[wizardItem.indicator.id] ?? 0}
+          onCommitteeScoreChange={(v) => handleCommitteeScoreChange(wizardItem.indicator.id, v)}
+          committeeComment={committeeComments[wizardItem.indicator.id] ?? ""}
+          onCommitteeCommentChange={(v) => handleCommitteeCommentChange(wizardItem.indicator.id, v)}
+          userRole={role}
+          hasPrev={wizardIndex! > 0}
+          hasNext={wizardIndex! < flatIndicators.length - 1}
+          onPrev={() => setWizardIndex((i) => (i !== null ? i - 1 : i))}
+          onNext={() => setWizardIndex((i) => (i !== null ? i + 1 : i))}
+          progressLabel={`${wizardIndex! + 1} / ${flatIndicators.length}`}
+          navItems={navItems}
+          currentNavIndex={wizardIndex ?? undefined}
+          onJumpTo={(idx) => setWizardIndex(idx)}
+        />
+      )}
     </div>
   );
 };

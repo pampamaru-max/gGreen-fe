@@ -62,6 +62,7 @@ interface Props {
   committeeComments?: Record<string, string>;
   onCommitteeCommentChange?: (indicatorId: string, value: string) => void;
   userRole?: string | null;
+  scoreView?: "self" | "committee";
   onIndicatorClick?: (indicator: Category["topics"][0]["indicators"][0]) => void;
 }
 
@@ -323,86 +324,130 @@ export function IndicatorDialog({
 
           {/* ===== ด้านขวา: ให้คะแนน + หมายเหตุเกณฑ์คะแนน ===== */}
           <div className="overflow-y-auto scrollbar-thin px-6 py-5 space-y-5">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  ให้คะแนนประเมินตนเอง
-                </p>
-                <div>
+
+            {/* คะแนนประเมินตนเอง */}
+            {userRole !== "user" ? (
+              /* Evaluator: compact read-only reference */
+              <div className="rounded-lg border bg-muted/20 px-4 py-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    คะแนนจากการประเมินตนเอง
+                  </p>
                   <span
-                    className="text-xl font-bold"
-                    style={{ color: score > 0 ? `hsl(${getScoreColor(score)})` : "hsl(var(--muted-foreground))" }}
+                    className="text-sm font-bold px-2 py-0.5 rounded-md"
+                    style={{
+                      backgroundColor: score > 0 ? `hsl(${getScoreColor(score)} / 0.12)` : "hsl(var(--muted))",
+                      color: score > 0 ? `hsl(${getScoreColor(score)})` : "hsl(var(--muted-foreground))",
+                    }}
                   >
-                    {score}
+                    {score}/{indicator.maxScore}
                   </span>
-                  <span className="text-sm text-muted-foreground">/{indicator.maxScore}</span>
                 </div>
-              </div>
-              {criteria.length > 0 ? (
-                <div className="space-y-1.5">
-                  {criteria.map((c: ScoringCriterion) => (
-                    <button
-                      key={c.score}
-                      onClick={() => onScoreChange(c.score === score ? 0 : c.score)}
-                      className="flex items-start gap-3 w-full text-left rounded-lg px-3 py-2.5 transition-all text-sm"
-                      style={
-                        c.score === score
-                          ? {
-                              backgroundColor: `hsl(${getScoreColor(c.score)} / 0.12)`,
-                              border: `1.5px solid hsl(${getScoreColor(c.score)} / 0.4)`,
-                            }
-                          : {
-                              backgroundColor: "transparent",
-                              border: "1.5px solid hsl(var(--border))",
-                            }
-                      }
-                    >
-                      <span
-                        className="shrink-0 flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold mt-0.5"
+                {criteria.length > 0 ? (
+                  (() => {
+                    const selected = criteria.find((c: ScoringCriterion) => c.score === score);
+                    return selected ? (
+                      <div
+                        className="flex items-start gap-2.5 rounded-md px-3 py-2 text-sm select-none"
+                        style={{ backgroundColor: `hsl(${getScoreColor(selected.score)} / 0.08)`, border: `1px solid hsl(${getScoreColor(selected.score)} / 0.25)` }}
+                      >
+                        <span
+                          className="shrink-0 flex h-6 w-6 items-center justify-center rounded text-xs font-bold mt-0.5"
+                          style={{ backgroundColor: `hsl(${getScoreColor(selected.score)})`, color: "white" }}
+                        >
+                          {selected.score}
+                        </span>
+                        <span className="leading-snug text-foreground/80">{selected.label}</span>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic">ยังไม่ได้ประเมิน</p>
+                    );
+                  })()
+                ) : (
+                  <div className="flex items-center gap-1.5 select-none">
+                    {Array.from({ length: indicator.maxScore + 1 }, (_, i) => i).map((opt) => (
+                      <div
+                        key={opt}
+                        className="flex h-8 w-8 items-center justify-center rounded-md text-sm font-semibold"
                         style={
-                          c.score === score
-                            ? { backgroundColor: `hsl(${getScoreColor(c.score)})`, color: "white" }
+                          opt === score
+                            ? { backgroundColor: `hsl(${getScoreColor(opt)})`, color: "white" }
                             : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }
                         }
                       >
-                        {c.score}
-                      </span>
-                      <span
-                        className="leading-snug pt-1"
-                        style={{ color: c.score === score ? `hsl(${getScoreColor(c.score)})` : "hsl(var(--foreground))" }}
+                        {opt}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Evaluatee: editable full criteria */
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">ให้คะแนนประเมินตนเอง</p>
+                  <div>
+                    <span className="text-xl font-bold" style={{ color: score > 0 ? `hsl(${getScoreColor(score)})` : "hsl(var(--muted-foreground))" }}>{score}</span>
+                    <span className="text-sm text-muted-foreground">/{indicator.maxScore}</span>
+                  </div>
+                </div>
+                {criteria.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {criteria.map((c: ScoringCriterion) => (
+                      <button
+                        key={c.score}
+                        onClick={() => onScoreChange(c.score === score ? 0 : c.score)}
+                        className="flex items-start gap-3 w-full text-left rounded-lg px-3 py-2.5 transition-all text-sm"
+                        style={
+                          c.score === score
+                            ? { backgroundColor: `hsl(${getScoreColor(c.score)} / 0.12)`, border: `1.5px solid hsl(${getScoreColor(c.score)} / 0.4)` }
+                            : { backgroundColor: "transparent", border: "1.5px solid hsl(var(--border))" }
+                        }
                       >
-                        {c.label}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {Array.from({ length: indicator.maxScore + 1 }, (_, i) => i).map((opt) => (
-                    <button
-                      key={opt}
-                      onClick={() => onScoreChange(opt === score ? 0 : opt)}
-                      className="flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold transition-all"
-                      style={
-                        opt === score && opt > 0
-                          ? { backgroundColor: `hsl(${getScoreColor(opt)})`, color: "white" }
-                          : opt === score && opt === 0
-                          ? { backgroundColor: `hsl(${getScoreColor(0)})`, color: "white" }
-                          : { backgroundColor: "transparent", color: "hsl(var(--muted-foreground))", border: "1.5px solid hsl(var(--border))" }
-                      }
-                    >
-                      {opt}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+                        <span
+                          className="shrink-0 flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold mt-0.5"
+                          style={
+                            c.score === score
+                              ? { backgroundColor: `hsl(${getScoreColor(c.score)})`, color: "white" }
+                              : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }
+                          }
+                        >
+                          {c.score}
+                        </span>
+                        <span className="leading-snug pt-1" style={{ color: c.score === score ? `hsl(${getScoreColor(c.score)})` : "hsl(var(--foreground))" }}>
+                          {c.label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {Array.from({ length: indicator.maxScore + 1 }, (_, i) => i).map((opt) => (
+                      <button
+                        key={opt}
+                        onClick={() => onScoreChange(opt === score ? 0 : opt)}
+                        className="flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold transition-all"
+                        style={
+                          opt === score && opt > 0
+                            ? { backgroundColor: `hsl(${getScoreColor(opt)})`, color: "white" }
+                            : opt === score && opt === 0
+                            ? { backgroundColor: `hsl(${getScoreColor(0)})`, color: "white" }
+                            : { backgroundColor: "transparent", color: "hsl(var(--muted-foreground))", border: "1.5px solid hsl(var(--border))" }
+                        }
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* กรรมการให้คะแนน */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  กรรมการให้คะแนน
+                  {userRole === "user" ? "คะแนนกรรมการ" : "ให้คะแนน"}
                 </p>
                 <div>
                   <span
@@ -415,27 +460,95 @@ export function IndicatorDialog({
                 </div>
               </div>
               {userRole === "user" ? (
-                <p className="text-sm text-muted-foreground italic">เฉพาะกรรมการหรือผู้ดูแลระบบเท่านั้นที่สามารถให้คะแนนได้</p>
+                (committeeScore || 0) > 0 ? (
+                  criteria.length > 0 ? (
+                    (() => {
+                      const selected = criteria.find((c: ScoringCriterion) => c.score === (committeeScore || 0));
+                      return selected ? (
+                        <div
+                          className="flex items-start gap-2.5 rounded-md px-3 py-2 text-sm select-none"
+                          style={{ backgroundColor: `hsl(${getScoreColor(selected.score)} / 0.08)`, border: `1px solid hsl(${getScoreColor(selected.score)} / 0.25)` }}
+                        >
+                          <span
+                            className="shrink-0 flex h-6 w-6 items-center justify-center rounded text-xs font-bold mt-0.5"
+                            style={{ backgroundColor: `hsl(${getScoreColor(selected.score)})`, color: "white" }}
+                          >
+                            {selected.score}
+                          </span>
+                          <span className="leading-snug text-foreground/80">{selected.label}</span>
+                        </div>
+                      ) : null;
+                    })()
+                  ) : (
+                    <div className="flex items-center gap-1.5 select-none">
+                      {Array.from({ length: indicator.maxScore + 1 }, (_, i) => i).map((opt) => (
+                        <div
+                          key={opt}
+                          className="flex h-8 w-8 items-center justify-center rounded-md text-sm font-semibold"
+                          style={
+                            opt === (committeeScore || 0)
+                              ? { backgroundColor: `hsl(${getScoreColor(opt)})`, color: "white" }
+                              : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }
+                          }
+                        >
+                          {opt}
+                        </div>
+                      ))}
+                    </div>
+                  )
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">ยังไม่มีคะแนนจากกรรมการ</p>
+                )
               ) : (
-                <div className="flex items-center gap-2 flex-wrap">
-                  {Array.from({ length: indicator.maxScore + 1 }, (_, i) => i).map((opt) => (
-                    <label
-                      key={`committee-radio-${opt}`}
-                      className="flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <input
-                        type="radio"
-                        name={`committee-score-${indicator.id}`}
-                        checked={opt === (committeeScore || 0)}
-                        onChange={() => onCommitteeScoreChange?.(opt)}
-                        className="h-4 w-4 accent-primary"
-                      />
-                      <span className="text-sm font-medium" style={{ color: opt === (committeeScore || 0) && opt > 0 ? `hsl(${getScoreColor(opt)})` : "hsl(var(--foreground))" }}>
+                criteria.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {criteria.map((c: ScoringCriterion) => (
+                      <button
+                        key={`committee-${c.score}`}
+                        onClick={() => onCommitteeScoreChange?.(c.score === (committeeScore || 0) ? 0 : c.score)}
+                        className="flex items-start gap-3 w-full text-left rounded-lg px-3 py-2.5 transition-all text-sm"
+                        style={
+                          c.score === (committeeScore || 0)
+                            ? { backgroundColor: `hsl(${getScoreColor(c.score)} / 0.12)`, border: `1.5px solid hsl(${getScoreColor(c.score)} / 0.4)` }
+                            : { backgroundColor: "transparent", border: "1.5px solid hsl(var(--border))" }
+                        }
+                      >
+                        <span
+                          className="shrink-0 flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold mt-0.5"
+                          style={
+                            c.score === (committeeScore || 0)
+                              ? { backgroundColor: `hsl(${getScoreColor(c.score)})`, color: "white" }
+                              : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }
+                          }
+                        >
+                          {c.score}
+                        </span>
+                        <span className="leading-snug pt-1" style={{ color: c.score === (committeeScore || 0) ? `hsl(${getScoreColor(c.score)})` : "hsl(var(--foreground))" }}>
+                          {c.label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {Array.from({ length: indicator.maxScore + 1 }, (_, i) => i).map((opt) => (
+                      <button
+                        key={`committee-btn-${opt}`}
+                        onClick={() => onCommitteeScoreChange?.(opt === (committeeScore || 0) ? 0 : opt)}
+                        className="flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold transition-all"
+                        style={
+                          opt === (committeeScore || 0) && opt > 0
+                            ? { backgroundColor: `hsl(${getScoreColor(opt)})`, color: "white" }
+                            : opt === (committeeScore || 0) && opt === 0
+                            ? { backgroundColor: `hsl(${getScoreColor(0)})`, color: "white" }
+                            : { backgroundColor: "transparent", color: "hsl(var(--muted-foreground))", border: "1.5px solid hsl(var(--border))" }
+                        }
+                      >
                         {opt}
-                      </span>
-                    </label>
-                  ))}
-                </div>
+                      </button>
+                    ))}
+                  </div>
+                )
               )}
             </div>
 
@@ -570,13 +683,15 @@ export function IndicatorDialog({
   );
 }
 
-export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDelete, uploadedFiles, onFilesChange, onSave, implementationDetails, onImplementationDetailChange, committeeScores, onCommitteeScoreChange, committeeComments, onCommitteeCommentChange, userRole, onIndicatorClick }: Props) {
+export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDelete, uploadedFiles, onFilesChange, onSave, implementationDetails, onImplementationDetailChange, committeeScores, onCommitteeScoreChange, committeeComments, onCommitteeCommentChange, userRole, scoreView, onIndicatorClick }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndicator, setSelectedIndicator] = useState<Category["topics"][0]["indicators"][0] | null>(null);
   const color = categoryColors[colorIndex % categoryColors.length];
 
+  const displayScores = scoreView === "committee" && committeeScores ? committeeScores : scores;
+
   const totalScore = category.topics.reduce(
-    (sum, t) => sum + t.indicators.reduce((s, i) => s + (scores[i.id] || 0), 0),
+    (sum, t) => sum + t.indicators.reduce((s, i) => s + (displayScores[i.id] || 0), 0),
     0
   );
   const totalMax = category.topics.reduce(
@@ -636,7 +751,7 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
               </div>
               <div className="divide-y">
                 {topic.indicators.map((indicator) => {
-                  const indScore = scores[indicator.id] || 0;
+                  const indScore = displayScores[indicator.id] || 0;
                   const fileCount = (uploadedFiles[indicator.id] || []).length;
                   return (
                     <button
