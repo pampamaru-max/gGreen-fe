@@ -1,3 +1,5 @@
+import { useState, useEffect } from "react";
+
 interface SummaryItem {
   id: number | string;
   name: string;
@@ -7,16 +9,14 @@ interface SummaryItem {
   index?: number;
 }
 
-export function ScoreSummary({ data, showOnlyWithScore = false }: { data: SummaryItem[], showOnlyWithScore?: boolean }) {
-  const filteredData = showOnlyWithScore ? data.filter(item => item.score > 0) : data;
+export function ScoreSummary({ data }: { data: SummaryItem[] }) {
   const grandTotal = data.reduce((s, c) => s + c.score, 0);
   const grandMax = data.reduce((s, c) => s + c.totalPossible, 0);
   const percentage = grandMax > 0 ? Math.round((grandTotal / grandMax) * 100) : 0;
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-      {filteredData.map((item, idx) => {
-        const displayIdx = item.index !== undefined ? item.index : idx;
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      {data.map((item, idx) => {
         const pct = item.totalPossible > 0 ? Math.round((item.score / item.totalPossible) * 100) : 0;
         return (
           <div
@@ -25,12 +25,12 @@ export function ScoreSummary({ data, showOnlyWithScore = false }: { data: Summar
           >
             <div
               className="absolute inset-x-0 top-0 h-1 rounded-full"
-              style={{ backgroundColor: `hsl(${getColorValue(displayIdx)})` }}
+              style={{ backgroundColor: `hsl(${getColorValue(idx)})` }}
             />
-            <p className="text-xs font-medium text-muted-foreground mb-1">หมวดที่ {displayIdx + 1}</p>
+            <p className="text-xs font-medium text-muted-foreground mb-1">หมวดที่ {idx + 1}</p>
             <p className="text-sm font-semibold text-foreground leading-tight mb-2 line-clamp-2">{item.name}</p>
             <div className="flex items-end justify-between">
-              <p className="text-2xl font-bold" style={{ color: `hsl(${getColorValue(displayIdx)})` }}>
+              <p className="text-2xl font-bold" style={{ color: `hsl(${getColorValue(idx)})` }}>
                 {item.score}
                 <span className="text-xs font-normal text-muted-foreground">/{item.totalPossible}</span>
               </p>
@@ -41,7 +41,7 @@ export function ScoreSummary({ data, showOnlyWithScore = false }: { data: Summar
                 className="h-full rounded-full transition-all duration-500"
                 style={{
                   width: `${pct}%`,
-                  backgroundColor: `hsl(${getColorValue(displayIdx)})`,
+                  backgroundColor: `hsl(${getColorValue(idx)})`,
                 }}
               />
             </div>

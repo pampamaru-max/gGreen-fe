@@ -7,8 +7,8 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CategoryCard } from "@/components/CategoryCard";
-import type { UploadedFile } from "@/components/CategoryCard";
+import { CategoryCard, IndicatorDialog, getCategoryColor } from "@/components/CategoryCard";
+import type { UploadedFile, IndicatorNavItem } from "@/components/CategoryCard";
 import { ScoreSummary } from "@/components/ScoreSummary";
 import { SelfEvalHeader } from "@/components/self-eval/SelfEvalHeader";
 import { ScoringLevelBadges } from "@/components/self-eval/ScoringLevelBadges";
@@ -81,6 +81,7 @@ export default function ProjectRegistration() {
   const [evaluationId, setEvaluationId]     = useState<string | null>(null);
   const [submitting, setSubmitting]         = useState(false);
   const [submitted, setSubmitted]           = useState(false);
+  const [wizardIndex, setWizardIndex]       = useState<number | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -234,6 +235,39 @@ export default function ProjectRegistration() {
 
   const grandTotal    = summaryData.reduce((s, c) => s + c.score, 0);
   const grandMax      = summaryData.reduce((s, c) => s + c.totalPossible, 0);
+
+  // ── Wizard flat list ───────────────────────────────────────────────────────
+  const flatIndicators = useMemo(() => {
+    const items: Array<{
+      indicator: Category["topics"][0]["indicators"][0];
+      colorIndex: number;
+    }> = [];
+    categories.forEach((cat, catIdx) => {
+      cat.topics.forEach((topic) => {
+        topic.indicators.forEach((indicator) => {
+          items.push({ indicator, colorIndex: catIdx });
+        });
+      });
+    });
+    return items;
+  }, [categories]);
+
+  const handleOpenWizard = useCallback((indicator: Category["topics"][0]["indicators"][0]) => {
+    const idx = flatIndicators.findIndex((item) => item.indicator.id === indicator.id);
+    if (idx !== -1) setWizardIndex(idx);
+  }, [flatIndicators]);
+
+  const wizardItem = wizardIndex !== null ? flatIndicators[wizardIndex] : null;
+
+  const navItems: IndicatorNavItem[] = useMemo(() =>
+    flatIndicators.map(({ indicator, colorIndex }) => ({
+      id: indicator.id,
+      name: indicator.name,
+      score: scores[indicator.id] ?? 0,
+      maxScore: indicator.maxScore,
+      color: getCategoryColor(colorIndex),
+    })),
+  [flatIndicators, scores]);
   const totalTopics   = categories.reduce((s, c) => s + c.topics.length, 0);
   const totalIndicators = categories.reduce((s, c) => s + c.topics.reduce((ts, t) => ts + t.indicators.length, 0), 0);
   const status = registration
@@ -342,32 +376,21 @@ export default function ProjectRegistration() {
             {summaryData.length > 0 && <ScoreSummary data={summaryData} showOnlyWithScore={true} />}
 
             {/* Category cards */}
-            {categories
-              .filter((cat) => {
-                // If filterType is 'evaluated', show only categories with at least one score
-                if (filterType === "evaluated") {
-                  return cat.topics.some(t => 
-                    t.indicators.some(i => scores[i.id] !== undefined)
-                  );
-                }
-                // Otherwise show all
-                return true;
-              })
-              .map((category, idx) => (
-                <CategoryCard
-                  key={category.id}
-                  category={category}
-                  colorIndex={idx}
-                  scores={scores}
-                  onScoreChange={handleScoreChange}
-                  uploadedFiles={uploadedFiles}
-                  onFilesChange={handleFilesChange}
-                  onSave={handleSaveIndicator}
-                  implementationDetails={implDetails}
-                  onImplementationDetailChange={handleDetailChange}
-                  userRole="user"
-                />
-              ))}
+            {categories.map((category, idx) => (
+              <CategoryCard
+                key={category.id}
+                category={category}
+                colorIndex={idx}
+                scores={scores}
+                onScoreChange={handleScoreChange}
+                uploadedFiles={uploadedFiles}
+                onFilesChange={handleFilesChange}
+                onSave={handleSaveIndicator}
+                implementationDetails={implDetails}
+                onImplementationDetailChange={handleDetailChange}
+                userRole="user"
+              />
+            ))}
 
             {/* No categories */}
             {categories.length === 0 && (
@@ -407,6 +430,32 @@ export default function ProjectRegistration() {
           </>
         )}
       </div>
+
+      {/* ════ Global Wizard Dialog ════ */}
+      {wizardItem && (
+        <IndicatorDialog
+          indicator={wizardItem.indicator}
+          score={scores[wizardItem.indicator.id] ?? 0}
+          onScoreChange={(v) => handleScoreChange(wizardItem.indicator.id, v)}
+          color={getCategoryColor(wizardItem.colorIndex)}
+          files={uploadedFiles[wizardItem.indicator.id] ?? []}
+          onFilesChange={(f) => handleFilesChange(wizardItem.indicator.id, f)}
+          open={wizardIndex !== null}
+          onOpenChange={(open) => { if (!open) setWizardIndex(null); }}
+          onSave={() => handleSaveIndicator(wizardItem.indicator.id)}
+          implementationDetail={implDetails[wizardItem.indicator.id] ?? ""}
+          onImplementationDetailChange={(v) => handleDetailChange(wizardItem.indicator.id, v)}
+          userRole="user"
+          hasPrev={wizardIndex! > 0}
+          hasNext={wizardIndex! < flatIndicators.length - 1}
+          onPrev={() => setWizardIndex((i) => (i !== null ? i - 1 : i))}
+          onNext={() => setWizardIndex((i) => (i !== null ? i + 1 : i))}
+          progressLabel={`${wizardIndex! + 1} / ${flatIndicators.length}`}
+          navItems={navItems}
+          currentNavIndex={wizardIndex ?? undefined}
+          onJumpTo={(idx) => setWizardIndex(idx)}
+        />
+      )}
     </div>
   );
 }
