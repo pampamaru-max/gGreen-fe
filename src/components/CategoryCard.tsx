@@ -8,7 +8,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { supabase } from "@/integrations/supabase/client";
+import apiClient from "@/lib/axios";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -102,6 +102,24 @@ function IndicatorDialog({
     return "142 60% 40%";                   // เขียว
   };
 
+  const handleDownload = async (file: UploadedFile) => {
+    try {
+      // ใช้ fetch เพื่อดาวน์โหลดไฟล์และกำหนดชื่อไฟล์เดิม
+      const response = await fetch(file.url);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      toast.error("ไม่สามารถดาวน์โหลดไฟล์ได้");
+    }
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = e.target.files;
     if (!selectedFiles || selectedFiles.length === 0) return;
@@ -120,22 +138,32 @@ function IndicatorDialog({
         continue;
       }
 
-      const safeFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const filePath = `${indicator.id}/${Date.now()}_${safeFileName}`;
-      const { error } = await supabase.storage
-        .from("evaluation-files")
-        .upload(filePath, file);
+      // ใช้ Backend API ในการอัปโหลดไฟล์เพื่อรองรับภาษาไทยและจัดการความปลอดภัย
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("folder", `evaluation-files/${indicator.id}`);
 
-      if (error) {
-        toast.error(`อัปโหลด ${file.name} ไม่สำเร็จ`);
+      try {
+        const { data: uploadRes } = await apiClient.post("files/upload", formData);
+        const fileUrl = uploadRes.url;
+        
+        // สกัด path จาก URL เพื่อให้ลบไฟล์ได้ถูกต้อง
+        const urlObj = new URL(fileUrl);
+        // ค้นหา bucket name จาก URL (มักจะอยู่หลัง /public/)
+        const pathSegments = urlObj.pathname.split("/public/");
+        const fullPath = pathSegments.length > 1 ? pathSegments[1] : urlObj.pathname;
+        // แยก bucket name ออกจาก path
+        const bucketPart = fullPath.split("/")[0];
+        const filePath = fullPath.substring(bucketPart.length + 1);
+
+        newFiles.push({ name: file.name, url: fileUrl, path: filePath });
+      } catch (err: any) {
+        console.error("Upload error detail:", err?.response?.data || err);
+        const errorMsg = err?.response?.data?.message || err.message || "";
+        const formattedError = Array.isArray(errorMsg) ? errorMsg.join(", ") : errorMsg;
+        toast.error(`อัปโหลด ${file.name} ไม่สำเร็จ: ${formattedError}`);
         continue;
       }
-
-      const { data: urlData } = supabase.storage
-        .from("evaluation-files")
-        .getPublicUrl(filePath);
-
-      newFiles.push({ name: file.name, url: urlData.publicUrl, path: filePath });
     }
 
     onFilesChange([...files, ...newFiles]);
@@ -144,8 +172,12 @@ function IndicatorDialog({
   };
 
   const handleDeleteFile = async (file: UploadedFile) => {
-    await supabase.storage.from("evaluation-files").remove([file.path]);
-    onFilesChange(files.filter((f) => f.path !== file.path));
+    try {
+      await apiClient.delete("files/delete", { data: { url: file.url } });
+      onFilesChange(files.filter((f) => f.path !== file.path));
+    } catch (error) {
+      toast.error("ไม่สามารถลบไฟล์ได้");
+    }
   };
 
   return (
@@ -234,10 +266,10 @@ function IndicatorDialog({
                       className="flex items-center gap-2 bg-muted/50 border rounded-lg px-3 py-1.5 text-sm"
                     >
                       <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <span className="truncate max-w-[180px]">{f.name}</span>
-                      <a href={f.url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-muted-foreground hover:text-foreground">
+                      <span className="truncate max-w-[180px] cursor-pointer hover:text-primary transition-colors" onClick={() => handleDownload(f)}>{f.name}</span>
+                      <button onClick={() => handleDownload(f)} className="shrink-0 text-muted-foreground hover:text-foreground" title="ดาวน์โหลด">
                         <Eye className="h-3.5 w-3.5" />
-                      </a>
+                      </button>
                       <button
                         onClick={() => handleDeleteFile(f)}
                         className="shrink-0 text-muted-foreground hover:text-destructive"
