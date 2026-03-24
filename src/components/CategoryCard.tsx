@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { Category, ScoringCriterion } from "@/data/evaluationData";
-import { ChevronDown, ChevronRight, Trash2, FileText, Upload, X, Eye, ListChecks, Plus, Info, Save, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronLeft, Trash2, FileText, X, Eye, ListChecks, Plus, Info, Save, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -8,7 +8,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { supabase } from "@/integrations/supabase/client";
+import apiClient from "@/lib/axios";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -38,6 +38,14 @@ export interface UploadedFile {
   path: string;
 }
 
+export interface IndicatorNavItem {
+  id: string;
+  name: string;
+  score: number;
+  maxScore: number;
+  color: string;
+}
+
 interface Props {
   category: Category;
   colorIndex: number;
@@ -54,9 +62,10 @@ interface Props {
   committeeComments?: Record<string, string>;
   onCommitteeCommentChange?: (indicatorId: string, value: string) => void;
   userRole?: string | null;
+  onIndicatorClick?: (indicator: Category["topics"][0]["indicators"][0]) => void;
 }
 
-function IndicatorDialog({
+export function IndicatorDialog({
   indicator,
   score,
   onScoreChange,
@@ -73,6 +82,15 @@ function IndicatorDialog({
   committeeComment,
   onCommitteeCommentChange,
   userRole,
+  // Wizard / navigation props
+  hasPrev,
+  hasNext,
+  onPrev,
+  onNext,
+  progressLabel,
+  navItems,
+  currentNavIndex,
+  onJumpTo,
 }: {
   indicator: Category["topics"][0]["indicators"][0];
   score: number;
@@ -90,16 +108,49 @@ function IndicatorDialog({
   committeeComment?: string;
   onCommitteeCommentChange?: (value: string) => void;
   userRole?: string | null;
+  // Wizard / navigation
+  hasPrev?: boolean;
+  hasNext?: boolean;
+  onPrev?: () => void;
+  onNext?: () => void;
+  progressLabel?: string;
+  navItems?: IndicatorNavItem[];
+  currentNavIndex?: number;
+  onJumpTo?: (index: number) => void;
 }) {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const criteria = indicator.scoringCriteria || [];
+  const isWizardMode = hasPrev !== undefined || hasNext !== undefined;
 
   const getScoreColor = (s: number) => {
-    if (s <= 1) return "0 72% 51%";       // แดง
-    if (s <= 3) return "30 60% 45%";       // น้ำตาล
-    return "142 60% 40%";                   // เขียว
+    if (s <= 1) return "0 72% 51%";
+    if (s <= 3) return "30 60% 45%";
+    return "142 60% 40%";
+  };
+
+  const doSave = async () => {
+    if (onSave) {
+      setSaving(true);
+      await onSave();
+      setSaving(false);
+    }
+  };
+
+  const handlePrevClick = async () => {
+    await doSave();
+    onPrev?.();
+  };
+
+  const handleNextClick = async () => {
+    await doSave();
+    onNext?.();
+  };
+
+  const handleJumpTo = async (idx: number) => {
+    if (idx !== currentNavIndex) await doSave();
+    onJumpTo?.(idx);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -110,32 +161,21 @@ function IndicatorDialog({
     const newFiles: UploadedFile[] = [];
 
     for (const file of Array.from(selectedFiles)) {
-      const ext = file.name.split(".").pop()?.toLowerCase();
-      if (!["pdf", "png", "jpg", "jpeg"].includes(ext || "")) {
-        toast.error(`ไฟล์ ${file.name} ไม่รองรับ (รองรับ PDF, PNG, JPG)`);
-        continue;
-      }
       if (file.size > 10 * 1024 * 1024) {
         toast.error(`ไฟล์ ${file.name} ใหญ่เกิน 10MB`);
         continue;
       }
-
-      const safeFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const filePath = `${indicator.id}/${Date.now()}_${safeFileName}`;
-      const { error } = await supabase.storage
-        .from("evaluation-files")
-        .upload(filePath, file);
-
-      if (error) {
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("folder", indicator.id);
+        const { data } = await apiClient.post("evaluation/files/upload", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        newFiles.push({ name: data.name ?? file.name, url: data.url, path: data.url });
+      } catch {
         toast.error(`อัปโหลด ${file.name} ไม่สำเร็จ`);
-        continue;
       }
-
-      const { data: urlData } = supabase.storage
-        .from("evaluation-files")
-        .getPublicUrl(filePath);
-
-      newFiles.push({ name: file.name, url: urlData.publicUrl, path: filePath });
     }
 
     onFilesChange([...files, ...newFiles]);
@@ -144,47 +184,57 @@ function IndicatorDialog({
   };
 
   const handleDeleteFile = async (file: UploadedFile) => {
-    await supabase.storage.from("evaluation-files").remove([file.path]);
-    onFilesChange(files.filter((f) => f.path !== file.path));
+    try {
+      await apiClient.delete("evaluation/files/delete", { data: { url: file.url } });
+    } catch { /* ลบออกจาก UI ต่อไปแม้ลบจาก server ไม่สำเร็จ */ }
+    onFilesChange(files.filter((f) => f.url !== file.url));
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] overflow-hidden p-0 flex flex-col">
+      <DialogContent className="max-w-5xl w-[95vw] h-[90vh] overflow-hidden p-0 flex flex-col">
         {/* Header */}
         <DialogHeader
-          className="px-6 pt-6 pb-4 shrink-0"
+          className="px-6 pt-5 pb-4 pr-14 shrink-0"
           style={{ backgroundColor: `hsl(${color} / 0.06)` }}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-start gap-3">
             <span
-              className="h-2.5 w-2.5 rounded-full shrink-0"
+              className="h-2.5 w-2.5 rounded-full shrink-0 mt-1.5"
               style={{ backgroundColor: `hsl(${color})` }}
             />
-            <DialogTitle className="text-base font-semibold text-foreground leading-snug text-left">
-              {indicator.name}
-            </DialogTitle>
-            {indicator.description && (
-              <TooltipProvider delayDuration={200}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button className="shrink-0 text-muted-foreground hover:text-foreground transition-colors">
-                      <Info className="h-4 w-4" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" align="start" className="max-w-sm">
-                    <p className="text-sm leading-relaxed">{indicator.description}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start gap-2">
+                <DialogTitle className="flex-1 text-base font-semibold text-foreground leading-snug text-left">
+                  {indicator.name}
+                </DialogTitle>
+                {indicator.description && (
+                  <TooltipProvider delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button className="shrink-0 mt-0.5 text-muted-foreground hover:text-foreground transition-colors">
+                          <Info className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" align="end" className="max-w-sm z-[9999]">
+                        <p className="text-sm leading-relaxed">{indicator.description}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+                {progressLabel && (
+                  <span className="shrink-0 text-xs font-medium text-muted-foreground bg-muted rounded-full px-2 py-0.5 mt-0.5">
+                    {progressLabel}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
         </DialogHeader>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-0 md:divide-x overflow-hidden flex-1 min-h-0">
           {/* ===== ด้านซ้าย: รายละเอียด + เอกสารแนบ + หลักฐานอ้างอิง ===== */}
-          <div className="overflow-y-auto px-6 py-5 space-y-5">
-            {/* รายละเอียดตัวชี้วัด */}
+          <div className="overflow-y-auto scrollbar-thin px-6 py-5 space-y-5">
             {indicator.detail && (
               <div className="space-y-1.5">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -196,7 +246,6 @@ function IndicatorDialog({
               </div>
             )}
 
-            {/* หลักฐานอ้างอิง */}
             {indicator.evidenceDescription && (
               <div className="space-y-1.5">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -208,7 +257,6 @@ function IndicatorDialog({
               </div>
             )}
 
-            {/* รายละเอียดการดำเนินการ */}
             <div className="space-y-1.5">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 รายละเอียดการดำเนินการ
@@ -221,7 +269,6 @@ function IndicatorDialog({
               />
             </div>
 
-            {/* เอกสารแนบ */}
             <div className="space-y-2">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 เอกสารแนบ
@@ -275,8 +322,7 @@ function IndicatorDialog({
           </div>
 
           {/* ===== ด้านขวา: ให้คะแนน + หมายเหตุเกณฑ์คะแนน ===== */}
-          <div className="overflow-y-auto px-6 py-5 space-y-5">
-            {/* ให้คะแนนประเมินตนเอง */}
+          <div className="overflow-y-auto scrollbar-thin px-6 py-5 space-y-5">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -412,7 +458,6 @@ function IndicatorDialog({
               )}
             </div>
 
-            {/* หมายเหตุเกณฑ์คะแนน */}
             {indicator.notes && (
               <div className="space-y-1.5">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -426,37 +471,106 @@ function IndicatorDialog({
           </div>
         </div>
 
-        {/* Footer: บันทึก / ยกเลิก */}
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t bg-muted/20 shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onOpenChange(false)}
-          >
-            ยกเลิก
-          </Button>
-          <Button
-            size="sm"
-            disabled={saving}
-            onClick={async () => {
-              if (onSave) {
+        {/* ════ Bottom nav strip (wizard mode) ════ */}
+        {navItems && navItems.length > 0 && (
+          <div className="border-t bg-muted/10 px-4 py-2 shrink-0">
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-thin">
+              {navItems.map((item, idx) => {
+                const isActive = idx === currentNavIndex;
+                const hasScore = item.score > 0;
+                const shortLabel = item.name.match(/^[\d.]+/)?.[0] ?? item.name.slice(0, 5);
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleJumpTo(idx)}
+                    title={item.name}
+                    className="flex-shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold transition-all border"
+                    style={
+                      isActive
+                        ? {
+                            backgroundColor: `hsl(${item.color} / 0.18)`,
+                            borderColor: `hsl(${item.color} / 0.6)`,
+                            color: `hsl(${item.color})`,
+                          }
+                        : hasScore
+                        ? {
+                            backgroundColor: `hsl(${item.color} / 0.06)`,
+                            borderColor: `hsl(${item.color} / 0.25)`,
+                            color: `hsl(${item.color})`,
+                          }
+                        : {
+                            backgroundColor: "transparent",
+                            borderColor: "hsl(var(--border))",
+                            color: "hsl(var(--muted-foreground))",
+                          }
+                    }
+                  >
+                    {shortLabel}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="flex items-center gap-2 px-6 py-4 border-t bg-muted/20 shrink-0">
+          {/* Left: Prev / Next (wizard mode) */}
+          {isWizardMode ? (
+            <div className="flex items-center gap-2 flex-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePrevClick}
+                disabled={!hasPrev || saving}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                ก่อนหน้า
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNextClick}
+                disabled={!hasNext || saving}
+              >
+                ถัดไป
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          ) : (
+            <div className="flex-1" />
+          )}
+
+          {/* Right: Save / Close */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+            >
+              {isWizardMode ? "ปิด" : "ยกเลิก"}
+            </Button>
+            <Button
+              size="sm"
+              disabled={saving}
+              onClick={async () => {
                 setSaving(true);
-                await onSave();
+                if (onSave) await onSave();
                 setSaving(false);
-              }
-              onOpenChange(false);
-            }}
-          >
-            {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
-            บันทึก
-          </Button>
+                if (!isWizardMode) onOpenChange(false);
+              }}
+            >
+              {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
+              บันทึก
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
   );
 }
 
-export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDelete, uploadedFiles, onFilesChange, onSave, implementationDetails, onImplementationDetailChange, committeeScores, onCommitteeScoreChange, committeeComments, onCommitteeCommentChange, userRole }: Props) {
+export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDelete, uploadedFiles, onFilesChange, onSave, implementationDetails, onImplementationDetailChange, committeeScores, onCommitteeScoreChange, committeeComments, onCommitteeCommentChange, userRole, onIndicatorClick }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndicator, setSelectedIndicator] = useState<Category["topics"][0]["indicators"][0] | null>(null);
   const color = categoryColors[colorIndex % categoryColors.length];
@@ -527,7 +641,13 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
                   return (
                     <button
                       key={indicator.id}
-                      onClick={() => setSelectedIndicator(indicator)}
+                      onClick={() => {
+                        if (onIndicatorClick) {
+                          onIndicatorClick(indicator);
+                        } else {
+                          setSelectedIndicator(indicator);
+                        }
+                      }}
                       className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-muted/30 transition-colors"
                     >
                       <span className="h-1 w-1 rounded-full bg-muted-foreground/40 shrink-0" />
@@ -553,7 +673,8 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
         </div>
       )}
 
-      {selectedIndicator && (
+      {/* Internal dialog — only used when no external onIndicatorClick (non-wizard mode) */}
+      {!onIndicatorClick && selectedIndicator && (
         <IndicatorDialog
           indicator={selectedIndicator}
           score={scores[selectedIndicator.id] || 0}
