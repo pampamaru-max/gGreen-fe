@@ -201,7 +201,8 @@ const EvaluationByProgramPage = () => {
     });
   }, [committeeScores, categories]);
 
-  const grandTotal = (scoreView === "committee" && committeeSummaryData ? committeeSummaryData : summaryData).reduce((s, c) => s + c.score, 0);
+  const grandSelfTotal = summaryData.reduce((s, c) => s + c.score, 0);
+  const grandCommitteeTotal = committeeSummaryData?.reduce((s, c) => s + c.score, 0) ?? 0;
   const grandMax = summaryData.reduce((s, c) => s + c.totalPossible, 0);
 
   // ── Wizard ──────────────────────────────────────────────────────────────────
@@ -316,12 +317,30 @@ const EvaluationByProgramPage = () => {
               {categories.length} หมวด · {totalTopics} ประเด็น · {totalIndicators} ตัวชี้วัด · คะแนนเต็ม {grandMax}
             </p>
           </div>
-          <div className="text-right">
-            <p className="text-xs text-muted-foreground">คะแนนรวม</p>
-            <p className="text-2xl font-bold text-primary">
-              {grandTotal}<span className="text-sm font-normal text-muted-foreground">/{grandMax}</span>
-            </p>
-          </div>
+          {role !== "user" ? (
+            <div className="flex items-center gap-4 shrink-0">
+              <div className="text-right">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">ประเมินตนเอง</p>
+                <p className="text-xl font-bold text-muted-foreground">
+                  {grandSelfTotal}<span className="text-sm font-normal text-muted-foreground">/{grandMax}</span>
+                </p>
+              </div>
+              <div className="w-px h-8 bg-border" />
+              <div className="text-right">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">กรรมการ</p>
+                <p className="text-xl font-bold text-primary">
+                  {grandCommitteeTotal}<span className="text-sm font-normal text-muted-foreground">/{grandMax}</span>
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground">คะแนนรวม</p>
+              <p className="text-2xl font-bold text-primary">
+                {grandSelfTotal}<span className="text-sm font-normal text-muted-foreground">/{grandMax}</span>
+              </p>
+            </div>
+          )}
           {role !== "user" && import.meta.env.DEV && !isCompleted && (
             <Button variant="outline" size="sm" onClick={handleFillRandom} className="gap-1.5 text-purple-600 border-purple-300 hover:bg-purple-50 text-xs">
               🎲 สุ่ม
@@ -349,7 +368,7 @@ const EvaluationByProgramPage = () => {
       </div>
 
       <div className="px-6 py-6 space-y-6">
-        <ScoreSummary data={summaryData} />
+        <ScoreSummary data={summaryData} committeeData={committeeSummaryData} />
         {categories.map((category, idx) => (
           <CategoryCard
             key={category.id}

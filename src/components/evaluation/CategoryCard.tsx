@@ -827,10 +827,10 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
               </div>
               <div className="divide-y">
                 {topic.indicators.map((indicator) => {
-                  const rawScore = displayScores[indicator.id];
-                  const indScore = rawScore ?? 0;
+                  const selfScore = scores[indicator.id] ?? 0;
+                  const cScore = committeeScores?.[indicator.id];
                   const fileCount = (uploadedFiles[indicator.id] || []).length;
-                  const isCommitteeUnscored = scoreView === "committee" && committeeScores && rawScore === undefined;
+                  const isCommitteeMode = scoreView === "committee";
                   return (
                     <button
                       key={indicator.id}
@@ -851,14 +851,33 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
                           {fileCount}
                         </span>
                       )}
-                      {isCommitteeUnscored ? (
-                        <span className="text-xs font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">รอ</span>
+                      {isCommitteeMode ? (
+                        <div className="flex items-center gap-2 shrink-0">
+                          {/* คะแนนตนเอง */}
+                          <span className="text-xs text-muted-foreground tabular-nums">
+                            {selfScore}/{indicator.maxScore}
+                          </span>
+                          <span className="text-muted-foreground/40">→</span>
+                          {/* คะแนนกรรมการ */}
+                          {cScore !== undefined ? (
+                            <span
+                              className="text-sm font-bold tabular-nums min-w-[3rem] text-right"
+                              style={{ color: `hsl(${color})` }}
+                            >
+                              {cScore}/{indicator.maxScore}
+                            </span>
+                          ) : (
+                            <span className="text-xs font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 min-w-[3rem] text-center">
+                              รอ
+                            </span>
+                          )}
+                        </div>
                       ) : (
                         <span
                           className="text-sm font-bold tabular-nums min-w-[3rem] text-right"
-                          style={{ color: indScore > 0 ? `hsl(${color})` : "hsl(var(--muted-foreground))" }}
+                          style={{ color: selfScore > 0 ? `hsl(${color})` : "hsl(var(--muted-foreground))" }}
                         >
-                          {indScore}/{indicator.maxScore}
+                          {selfScore}/{indicator.maxScore}
                         </span>
                       )}
                     </button>

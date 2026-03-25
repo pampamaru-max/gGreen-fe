@@ -7,42 +7,76 @@ interface SummaryItem {
   index?: number;
 }
 
-export function ScoreSummary({ data }: { data: SummaryItem[] }) {
-  const grandTotal = data.reduce((s, c) => s + c.score, 0);
-  const grandMax = data.reduce((s, c) => s + c.totalPossible, 0);
-  const percentage = grandMax > 0 ? Math.round((grandTotal / grandMax) * 100) : 0;
+interface Props {
+  data: SummaryItem[];
+  committeeData?: SummaryItem[];
+}
+
+export function ScoreSummary({ data, committeeData }: Props) {
+  const isCommittee = !!committeeData;
 
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
       {data.map((item, idx) => {
-        const pct = item.totalPossible > 0 ? Math.round((item.score / item.totalPossible) * 100) : 0;
+        const selfPct = item.totalPossible > 0 ? Math.round((item.score / item.totalPossible) * 100) : 0;
+        const color = getColorValue(idx);
+
+        const committee = committeeData?.[idx];
+        const committeePct = committee && item.totalPossible > 0
+          ? Math.round((committee.score / item.totalPossible) * 100)
+          : 0;
+
         return (
           <div
             key={item.id}
             className="relative overflow-hidden rounded-xl border bg-card p-4 transition-shadow hover:shadow-md"
           >
             <div
-              className="absolute inset-x-0 top-0 h-1 rounded-full"
-              style={{ backgroundColor: `hsl(${getColorValue(idx)})` }}
+              className="absolute inset-x-0 top-0 h-1"
+              style={{ backgroundColor: `hsl(${color})` }}
             />
-            <p className="text-xs font-medium text-muted-foreground mb-1">หมวดที่ {idx + 1}</p>
-            <p className="text-sm font-semibold text-foreground leading-tight mb-2 line-clamp-2">{item.name}</p>
-            <div className="flex items-end justify-between">
-              <p className="text-2xl font-bold" style={{ color: `hsl(${getColorValue(idx)})` }}>
-                {item.score}
-                <span className="text-xs font-normal text-muted-foreground">/{item.totalPossible}</span>
-              </p>
-              <span className="text-xs font-medium text-muted-foreground">{pct}%</span>
+            <p className="text-xs font-medium text-muted-foreground mb-0.5">หมวดที่ {idx + 1}</p>
+            <p className="text-sm font-semibold text-foreground leading-tight mb-3 line-clamp-2">{item.name}</p>
+
+            {/* Self score row */}
+            <div className="space-y-1">
+              {isCommittee && (
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">ประเมินตนเอง</p>
+              )}
+              <div className="flex items-end justify-between">
+                <p className="text-xl font-bold" style={{ color: `hsl(${color})` }}>
+                  {item.score}
+                  <span className="text-xs font-normal text-muted-foreground">/{item.totalPossible}</span>
+                </p>
+                <span className="text-xs font-medium text-muted-foreground">{selfPct}%</span>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{ width: `${selfPct}%`, backgroundColor: `hsl(${color})` }}
+                />
+              </div>
             </div>
-            <div className="mt-2 h-1.5 w-full rounded-full bg-muted overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{
-                  width: `${pct}%`,
-                  backgroundColor: `hsl(${getColorValue(idx)})`,
-                }}
-              />
-            </div>
+
+            {/* Committee score row */}
+            {isCommittee && committee && (
+              <div className="space-y-1 mt-3 pt-3 border-t border-dashed">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">กรรมการ</p>
+                <div className="flex items-end justify-between">
+                  <p className="text-xl font-bold text-foreground">
+                    {committee.score}
+                    <span className="text-xs font-normal text-muted-foreground">/{item.totalPossible}</span>
+                  </p>
+                  <span className="text-xs font-medium text-muted-foreground">{committeePct}%</span>
+                </div>
+                <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-500 bg-foreground/50"
+                    style={{ width: `${committeePct}%` }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         );
       })}
