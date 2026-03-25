@@ -1,9 +1,9 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Category } from "@/data/evaluationData";
-import type { UploadedFile, IndicatorNavItem } from "@/components/CategoryCard";
-import { CategoryCard, IndicatorDialog, getCategoryColor } from "@/components/CategoryCard";
-import { ScoreSummary } from "@/components/ScoreSummary";
+import type { UploadedFile, IndicatorNavItem } from "@/components/evaluation/CategoryCard";
+import { CategoryCard, IndicatorDialog, getCategoryColor } from "@/components/evaluation/CategoryCard";
+import { ScoreSummary } from "@/components/evaluation/ScoreSummary";
 import { ClipboardCheck, Loader2, ArrowLeft, RotateCcw, CheckCircle2 } from "lucide-react";
 import apiClient from "@/lib/axios";
 import { toast } from "sonner";
@@ -14,11 +14,12 @@ const EvaluationByProgramPage = () => {
   const { programId } = useParams<{ programId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const evaluateeId = new URLSearchParams(location.search).get("evaluateeId");
+  const evaluationIdParam = new URLSearchParams(location.search).get("evaluationId");
+  const [evaluateeId, setEvaluateeId] = useState<string | null>(null);
   const { isAdmin, role, accessibleProgramIds, loading: roleLoading } = useUserRole();
 
   const [programName, setProgramName] = useState("");
-  const [scoreView, setScoreView] = useState<"self" | "committee">(role !== "user" ? "committee" : "self");
+  const scoreView = role !== "user" ? "committee" : "self";
   const [categories, setCategories] = useState<Category[]>([]);
   const [scores, setScores] = useState<Record<string, number>>({});
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, UploadedFile[]>>({});
@@ -84,8 +85,9 @@ const EvaluationByProgramPage = () => {
         });
         setCategories(cats);
 
-        // Load latest draft evaluation for this program
-        const { data: evalData } = await apiClient.get(`evaluation/program/${programId}${evaluateeId ? `?evaluateeId=${evaluateeId}` : ""}`);
+        // Load evaluation by id
+        const { data: evalData } = await apiClient.get(`evaluation/${evaluationIdParam}`);
+        if (evalData?.userId) setEvaluateeId(evalData.userId);
 
         if (evalData) {
           setEvaluationId(evalData.id);
@@ -118,7 +120,7 @@ const EvaluationByProgramPage = () => {
       }
     };
     fetchData();
-  }, [programId, roleLoading]);
+  }, [programId, roleLoading, evaluationIdParam]);
 
   const handleScoreChange = (indicatorId: string, score: number) => {
     setScores((prev) => ({ ...prev, [indicatorId]: score }));
