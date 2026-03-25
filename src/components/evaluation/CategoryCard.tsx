@@ -289,7 +289,7 @@ function EvaluateeIndicatorDialog({
             </div>
           </div>
 
-          {/* ขวา: คะแนนจากการประเมินตนเอง — แสดงครบทุกข้อ, interactive เมื่อไม่ readOnly */}
+          {/* ขวา: คะแนนจากการประเมินตนเอง */}
           <div className="overflow-y-auto scrollbar-thin px-6 py-5 space-y-5">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -544,7 +544,7 @@ function EvaluatorIndicatorDialog({
               )}
             </div>
 
-            {/* กรรมการให้คะแนน + ความเห็นกรรมการ — ซ่อนเมื่อ viewOnly (ดูฝั่งผู้ถูกประเมิน) */}
+            {/* กรรมการให้คะแนน + ความเห็นกรรมการ — ซ่อนเมื่อ viewOnly */}
             {!viewOnly && <>
             <div className="space-y-2" style={{ pointerEvents: readOnly ? "none" : undefined, opacity: readOnly ? 0.7 : undefined }}>
               <div className="flex items-center justify-between">
@@ -668,7 +668,6 @@ export function IndicatorDialog({
   onCommitteeCommentChange,
   userRole,
   readOnly = false,
-  // Wizard / navigation props
   hasPrev,
   hasNext,
   onPrev,
@@ -677,6 +676,7 @@ export function IndicatorDialog({
   navItems,
   currentNavIndex,
   onJumpTo,
+  viewOnly,
 }: {
   indicator: Category["topics"][0]["indicators"][0];
   score: number;
@@ -696,7 +696,6 @@ export function IndicatorDialog({
   userRole?: string | null;
   viewOnly?: boolean;
   readOnly?: boolean;
-  // Wizard / navigation
   hasPrev?: boolean;
   hasNext?: boolean;
   onPrev?: () => void;
@@ -759,7 +758,6 @@ export function IndicatorDialog({
     />
   );
 }
-
 
 export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDelete, uploadedFiles, onFilesChange, onSave, implementationDetails, onImplementationDetailChange, committeeScores, onCommitteeScoreChange, committeeComments, onCommitteeCommentChange, userRole, scoreView, onIndicatorClick }: Props) {
   const [isOpen, setIsOpen] = useState(false);
@@ -829,10 +827,10 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
               </div>
               <div className="divide-y">
                 {topic.indicators.map((indicator) => {
-                  const rawScore = displayScores[indicator.id];
-                  const indScore = rawScore ?? 0;
+                  const selfScore = scores[indicator.id] ?? 0;
+                  const cScore = committeeScores?.[indicator.id];
                   const fileCount = (uploadedFiles[indicator.id] || []).length;
-                  const isCommitteeUnscored = scoreView === "committee" && committeeScores && rawScore === undefined;
+                  const isCommitteeMode = scoreView === "committee";
                   return (
                     <button
                       key={indicator.id}
@@ -853,14 +851,33 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
                           {fileCount}
                         </span>
                       )}
-                      {isCommitteeUnscored ? (
-                        <span className="text-xs font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">รอ</span>
+                      {isCommitteeMode ? (
+                        <div className="flex items-center gap-2 shrink-0">
+                          {/* คะแนนตนเอง */}
+                          <span className="text-xs text-muted-foreground tabular-nums">
+                            {selfScore}/{indicator.maxScore}
+                          </span>
+                          <span className="text-muted-foreground/40">→</span>
+                          {/* คะแนนกรรมการ */}
+                          {cScore !== undefined ? (
+                            <span
+                              className="text-sm font-bold tabular-nums min-w-[3rem] text-right"
+                              style={{ color: `hsl(${color})` }}
+                            >
+                              {cScore}/{indicator.maxScore}
+                            </span>
+                          ) : (
+                            <span className="text-xs font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 min-w-[3rem] text-center">
+                              รอ
+                            </span>
+                          )}
+                        </div>
                       ) : (
                         <span
                           className="text-sm font-bold tabular-nums min-w-[3rem] text-right"
-                          style={{ color: indScore > 0 ? `hsl(${color})` : "hsl(var(--muted-foreground))" }}
+                          style={{ color: selfScore > 0 ? `hsl(${color})` : "hsl(var(--muted-foreground))" }}
                         >
-                          {indScore}/{indicator.maxScore}
+                          {selfScore}/{indicator.maxScore}
                         </span>
                       )}
                     </button>

@@ -1,9 +1,9 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Category } from "@/data/evaluationData";
-import type { UploadedFile, IndicatorNavItem } from "@/components/CategoryCard";
-import { CategoryCard, IndicatorDialog, getCategoryColor } from "@/components/CategoryCard";
-import { ScoreSummary } from "@/components/ScoreSummary";
+import type { UploadedFile, IndicatorNavItem } from "@/components/evaluation/CategoryCard";
+import { CategoryCard, IndicatorDialog, getCategoryColor } from "@/components/evaluation/CategoryCard";
+import { ScoreSummary } from "@/components/evaluation/ScoreSummary";
 import { ClipboardCheck, Loader2, ArrowLeft, RotateCcw, CheckCircle2 } from "lucide-react";
 import apiClient from "@/lib/axios";
 import { toast } from "sonner";
@@ -14,11 +14,12 @@ const EvaluationByProgramPage = () => {
   const { programId } = useParams<{ programId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const evaluateeId = new URLSearchParams(location.search).get("evaluateeId");
+  const evaluationIdParam = new URLSearchParams(location.search).get("evaluationId");
+  const [evaluateeId, setEvaluateeId] = useState<string | null>(null);
   const { isAdmin, role, accessibleProgramIds, loading: roleLoading } = useUserRole();
 
   const [programName, setProgramName] = useState("");
-  const [scoreView, setScoreView] = useState<"self" | "committee">(role !== "user" ? "committee" : "self");
+  const scoreView = role !== "user" ? "committee" : "self";
   const [categories, setCategories] = useState<Category[]>([]);
   const [scores, setScores] = useState<Record<string, number>>({});
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, UploadedFile[]>>({});
@@ -27,6 +28,7 @@ const EvaluationByProgramPage = () => {
   const [committeeComments, setCommitteeComments] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [evaluationId, setEvaluationId] = useState<string | null>(null);
+  const [evaluationStatus, setEvaluationStatus] = useState<string | null>(null);
 
   // Check access
   useEffect(() => {
@@ -42,7 +44,7 @@ const EvaluationByProgramPage = () => {
 
     const fetchData = async () => {
       setLoading(true);
-
+      try {
       // Fetch program name
       const { data: prog } = await apiClient.get(`programs/${programId}`);
       setProgramName(prog?.name || "");
@@ -83,11 +85,13 @@ const EvaluationByProgramPage = () => {
         });
         setCategories(cats);
 
-        // Load latest draft evaluation for this program
-        const { data: evalData } = await apiClient.get(`evaluation/program/${programId}${evaluateeId ? `?evaluateeId=${evaluateeId}` : ""}`);
+        // Load evaluation by id
+        const { data: evalData } = await apiClient.get(`evaluation/${evaluationIdParam}`);
+        if (evalData?.userId) setEvaluateeId(evalData.userId);
 
         if (evalData) {
           setEvaluationId(evalData.id);
+          setEvaluationStatus(evalData.status);
           const scoresData = evalData.evaluationScores || [];
 
           const loaded: Record<string, number> = {};
@@ -108,10 +112,15 @@ const EvaluationByProgramPage = () => {
           setCommitteeComments(loadedComments);
         }
       }
-      setLoading(false);
+      } catch (err) {
+        console.error("fetchData error:", err);
+        toast.error("โหลดข้อมูลไม่สำเร็จ");
+      } finally {
+        setLoading(false);
+      }
     };
     fetchData();
-  }, [programId, roleLoading]);
+  }, [programId, roleLoading, evaluationIdParam]);
 
   const handleScoreChange = (indicatorId: string, score: number) => {
     setScores((prev) => ({ ...prev, [indicatorId]: score }));
@@ -192,7 +201,8 @@ const EvaluationByProgramPage = () => {
     });
   }, [committeeScores, categories]);
 
-  const grandTotal = (scoreView === "committee" && committeeSummaryData ? committeeSummaryData : summaryData).reduce((s, c) => s + c.score, 0);
+  const grandSelfTotal = summaryData.reduce((s, c) => s + c.score, 0);
+  const grandCommitteeTotal = committeeSummaryData?.reduce((s, c) => s + c.score, 0) ?? 0;
   const grandMax = summaryData.reduce((s, c) => s + c.totalPossible, 0);
 
   // ── Wizard ──────────────────────────────────────────────────────────────────
@@ -228,6 +238,9 @@ const EvaluationByProgramPage = () => {
         : (scores[indicator.id] ?? 0) > 0,
     })),
   [flatIndicators, scores, committeeScores, role]);
+
+  const isCompleted = evaluationStatus === "completed";
+  const isSubmitted = evaluationStatus === "submitted";
 
   const allCommitteeScored = useMemo(() => {
     if (role === "user") return true;
@@ -304,34 +317,58 @@ const EvaluationByProgramPage = () => {
               {categories.length} หมวด · {totalTopics} ประเด็น · {totalIndicators} ตัวชี้วัด · คะแนนเต็ม {grandMax}
             </p>
           </div>
-          <div className="text-right">
-            <p className="text-xs text-muted-foreground">คะแนนรวม</p>
-            <p className="text-2xl font-bold text-primary">
-              {grandTotal}<span className="text-sm font-normal text-muted-foreground">/{grandMax}</span>
-            </p>
-          </div>
-          {role !== "user" && import.meta.env.DEV && (
+          {role !== "user" ? (
+            <div className="flex items-center gap-4 shrink-0">
+              <div className="text-right">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">ประเมินตนเอง</p>
+                <p className="text-xl font-bold text-muted-foreground">
+                  {grandSelfTotal}<span className="text-sm font-normal text-muted-foreground">/{grandMax}</span>
+                </p>
+              </div>
+              <div className="w-px h-8 bg-border" />
+              <div className="text-right">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">กรรมการ</p>
+                <p className="text-xl font-bold text-primary">
+                  {grandCommitteeTotal}<span className="text-sm font-normal text-muted-foreground">/{grandMax}</span>
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground">คะแนนรวม</p>
+              <p className="text-2xl font-bold text-primary">
+                {grandSelfTotal}<span className="text-sm font-normal text-muted-foreground">/{grandMax}</span>
+              </p>
+            </div>
+          )}
+          {role !== "user" && import.meta.env.DEV && !isCompleted && (
             <Button variant="outline" size="sm" onClick={handleFillRandom} className="gap-1.5 text-purple-600 border-purple-300 hover:bg-purple-50 text-xs">
               🎲 สุ่ม
             </Button>
           )}
-          {role !== "user" && evaluationId && (
-            <div className="flex items-center gap-2 ml-2">
-              <Button variant="outline" size="sm" onClick={handleReturn} className="gap-1.5 text-amber-600 border-amber-300 hover:bg-amber-50">
-                <RotateCcw className="h-4 w-4" />
-                ส่งกลับ
-              </Button>
-              <Button size="sm" onClick={handleComplete} disabled={!allCommitteeScored} className="gap-1.5 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50">
-                <CheckCircle2 className="h-4 w-4" />
-                ยืนยันผลการประเมิน
-              </Button>
-            </div>
+          {isCompleted ? (
+            <span className="ml-2 text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-700 border border-green-300">
+              ✓ ยืนยันผลแล้ว
+            </span>
+          ) : (
+            role !== "user" && isSubmitted && (
+              <div className="flex items-center gap-2 ml-2">
+                <Button variant="outline" size="sm" onClick={handleReturn} className="gap-1.5 text-amber-600 border-amber-300 hover:bg-amber-50">
+                  <RotateCcw className="h-4 w-4" />
+                  ส่งกลับ
+                </Button>
+                <Button size="sm" onClick={handleComplete} disabled={!allCommitteeScored} className="gap-1.5 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50">
+                  <CheckCircle2 className="h-4 w-4" />
+                  ยืนยันผลการประเมิน
+                </Button>
+              </div>
+            )
           )}
         </div>
       </div>
 
       <div className="px-6 py-6 space-y-6">
-        <ScoreSummary data={summaryData} />
+        <ScoreSummary data={summaryData} committeeData={committeeSummaryData} />
         {categories.map((category, idx) => (
           <CategoryCard
             key={category.id}
@@ -373,7 +410,8 @@ const EvaluationByProgramPage = () => {
           committeeComment={committeeComments[wizardItem.indicator.id] ?? ""}
           onCommitteeCommentChange={(v) => handleCommitteeCommentChange(wizardItem.indicator.id, v)}
           userRole={role}
-          viewOnly={scoreView === "self" && role !== "user"}
+          viewOnly={isCompleted || (role !== "user" && (!isSubmitted || scoreView === "self"))}
+          readOnly={isCompleted}
           hasPrev={wizardIndex! > 0}
           hasNext={wizardIndex! < flatIndicators.length - 1}
           onPrev={() => setWizardIndex((i) => (i !== null ? i - 1 : i))}
