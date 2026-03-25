@@ -116,6 +116,7 @@ function NavStrip({ navItems, currentNavIndex, onJumpTo }: {
 function EvaluateeIndicatorDialog({
   indicator, score, onScoreChange, color, files, onFilesChange,
   open, onOpenChange, onSave, implementationDetail, onImplementationDetailChange,
+  committeeScore,
   readOnly = false,
   hasPrev, hasNext, onPrev, onNext, progressLabel, navItems, currentNavIndex, onJumpTo,
 }: {
@@ -130,6 +131,7 @@ function EvaluateeIndicatorDialog({
   onSave?: () => Promise<void>;
   implementationDetail?: string;
   onImplementationDetailChange?: (value: string) => void;
+  committeeScore?: number;
   readOnly?: boolean;
   hasPrev?: boolean;
   hasNext?: boolean;
@@ -366,6 +368,24 @@ function EvaluateeIndicatorDialog({
                 </div>
               )}
             </div>
+            {/* คะแนนจากกรรมการ (read-only) */}
+            <div className="rounded-lg border bg-muted/20 px-4 py-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">กรรมการให้คะแนน</p>
+                <div>
+                  {committeeScore !== undefined ? (
+                    <span className="text-xl font-bold"
+                      style={{ color: committeeScore > 0 ? `hsl(${getScoreColor(committeeScore)})` : "hsl(var(--muted-foreground))" }}>
+                      {committeeScore}
+                    </span>
+                  ) : (
+                    <span className="text-sm font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">รอ</span>
+                  )}
+                  <span className="text-sm text-muted-foreground">/{indicator.maxScore}</span>
+                </div>
+              </div>
+            </div>
+
             {indicator.notes && (
               <div className="space-y-1.5">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">หมายเหตุเกณฑ์การให้คะแนน</p>
@@ -667,6 +687,7 @@ export function IndicatorDialog({
   committeeComment,
   onCommitteeCommentChange,
   userRole,
+  viewOnly = false,
   readOnly = false,
   // Wizard / navigation props
   hasPrev,
@@ -720,6 +741,7 @@ export function IndicatorDialog({
         onSave={onSave}
         implementationDetail={implementationDetail}
         onImplementationDetailChange={onImplementationDetailChange}
+        committeeScore={committeeScore}
         readOnly={readOnly}
         hasPrev={hasPrev}
         hasNext={hasNext}

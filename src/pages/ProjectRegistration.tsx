@@ -79,6 +79,7 @@ export default function ProjectRegistration() {
   const [uploadedFiles, setUploadedFiles]   = useState<Record<string, UploadedFile[]>>({});
   const [implDetails, setImplDetails]       = useState<Record<string, string>>({});
   const [evaluationId, setEvaluationId]     = useState<string | null>(null);
+  const [committeeScores, setCommitteeScores] = useState<Record<string, number>>({});
   const [submitting, setSubmitting]         = useState(false);
   const [evaluationStatus, setEvaluationStatus] = useState<string | null>(null);
   const [wizardIndex, setWizardIndex]       = useState<number | null>(null);
@@ -123,19 +124,47 @@ export default function ProjectRegistration() {
           );
         } catch { /* no scoring levels configured */ }
 
-        // 3. Existing self-evaluation — GET /evaluation/program/:programId
-        const { data: evalData } = await apiClient.get(`evaluation/program/${programId}`);
-        if (evalData) {
-          setEvaluationId(evalData.id);
-          setEvaluationStatus(evalData.status);
-          const loadedScores: Record<string, number> = {};
-          const loadedDetails: Record<string, string> = {};
-          (evalData.evaluationScores ?? []).forEach((s: any) => {
-            loadedScores[s.indicatorId] = Number(s.score);
-            if (s.notes) loadedDetails[s.indicatorId] = s.notes;
+        // 3. Check latest evaluation status — if completed, create a new draft explicitly
+        let isLastCompleted = false;
+        try {
+          const { data: statusData } = await apiClient.get(
+            `evaluation/status?userId=${user?.id}&programId=${programId}`
+          );
+          if (statusData?.self_status === "completed") {
+            isLastCompleted = true;
+          }
+        } catch { /* no status record yet — treat as new */ }
+
+        if (isLastCompleted) {
+          // POST /evaluation to create a brand-new draft (backend findFirst would reuse old otherwise)
+          const { data: newEval } = await apiClient.post("evaluation", {
+            programId,
+            userId: user?.id,
           });
-          setScores(loadedScores);
-          setImplDetails(loadedDetails);
+          if (newEval?.id) {
+            setEvaluationId(newEval.id);
+            setEvaluationStatus("draft");
+          }
+        } else {
+          // 4. Load existing evaluation
+          const { data: evalData } = await apiClient.get(`evaluation/program/${programId}`);
+          if (evalData) {
+            setEvaluationId(evalData.id);
+            setEvaluationStatus(evalData.status);
+            const loadedScores: Record<string, number> = {};
+            const loadedDetails: Record<string, string> = {};
+            const loadedCommittee: Record<string, number> = {};
+            (evalData.evaluationScores ?? []).forEach((s: any) => {
+              loadedScores[s.indicatorId] = Number(s.score);
+              if (s.notes) loadedDetails[s.indicatorId] = s.notes;
+              if (s.committeeScore !== null && s.committeeScore !== undefined) {
+                loadedCommittee[s.indicatorId] = Number(s.committeeScore);
+              }
+            });
+            setScores(loadedScores);
+            setImplDetails(loadedDetails);
+            setCommitteeScores(loadedCommittee);
+          }
         }
       } catch (err) {
         toast.error("ไม่สามารถโหลดข้อมูลแบบประเมินได้");
@@ -482,6 +511,7 @@ export default function ProjectRegistration() {
           indicator={wizardItem.indicator}
           score={scores[wizardItem.indicator.id] ?? 0}
           onScoreChange={(v) => handleScoreChange(wizardItem.indicator.id, v)}
+          committeeScore={committeeScores[wizardItem.indicator.id]}
           color={getCategoryColor(wizardItem.colorIndex)}
           files={uploadedFiles[wizardItem.indicator.id] ?? []}
           onFilesChange={(f) => handleFilesChange(wizardItem.indicator.id, f)}

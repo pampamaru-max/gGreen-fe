@@ -27,7 +27,7 @@ interface RegistrationRow {
 const EvaluationPage = () => {
   const [rows, setRows] = useState<RegistrationRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const { loading: roleLoading } = useUserRole();
+  const { loading: roleLoading, accessibleProgramIds } = useUserRole();
   const navigate = useNavigate();
 
   // Filter states
@@ -44,7 +44,15 @@ const EvaluationPage = () => {
       setLoading(true);
 
       try {
-        const { data: result } = await apiClient.get("evaluation/summary");
+        let url: string;
+        if (accessibleProgramIds.length === 0) {
+          url = "evaluation/list";
+        } else if (accessibleProgramIds.length === 1) {
+          url = `evaluation/list/${accessibleProgramIds[0]}`;
+        } else {
+          url = `evaluation/list?programs=${accessibleProgramIds.join(",")}`;
+        }
+        const { data: result } = await apiClient.get(url);
         if (Array.isArray(result)) {
           setRows(result);
         } else {
@@ -60,7 +68,7 @@ const EvaluationPage = () => {
     };
 
     fetchData();
-  }, [roleLoading]);
+  }, [roleLoading, accessibleProgramIds]);
 
   // Derived unique values for dropdowns
   const programOptions = useMemo(() => [...new Set(rows.map((r) => r.program_name))].filter(Boolean).sort(), [rows]);
