@@ -210,6 +210,25 @@ export default function ProjectRegistrationDialog({
     return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
   };
 
+  const formatCoordinate = (value: string) => {
+    // 1. Remove anything not a number, dot, or minus sign
+    let filtered = value.replace(/[^-0-9.]/g, "");
+
+    // 2. Allow minus sign only at the beginning
+    if (filtered.includes("-")) {
+      const isNegative = filtered.startsWith("-");
+      filtered = (isNegative ? "-" : "") + filtered.replace(/-/g, "");
+    }
+
+    // 3. Allow only one decimal point
+    const parts = filtered.split(".");
+    if (parts.length > 2) {
+      filtered = parts[0] + "." + parts.slice(1).join("");
+    }
+
+    return filtered;
+  };
+
   const onSubmit = async (values: RegistrationForm) => {
     setSubmitting(true);
     try {
@@ -720,32 +739,44 @@ export default function ProjectRegistrationDialog({
                     )}
                   />
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="latitude"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Latitude</FormLabel>
-                          <FormControl>
-                            <Input placeholder="เช่น 13.7563" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="longitude"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Longitude</FormLabel>
-                          <FormControl>
-                            <Input placeholder="เช่น 100.5018" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                      <FormField
+                        control={form.control}
+                        name="latitude"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Latitude</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="เช่น 13.7563"
+                                {...field}
+                                onChange={(e) => {
+                                  field.onChange(formatCoordinate(e.target.value));
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="longitude"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Longitude</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="เช่น 100.5018"
+                                {...field}
+                                onChange={(e) => {
+                                  field.onChange(formatCoordinate(e.target.value));
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                   </div>
                 </div>
               </div>
