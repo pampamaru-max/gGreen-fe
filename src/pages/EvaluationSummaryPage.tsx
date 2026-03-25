@@ -1,94 +1,69 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { CheckCircle2, Loader2, ArrowLeft, ClipboardCheck } from "lucide-react";
+import { Loader2, ArrowLeft, ClipboardCheck, Medal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import apiClient from "@/lib/axios";
 
 interface CategoryResult {
-  id: string;
+  categoryId: number;
+  categoryName: string;
+  rawScore: number;
+  scaledScore: number;
+  categoryMaxScore: number;
+  indicatorMaxTotal: number;
+}
+
+interface ScoringLevel {
+  id: number;
   name: string;
-  selfScore: number;
-  committeeScore: number;
+  color: string;
+  icon: string;
+  minScore: number;
   maxScore: number;
 }
 
-function getLevel(pct: number) {
-  if (pct >= 90) return { label: "ดีเยี่ยม", color: "text-emerald-600", bg: "bg-emerald-50 border-emerald-200" };
-  if (pct >= 80) return { label: "ดีมาก", color: "text-blue-600", bg: "bg-blue-50 border-blue-200" };
-  if (pct >= 60) return { label: "ดี", color: "text-amber-600", bg: "bg-amber-50 border-amber-200" };
-  return { label: "ไม่ผ่านเกณฑ์", color: "text-red-600", bg: "bg-red-50 border-red-200" };
+interface EvaluationResult {
+  id: string;
+  evaluationId: string;
+  programId: string;
+  userId: string;
+  totalScore: number;
+  totalMaxScore: number;
+  scoringLevelId: number;
+  categoryResults: CategoryResult[];
+  calculatedAt: string;
+  scoringLevel: ScoringLevel;
 }
 
 const EvaluationSummaryPage = () => {
-  const { programId } = useParams<{ programId: string }>();
+  useParams<{ programId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const evaluateeId = new URLSearchParams(location.search).get("evaluateeId");
+  const evaluationId = new URLSearchParams(location.search).get("evaluationId");
 
   const [loading, setLoading] = useState(true);
-  const [programName, setProgramName] = useState("");
-  const [orgName, setOrgName] = useState("");
-  const [categories, setCategories] = useState<CategoryResult[]>([]);
-  const [totalMax, setTotalMax] = useState(0);
+  const [result, setResult] = useState<EvaluationResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!programId) return;
+    if (!evaluationId) {
+      setError("ไม่พบ evaluationId");
+      setLoading(false);
+      return;
+    }
     const fetchData = async () => {
       setLoading(true);
-      const [progRes, catRes, topicRes, indRes, evalRes] = await Promise.all([
-        apiClient.get(`programs/${programId}`),
-        apiClient.get(`categories?programId=${programId}`),
-        apiClient.get(`topics`),
-        apiClient.get(`indicators`),
-        apiClient.get(`evaluation/program/${programId}${evaluateeId ? `?evaluateeId=${evaluateeId}` : ""}`),
-      ]);
-
-      setProgramName(progRes.data?.name || "");
-
-      const catData = catRes.data || [];
-      const topicData = topicRes.data || [];
-      const indData = indRes.data || [];
-      const evalData = evalRes.data;
-
-      if (evalData?.user) {
-        setOrgName(evalData.user.organizationName || evalData.user.email || "");
+      try {
+        const res = await apiClient.get(`evaluation/result?evaluationId=${evaluationId}`);
+        setResult(res.data);
+      } catch {
+        setError("ไม่สามารถโหลดผลการประเมินได้");
+      } finally {
+        setLoading(false);
       }
-
-      const scoresMap: Record<string, { self: number; committee: number }> = {};
-      (evalData?.evaluationScores || []).forEach((s: any) => {
-        scoresMap[s.indicatorId] = {
-          self: Number(s.score) || 0,
-          committee: Number(s.committeeScore) || 0,
-        };
-      });
-
-      let maxTotal = 0;
-      const cats: CategoryResult[] = catData.map((c: any) => {
-        const topics = topicData.filter((t: any) => t.categoryId === c.id);
-        const indicators = topics.flatMap((t: any) => indData.filter((i: any) => i.topicId === t.id));
-        let selfScore = 0;
-        let committeeScore = 0;
-        let maxScore = 0;
-        indicators.forEach((i: any) => {
-          selfScore += scoresMap[i.id]?.self || 0;
-          committeeScore += scoresMap[i.id]?.committee || 0;
-          maxScore += i.maxScore || 0;
-        });
-        maxTotal += maxScore;
-        return { id: c.id, name: c.name, selfScore, committeeScore, maxScore };
-      });
-
-      setCategories(cats);
-      setTotalMax(maxTotal);
-      setLoading(false);
     };
     fetchData();
-  }, [programId, evaluateeId]);
-
-  const selfTotal = useMemo(() => categories.reduce((s, c) => s + c.selfScore, 0), [categories]);
-  const committeeTotal = useMemo(() => categories.reduce((s, c) => s + c.committeeScore, 0), [categories]);
-  const committeePct = totalMax > 0 ? Math.round((committeeTotal / totalMax) * 100) : 0;
-  const level = getLevel(committeePct);
+  }, [evaluationId]);
 
   if (loading) {
     return (
@@ -97,6 +72,18 @@ const EvaluationSummaryPage = () => {
       </div>
     );
   }
+
+  if (error || !result) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
+        <p className="text-muted-foreground">{error || "ไม่พบข้อมูล"}</p>
+        <Button variant="outline" onClick={() => navigate("/evaluation")}>กลับหน้ารายการ</Button>
+      </div>
+    );
+  }
+
+  const { scoringLevel, totalScore, totalMaxScore, categoryResults } = result;
+  const pct = totalMaxScore > 0 ? Math.round((totalScore / totalMaxScore) * 100) : 0;
 
   return (
     <div className="min-h-full bg-background">
@@ -111,57 +98,57 @@ const EvaluationSummaryPage = () => {
           </div>
           <div className="flex-1">
             <h2 className="text-lg font-bold text-foreground">สรุปผลการประเมิน</h2>
-            <p className="text-xs text-muted-foreground">{programName}</p>
+            <p className="text-xs text-muted-foreground">{result.programId}</p>
           </div>
         </div>
       </div>
 
       <div className="px-6 py-6 max-w-3xl mx-auto space-y-6">
         {/* Result card */}
-        <div className={`rounded-2xl border p-6 text-center ${level.bg}`}>
-          <CheckCircle2 className={`h-12 w-12 mx-auto mb-3 ${level.color}`} />
-          {orgName && <p className="text-sm text-muted-foreground mb-1">{orgName}</p>}
-          <p className="text-4xl font-bold mb-1" style={{}}>
-            <span className={level.color}>{committeeTotal}</span>
-            <span className="text-xl font-normal text-muted-foreground">/{totalMax}</span>
+        <div
+          className="rounded-2xl border p-6 text-center"
+          style={{ borderColor: scoringLevel.color, backgroundColor: `${scoringLevel.color}18` }}
+        >
+          <Medal className="h-12 w-12 mx-auto mb-3" style={{ color: scoringLevel.color }} />
+          <p className="text-4xl font-bold mb-1">
+            <span style={{ color: scoringLevel.color }}>{totalScore.toFixed(3)}</span>
+            <span className="text-xl font-normal text-muted-foreground">/{totalMaxScore}</span>
           </p>
-          <p className={`text-2xl font-semibold ${level.color}`}>{committeePct}%</p>
-          <span className={`mt-2 inline-block rounded-full px-4 py-1 text-sm font-bold border ${level.bg} ${level.color}`}>
-            {level.label}
+          <p className="text-2xl font-semibold mb-2" style={{ color: scoringLevel.color }}>{pct}%</p>
+          <span
+            className="inline-block rounded-full px-4 py-1 text-sm font-bold border"
+            style={{ color: scoringLevel.color, borderColor: scoringLevel.color, backgroundColor: `${scoringLevel.color}22` }}
+          >
+            {scoringLevel.name}
           </span>
           <p className="mt-3 text-xs text-muted-foreground">
-            คะแนนตนเอง: {selfTotal}/{totalMax}
+            เกณฑ์: {scoringLevel.minScore} – {scoringLevel.maxScore} คะแนน
           </p>
         </div>
 
         {/* Category breakdown */}
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">รายละเอียดตามหมวด</h3>
-          {categories.map((cat, idx) => {
-            const catCommitteePct = cat.maxScore > 0 ? Math.round((cat.committeeScore / cat.maxScore) * 100) : 0;
-            const catLevel = getLevel(catCommitteePct);
+          {categoryResults.map((cat) => {
+            const catPct = cat.categoryMaxScore > 0 ? (cat.scaledScore / cat.categoryMaxScore) * 100 : 0;
             return (
-              <div key={cat.id} className="rounded-xl border bg-card p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <p className="text-xs text-muted-foreground">หมวดที่ {idx + 1}</p>
-                    <p className="text-sm font-semibold">{cat.name}</p>
-                  </div>
-                  <div className="text-right">
+              <div key={cat.categoryId} className="rounded-xl border bg-card p-4">
+                <div className="flex items-start justify-between mb-2 gap-2">
+                  <p className="text-sm font-semibold flex-1">{cat.categoryName}</p>
+                  <div className="text-right shrink-0">
                     <p className="text-lg font-bold text-primary">
-                      {cat.committeeScore}
-                      <span className="text-xs font-normal text-muted-foreground">/{cat.maxScore}</span>
+                      {cat.scaledScore.toFixed(4)}
+                      <span className="text-xs font-normal text-muted-foreground">/{cat.categoryMaxScore}</span>
                     </p>
-                    <span className={`text-xs font-medium ${catLevel.color}`}>{catLevel.label}</span>
+                    <p className="text-xs text-muted-foreground">คะแนนดิบ: {cat.rawScore}/{cat.indicatorMaxTotal}</p>
                   </div>
                 </div>
                 <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all duration-500 bg-primary"
-                    style={{ width: `${catCommitteePct}%` }}
+                    style={{ width: `${Math.min(catPct, 100)}%` }}
                   />
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">คะแนนตนเอง: {cat.selfScore}/{cat.maxScore}</p>
               </div>
             );
           })}

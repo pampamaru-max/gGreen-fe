@@ -271,11 +271,11 @@ const EvaluationPage = () => {
                         : <span className="text-muted-foreground">-</span>}
                     </TableCell>
                     <TableCell className="text-center">
-                      {(row.committee_status === "complete" || row.committee_status === "completed") && (
+                      {row.has_committee_score && (
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => navigate(`/evaluation/${row.program_id}/summary?evaluateeId=${row.user_id}`)}
+                          onClick={() => navigate(`/evaluation/${row.program_id}/summary?evaluationId=${row.evaluation_id}`)}
                           title="ดูสรุปผลการประเมิน"
                         >
                           <BarChart2 className="h-4 w-4 text-green-600" />

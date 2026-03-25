@@ -293,8 +293,9 @@ const EvaluationByProgramPage = () => {
   const handleComplete = async () => {
     if (!evaluationId) return;
     await apiClient.post(`evaluation/${evaluationId}/complete`);
+    await apiClient.post(`evaluation/${evaluationId}/calculate`);
     toast.success("ยืนยันผลการประเมินเรียบร้อย");
-    navigate(`/evaluation/${programId}/summary?evaluateeId=${evaluateeId || ""}`);
+    navigate(`/evaluation/${programId}/summary?evaluationId=${evaluationId}`);
   };
 
   const handleReturn = async () => {
@@ -369,7 +370,7 @@ const EvaluationByProgramPage = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigate(`/evaluation/${programId}/summary?evaluateeId=${evaluateeId || ""}`)}
+              onClick={() => navigate(`/evaluation/${programId}/summary?evaluationId=${evaluationId || ""}`)}
               className="ml-2 gap-1.5 text-green-700 border-green-300 bg-green-50 hover:bg-green-100"
             >
               <CheckCircle2 className="h-4 w-4" />
