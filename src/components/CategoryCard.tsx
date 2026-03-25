@@ -116,7 +116,7 @@ function NavStrip({ navItems, currentNavIndex, onJumpTo }: {
 function EvaluateeIndicatorDialog({
   indicator, score, onScoreChange, color, files, onFilesChange,
   open, onOpenChange, onSave, implementationDetail, onImplementationDetailChange,
-  committeeScore,
+  committeeScore, committeeComment,
   readOnly = false,
   hasPrev, hasNext, onPrev, onNext, progressLabel, navItems, currentNavIndex, onJumpTo,
 }: {
@@ -132,6 +132,7 @@ function EvaluateeIndicatorDialog({
   implementationDetail?: string;
   onImplementationDetailChange?: (value: string) => void;
   committeeScore?: number;
+  committeeComment?: string;
   readOnly?: boolean;
   hasPrev?: boolean;
   hasNext?: boolean;
@@ -383,6 +384,12 @@ function EvaluateeIndicatorDialog({
                   )}
                   <span className="text-sm text-muted-foreground">/{indicator.maxScore}</span>
                 </div>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">ความเห็นกรรมการ</p>
+                <p className="text-sm text-foreground/70 bg-background border rounded-md px-3 py-2 min-h-[48px] whitespace-pre-line">
+                  {committeeComment || <span className="text-muted-foreground italic">ยังไม่มีความเห็น</span>}
+                </p>
               </div>
             </div>
 
@@ -742,6 +749,7 @@ export function IndicatorDialog({
         implementationDetail={implementationDetail}
         onImplementationDetailChange={onImplementationDetailChange}
         committeeScore={committeeScore}
+        committeeComment={committeeComment}
         readOnly={readOnly}
         hasPrev={hasPrev}
         hasNext={hasNext}

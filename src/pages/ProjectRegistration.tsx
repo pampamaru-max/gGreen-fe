@@ -80,6 +80,7 @@ export default function ProjectRegistration() {
   const [implDetails, setImplDetails]       = useState<Record<string, string>>({});
   const [evaluationId, setEvaluationId]     = useState<string | null>(null);
   const [committeeScores, setCommitteeScores] = useState<Record<string, number>>({});
+  const [committeeComments, setCommitteeComments] = useState<Record<string, string>>({});
   const [submitting, setSubmitting]         = useState(false);
   const [evaluationStatus, setEvaluationStatus] = useState<string | null>(null);
   const [wizardIndex, setWizardIndex]       = useState<number | null>(null);
@@ -154,16 +155,19 @@ export default function ProjectRegistration() {
             const loadedScores: Record<string, number> = {};
             const loadedDetails: Record<string, string> = {};
             const loadedCommittee: Record<string, number> = {};
+            const loadedCommitteeComments: Record<string, string> = {};
             (evalData.evaluationScores ?? []).forEach((s: any) => {
               loadedScores[s.indicatorId] = Number(s.score);
               if (s.notes) loadedDetails[s.indicatorId] = s.notes;
               if (s.committeeScore !== null && s.committeeScore !== undefined) {
                 loadedCommittee[s.indicatorId] = Number(s.committeeScore);
               }
+              if (s.evidenceUrl) loadedCommitteeComments[s.indicatorId] = s.evidenceUrl;
             });
             setScores(loadedScores);
             setImplDetails(loadedDetails);
             setCommitteeScores(loadedCommittee);
+            setCommitteeComments(loadedCommitteeComments);
           }
         }
       } catch (err) {
@@ -239,14 +243,20 @@ export default function ProjectRegistration() {
   // ── Derived stats ──────────────────────────────────────────────────────────
   const summaryData = useMemo(() =>
     categories.map((cat, idx) => {
-      let totalScore = 0, totalMax = 0;
+      let totalScore = 0, totalMax = 0, totalCommittee = 0;
       cat.topics.forEach((t) => t.indicators.forEach((i) => {
-        totalScore += scores[i.id] ?? 0;
-        totalMax   += i.maxScore;
+        totalScore     += scores[i.id] ?? 0;
+        totalMax       += i.maxScore;
+        totalCommittee += committeeScores[i.id] ?? 0;
       }));
-      return { id: cat.id, name: cat.name, score: totalScore, maxScore: cat.maxScore, totalPossible: totalMax, index: idx };
+      const hasCommittee = Object.keys(committeeScores).length > 0;
+      return {
+        id: cat.id, name: cat.name, score: totalScore,
+        maxScore: cat.maxScore, totalPossible: totalMax, index: idx,
+        committeeScore: hasCommittee ? totalCommittee : undefined,
+      };
     }),
-  [scores, categories]);
+  [scores, categories, committeeScores]);
 
   const allScored = useMemo(() => {
     if (categories.length === 0) return false;
@@ -512,6 +522,7 @@ export default function ProjectRegistration() {
           score={scores[wizardItem.indicator.id] ?? 0}
           onScoreChange={(v) => handleScoreChange(wizardItem.indicator.id, v)}
           committeeScore={committeeScores[wizardItem.indicator.id]}
+          committeeComment={committeeComments[wizardItem.indicator.id]}
           color={getCategoryColor(wizardItem.colorIndex)}
           files={uploadedFiles[wizardItem.indicator.id] ?? []}
           onFilesChange={(f) => handleFilesChange(wizardItem.indicator.id, f)}
