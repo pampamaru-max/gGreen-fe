@@ -27,6 +27,7 @@ const EvaluationByProgramPage = () => {
   const [committeeComments, setCommitteeComments] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [evaluationId, setEvaluationId] = useState<string | null>(null);
+  const [evaluationStatus, setEvaluationStatus] = useState<string | null>(null);
 
   // Check access
   useEffect(() => {
@@ -42,7 +43,7 @@ const EvaluationByProgramPage = () => {
 
     const fetchData = async () => {
       setLoading(true);
-
+      try {
       // Fetch program name
       const { data: prog } = await apiClient.get(`programs/${programId}`);
       setProgramName(prog?.name || "");
@@ -88,6 +89,7 @@ const EvaluationByProgramPage = () => {
 
         if (evalData) {
           setEvaluationId(evalData.id);
+          setEvaluationStatus(evalData.status);
           const scoresData = evalData.evaluationScores || [];
 
           const loaded: Record<string, number> = {};
@@ -108,7 +110,12 @@ const EvaluationByProgramPage = () => {
           setCommitteeComments(loadedComments);
         }
       }
-      setLoading(false);
+      } catch (err) {
+        console.error("fetchData error:", err);
+        toast.error("โหลดข้อมูลไม่สำเร็จ");
+      } finally {
+        setLoading(false);
+      }
     };
     fetchData();
   }, [programId, roleLoading]);
@@ -229,6 +236,9 @@ const EvaluationByProgramPage = () => {
     })),
   [flatIndicators, scores, committeeScores, role]);
 
+  const isCompleted = evaluationStatus === "completed";
+  const isSubmitted = evaluationStatus === "submitted";
+
   const allCommitteeScored = useMemo(() => {
     if (role === "user") return true;
     return flatIndicators.every(({ indicator }) => committeeScores[indicator.id] !== undefined);
@@ -310,22 +320,28 @@ const EvaluationByProgramPage = () => {
               {grandTotal}<span className="text-sm font-normal text-muted-foreground">/{grandMax}</span>
             </p>
           </div>
-          {role !== "user" && import.meta.env.DEV && (
+          {role !== "user" && import.meta.env.DEV && !isCompleted && (
             <Button variant="outline" size="sm" onClick={handleFillRandom} className="gap-1.5 text-purple-600 border-purple-300 hover:bg-purple-50 text-xs">
               🎲 สุ่ม
             </Button>
           )}
-          {role !== "user" && evaluationId && (
-            <div className="flex items-center gap-2 ml-2">
-              <Button variant="outline" size="sm" onClick={handleReturn} className="gap-1.5 text-amber-600 border-amber-300 hover:bg-amber-50">
-                <RotateCcw className="h-4 w-4" />
-                ส่งกลับ
-              </Button>
-              <Button size="sm" onClick={handleComplete} disabled={!allCommitteeScored} className="gap-1.5 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50">
-                <CheckCircle2 className="h-4 w-4" />
-                ยืนยันผลการประเมิน
-              </Button>
-            </div>
+          {isCompleted ? (
+            <span className="ml-2 text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-700 border border-green-300">
+              ✓ ยืนยันผลแล้ว
+            </span>
+          ) : (
+            role !== "user" && isSubmitted && (
+              <div className="flex items-center gap-2 ml-2">
+                <Button variant="outline" size="sm" onClick={handleReturn} className="gap-1.5 text-amber-600 border-amber-300 hover:bg-amber-50">
+                  <RotateCcw className="h-4 w-4" />
+                  ส่งกลับ
+                </Button>
+                <Button size="sm" onClick={handleComplete} disabled={!allCommitteeScored} className="gap-1.5 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50">
+                  <CheckCircle2 className="h-4 w-4" />
+                  ยืนยันผลการประเมิน
+                </Button>
+              </div>
+            )
           )}
         </div>
       </div>
@@ -378,7 +394,8 @@ const EvaluationByProgramPage = () => {
           committeeComment={committeeComments[wizardItem.indicator.id] ?? ""}
           onCommitteeCommentChange={(v) => handleCommitteeCommentChange(wizardItem.indicator.id, v)}
           userRole={role}
-          viewOnly={scoreView === "self" && role !== "user"}
+          viewOnly={isCompleted || (role !== "user" && (!isSubmitted || scoreView === "self"))}
+          readOnly={isCompleted}
           hasPrev={wizardIndex! > 0}
           hasNext={wizardIndex! < flatIndicators.length - 1}
           onPrev={() => setWizardIndex((i) => (i !== null ? i - 1 : i))}

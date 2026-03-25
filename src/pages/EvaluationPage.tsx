@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ClipboardCheck, Loader2, Plus, Pencil, Search, X } from "lucide-react";
+import { ClipboardCheck, Loader2, Plus, Pencil, Search, X, Eye } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -293,9 +293,11 @@ const EvaluationPage = () => {
                         variant="ghost"
                         size="icon"
                         onClick={() => navigate(`/evaluation/${row.program_id}${row.user_id ? `?evaluateeId=${row.user_id}` : ""}`)}
-                        title={row.evaluation_id || (row.total_max ?? 0) > 0 ? "แก้ไขการประเมิน" : "เพิ่มการประเมิน"}
+                        title={row.evaluation_status === "completed" ? "ดูผลการประเมิน" : row.evaluation_id ? "แก้ไขการประเมิน" : "เพิ่มการประเมิน"}
                       >
-                        {row.evaluation_id || (row.total_max ?? 0) > 0 ? (
+                        {row.evaluation_status === "completed" ? (
+                          <Eye className="h-4 w-4 text-muted-foreground" />
+                        ) : row.evaluation_id ? (
                           <Pencil className="h-4 w-4 text-primary" />
                         ) : (
                           <Plus className="h-4 w-4 text-primary" />

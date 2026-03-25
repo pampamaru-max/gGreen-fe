@@ -80,7 +80,7 @@ export default function ProjectRegistration() {
   const [implDetails, setImplDetails]       = useState<Record<string, string>>({});
   const [evaluationId, setEvaluationId]     = useState<string | null>(null);
   const [submitting, setSubmitting]         = useState(false);
-  const [submitted, setSubmitted]           = useState(false);
+  const [evaluationStatus, setEvaluationStatus] = useState<string | null>(null);
   const [wizardIndex, setWizardIndex]       = useState<number | null>(null);
   const navigate = useNavigate();
 
@@ -128,7 +128,7 @@ export default function ProjectRegistration() {
         const { data: evalData } = await apiClient.get(`evaluation/program/${programId}`);
         if (evalData) {
           setEvaluationId(evalData.id);
-          if (evalData.status === "submitted") setSubmitted(true);
+          setEvaluationStatus(evalData.status);
           const loadedScores: Record<string, number> = {};
           const loadedDetails: Record<string, string> = {};
           (evalData.evaluationScores ?? []).forEach((s: any) => {
@@ -199,7 +199,7 @@ export default function ProjectRegistration() {
         description: "ทีมงานจะตรวจสอบและแจ้งผลให้ทราบในภายหลัง",
         duration: 5000,
       });
-      setSubmitted(true);
+      setEvaluationStatus("submitted");
       navigate("/register");
     } catch (err: any) {
       toast.error(err?.response?.data?.message ?? "เกิดข้อผิดพลาดในการส่งแบบประเมิน");
@@ -239,6 +239,36 @@ export default function ProjectRegistration() {
     return items;
   }, [categories]);
 
+  // สุ่มคะแนนทุกตัวชี้วัดแล้วบันทึก
+  const handleFillRandom = async () => {
+    if (!programId) return;
+    const newScores: Record<string, number> = {};
+    for (const { indicator } of flatIndicators) {
+      const criteria = indicator.scoringCriteria;
+      if (criteria && criteria.length > 0) {
+        newScores[indicator.id] = criteria[Math.floor(Math.random() * criteria.length)].score;
+      } else {
+        newScores[indicator.id] = Math.floor(Math.random() * (indicator.maxScore + 1));
+      }
+    }
+    setScores((prev) => ({ ...prev, ...newScores }));
+    let currentEvalId = evaluationId;
+    for (const { indicator } of flatIndicators) {
+      const { data } = await apiClient.post("evaluation/score", {
+        programId,
+        indicatorId: indicator.id,
+        score: newScores[indicator.id],
+        notes: implDetails[indicator.id] ?? "",
+        ...(currentEvalId ? { evaluationId: currentEvalId } : {}),
+      });
+      if (data?.evaluationId && !currentEvalId) {
+        currentEvalId = data.evaluationId;
+        setEvaluationId(currentEvalId);
+      }
+    }
+    toast.success(`สุ่มคะแนนครบ ${flatIndicators.length} ตัวชี้วัดแล้ว`);
+  };
+
   const handleOpenWizard = useCallback((indicator: Category["topics"][0]["indicators"][0]) => {
     const idx = flatIndicators.findIndex((item) => item.indicator.id === indicator.id);
     if (idx !== -1) setWizardIndex(idx);
@@ -261,6 +291,10 @@ export default function ProjectRegistration() {
     ? (statusMap[registration.status] ?? { label: registration.status, variant: "outline" as const })
     : { label: "ผ่านการคัดเลือก", variant: "default" as const };
 
+  // Derived from evaluationStatus
+  const isEvalReadOnly = evaluationStatus === "submitted" || evaluationStatus === "completed";
+  const isEvalCompleted = evaluationStatus === "completed";
+
   // ── Render ─────────────────────────────────────────────────────────────────
   if (regLoading || !programId) {
     return (
@@ -276,11 +310,18 @@ export default function ProjectRegistration() {
       {/* ════ TOP — ข้อมูลผู้สมัคร ════ */}
       <div className="border-b bg-card/50 px-4 sm:px-6 py-5 space-y-4">
 
-        {/* Back button */}
-        <Button variant="ghost" size="sm" className="gap-1.5 -ml-2 text-muted-foreground" onClick={() => navigate("/register")}>
-          <ArrowLeft className="h-4 w-4" />
-          กลับ
-        </Button>
+        {/* Back button + random fill */}
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" size="sm" className="gap-1.5 -ml-2 text-muted-foreground" onClick={() => navigate("/register")}>
+            <ArrowLeft className="h-4 w-4" />
+            กลับ
+          </Button>
+          {!isEvalReadOnly && !evalLoading && categories.length > 0 && (
+            <Button variant="outline" size="sm" onClick={handleFillRandom} className="gap-1.5 text-purple-600 border-purple-300 hover:bg-purple-50 text-xs">
+              🎲 สุ่มคะแนน
+            </Button>
+          )}
+        </div>
 
         {/* หัว: ชื่อองค์กร + สถานะ */}
         <div className="flex items-start gap-3">
@@ -351,7 +392,7 @@ export default function ProjectRegistration() {
               indicatorCount={totalIndicators}
               grandTotal={grandTotal}
               grandMax={grandMax}
-              submitted={submitted}
+              submitted={isEvalReadOnly}
             />
 
             {/* Scoring levels */}
@@ -390,9 +431,17 @@ export default function ProjectRegistration() {
               </Card>
             )}
 
-            {/* Submit / Success */}
+            {/* Submit / Success / Completed */}
             {categories.length > 0 && (
-              submitted ? (
+              isEvalCompleted ? (
+                <div className="flex items-center gap-4 rounded-xl border border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-900/40 p-5">
+                  <CheckCircle2 className="h-7 w-7 text-blue-600 dark:text-blue-400 shrink-0" />
+                  <div>
+                    <p className="font-semibold text-blue-800 dark:text-blue-300">ผลการประเมินเสร็จสมบูรณ์แล้ว</p>
+                    <p className="text-sm text-blue-700/70 dark:text-blue-400/70">คณะกรรมการได้ยืนยันผลการประเมินเรียบร้อยแล้ว</p>
+                  </div>
+                </div>
+              ) : isEvalReadOnly ? (
                 <div className="flex items-center gap-4 rounded-xl border border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-900/40 p-5">
                   <CheckCircle2 className="h-7 w-7 text-green-600 dark:text-green-400 shrink-0" />
                   <div>
@@ -428,9 +477,10 @@ export default function ProjectRegistration() {
           onFilesChange={(f) => handleFilesChange(wizardItem.indicator.id, f)}
           open={wizardIndex !== null}
           onOpenChange={(open) => { if (!open) setWizardIndex(null); }}
-          onSave={() => handleSaveIndicator(wizardItem.indicator.id)}
+          onSave={isEvalReadOnly ? undefined : () => handleSaveIndicator(wizardItem.indicator.id)}
           implementationDetail={implDetails[wizardItem.indicator.id] ?? ""}
           onImplementationDetailChange={(v) => handleDetailChange(wizardItem.indicator.id, v)}
+          readOnly={isEvalReadOnly}
           userRole="user"
           hasPrev={wizardIndex! > 0}
           hasNext={wizardIndex! < flatIndicators.length - 1}

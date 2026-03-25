@@ -44,6 +44,7 @@ export interface IndicatorNavItem {
   score: number;
   maxScore: number;
   color: string;
+  isScored?: boolean;
 }
 
 interface Props {
@@ -66,6 +67,562 @@ interface Props {
   onIndicatorClick?: (indicator: Category["topics"][0]["indicators"][0]) => void;
 }
 
+// ── Shared utility ────────────────────────────────────────────────────────────
+function getScoreColor(s: number): string {
+  if (s <= 1) return "0 72% 51%";
+  if (s <= 3) return "30 60% 45%";
+  return "142 60% 40%";
+}
+
+// ── Shared nav strip ──────────────────────────────────────────────────────────
+function NavStrip({ navItems, currentNavIndex, onJumpTo }: {
+  navItems: IndicatorNavItem[];
+  currentNavIndex?: number;
+  onJumpTo: (idx: number) => void;
+}) {
+  return (
+    <div className="border-t bg-muted/10 px-4 py-2 shrink-0">
+      <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-thin">
+        {navItems.map((item, idx) => {
+          const isActive = idx === currentNavIndex;
+          const hasScore = item.isScored ?? (item.score > 0);
+          const shortLabel = item.name.match(/^[\d.]+/)?.[0] ?? item.name.slice(0, 5);
+          return (
+            <button
+              key={item.id}
+              onClick={() => onJumpTo(idx)}
+              title={item.name}
+              className="flex-shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold transition-all border"
+              style={
+                isActive
+                  ? { backgroundColor: `hsl(${item.color} / 0.18)`, borderColor: `hsl(${item.color} / 0.6)`, color: `hsl(${item.color})` }
+                  : hasScore
+                  ? { backgroundColor: `hsl(${item.color} / 0.06)`, borderColor: `hsl(${item.color} / 0.25)`, color: `hsl(${item.color})` }
+                  : item.isScored === false
+                  ? { backgroundColor: "hsl(38 92% 50% / 0.08)", borderColor: "hsl(38 92% 50% / 0.5)", borderStyle: "dashed", color: "hsl(38 70% 40%)" }
+                  : { backgroundColor: "transparent", borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))" }
+              }
+            >
+              {shortLabel}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Dialog สำหรับผู้ถูกประเมิน ─────────────────────────────────────────────────
+function EvaluateeIndicatorDialog({
+  indicator, score, onScoreChange, color, files, onFilesChange,
+  open, onOpenChange, onSave, implementationDetail, onImplementationDetailChange,
+  readOnly = false,
+  hasPrev, hasNext, onPrev, onNext, progressLabel, navItems, currentNavIndex, onJumpTo,
+}: {
+  indicator: Category["topics"][0]["indicators"][0];
+  score: number;
+  onScoreChange: (score: number) => void;
+  color: string;
+  files: UploadedFile[];
+  onFilesChange: (files: UploadedFile[]) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave?: () => Promise<void>;
+  implementationDetail?: string;
+  onImplementationDetailChange?: (value: string) => void;
+  readOnly?: boolean;
+  hasPrev?: boolean;
+  hasNext?: boolean;
+  onPrev?: () => void;
+  onNext?: () => void;
+  progressLabel?: string;
+  navItems?: IndicatorNavItem[];
+  currentNavIndex?: number;
+  onJumpTo?: (index: number) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const criteria = indicator.scoringCriteria || [];
+  const isWizardMode = hasPrev !== undefined || hasNext !== undefined;
+
+  const doSave = async () => {
+    if (onSave && !readOnly) { setSaving(true); await onSave(); setSaving(false); }
+  };
+  const handlePrevClick = async () => { await doSave(); onPrev?.(); };
+  const handleNextClick = async () => { await doSave(); onNext?.(); };
+  const handleJumpTo = async (idx: number) => { if (idx !== currentNavIndex) await doSave(); onJumpTo?.(idx); };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = e.target.files;
+    if (!selectedFiles || selectedFiles.length === 0) return;
+    setUploading(true);
+    const newFiles: UploadedFile[] = [];
+    for (const file of Array.from(selectedFiles)) {
+      if (file.size > 10 * 1024 * 1024) { toast.error(`ไฟล์ ${file.name} ใหญ่เกิน 10MB`); continue; }
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("folder", indicator.id);
+        const { data } = await apiClient.post("evaluation/files/upload", formData, { headers: { "Content-Type": "multipart/form-data" } });
+        newFiles.push({ name: data.name ?? file.name, url: data.url, path: data.url });
+      } catch { toast.error(`อัปโหลด ${file.name} ไม่สำเร็จ`); }
+    }
+    onFilesChange([...files, ...newFiles]);
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleDeleteFile = async (file: UploadedFile) => {
+    try { await apiClient.delete("evaluation/files/delete", { data: { url: file.url } }); } catch {}
+    onFilesChange(files.filter((f) => f.url !== file.url));
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-5xl w-[95vw] h-[90vh] overflow-hidden p-0 flex flex-col">
+        <DialogHeader className="px-6 pt-5 pb-4 pr-14 shrink-0" style={{ backgroundColor: `hsl(${color} / 0.06)` }}>
+          <div className="flex items-start gap-3">
+            <span className="h-2.5 w-2.5 rounded-full shrink-0 mt-1.5" style={{ backgroundColor: `hsl(${color})` }} />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start gap-2">
+                <DialogTitle className="flex-1 text-base font-semibold text-foreground leading-snug text-left">{indicator.name}</DialogTitle>
+                {indicator.description && (
+                  <TooltipProvider delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button className="shrink-0 mt-0.5 text-muted-foreground hover:text-foreground transition-colors"><Info className="h-4 w-4" /></button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" align="end" className="max-w-sm z-[9999]">
+                        <p className="text-sm leading-relaxed">{indicator.description}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+                {progressLabel && <span className="shrink-0 text-xs font-medium text-muted-foreground bg-muted rounded-full px-2 py-0.5 mt-0.5">{progressLabel}</span>}
+              </div>
+            </div>
+          </div>
+        </DialogHeader>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-0 md:divide-x overflow-hidden flex-1 min-h-0">
+          {/* ซ้าย: รายละเอียด + เอกสาร (แก้ไขได้) */}
+          <div className="overflow-y-auto scrollbar-thin px-6 py-5 space-y-5">
+            {indicator.detail && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">รายละเอียดตัวชี้วัด</p>
+                <div className="text-base font-medium text-foreground leading-relaxed whitespace-pre-line bg-muted/30 rounded-md p-3">{indicator.detail}</div>
+              </div>
+            )}
+            {indicator.evidenceDescription && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">หลักฐานอ้างอิง</p>
+                <div className="text-sm text-foreground/70 bg-muted/30 border rounded-md p-3 leading-relaxed whitespace-pre-line">{indicator.evidenceDescription}</div>
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">รายละเอียดการดำเนินการ</p>
+              <textarea
+                value={implementationDetail || ""}
+                onChange={(e) => onImplementationDetailChange?.(e.target.value)}
+                placeholder="ระบุรายละเอียดการดำเนินการ..."
+                disabled={readOnly}
+                className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
+              />
+            </div>
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">เอกสารแนบ</p>
+              {files.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {files.map((f) => (
+                    <div key={f.path} className="flex items-center gap-2 bg-muted/50 border rounded-lg px-3 py-1.5 text-sm">
+                      <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="truncate max-w-[180px]">{f.name}</span>
+                      <a href={f.url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-muted-foreground hover:text-foreground"><Eye className="h-3.5 w-3.5" /></a>
+                      {!readOnly && (
+                        <button onClick={() => handleDeleteFile(f)} className="shrink-0 text-muted-foreground hover:text-destructive"><X className="h-3.5 w-3.5" /></button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {!readOnly && (
+                <>
+                  <input ref={fileInputRef} type="file" accept=".pdf,.png,.jpg,.jpeg" multiple className="hidden" onChange={handleFileUpload} />
+                  <div onClick={() => fileInputRef.current?.click()} className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/20 py-6 cursor-pointer hover:bg-muted/40 hover:border-muted-foreground/40 transition-colors">
+                    <ListChecks className="h-6 w-6 text-muted-foreground/40 mb-1.5" />
+                    <p className="text-xs text-muted-foreground text-center">รองรับไฟล์ PDF, PNG, JPG</p>
+                    <p className="text-xs text-muted-foreground/70 text-center mb-2">ลากไฟล์มาวางหรือคลิกเพื่ออัปโหลด</p>
+                    <button disabled={uploading} className="flex items-center gap-1.5 text-xs font-medium px-4 py-1.5 rounded-md border bg-background text-foreground hover:bg-muted transition-colors">
+                      <Plus className="h-3 w-3" />{uploading ? "กำลังอัปโหลด..." : "เลือกไฟล์"}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* ขวา: คะแนนจากการประเมินตนเอง — แสดงครบทุกข้อ, interactive เมื่อไม่ readOnly */}
+          <div className="overflow-y-auto scrollbar-thin px-6 py-5 space-y-5">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">คะแนนจากการประเมินตนเอง</p>
+                <div>
+                  <span className="text-xl font-bold" style={{ color: score > 0 ? `hsl(${getScoreColor(score)})` : "hsl(var(--muted-foreground))" }}>{score}</span>
+                  <span className="text-sm text-muted-foreground">/{indicator.maxScore}</span>
+                </div>
+              </div>
+              {criteria.length > 0 ? (
+                <div className="space-y-1.5">
+                  {criteria.map((c: ScoringCriterion) => (
+                    readOnly ? (
+                      <div
+                        key={c.score}
+                        className="flex items-start gap-3 w-full rounded-lg px-3 py-2.5 text-sm select-none cursor-default"
+                        style={
+                          c.score === score
+                            ? { backgroundColor: `hsl(${getScoreColor(c.score)} / 0.12)`, border: `1.5px solid hsl(${getScoreColor(c.score)} / 0.4)` }
+                            : { backgroundColor: "hsl(var(--muted)/0.4)", border: "1.5px solid hsl(var(--border))", opacity: 0.5 }
+                        }
+                      >
+                        <span className="shrink-0 flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold mt-0.5"
+                          style={c.score === score ? { backgroundColor: `hsl(${getScoreColor(c.score)})`, color: "white" } : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }}>
+                          {c.score}
+                        </span>
+                        <span className="leading-snug pt-1" style={{ color: c.score === score ? `hsl(${getScoreColor(c.score)})` : "hsl(var(--muted-foreground))" }}>{c.label}</span>
+                      </div>
+                    ) : (
+                      <button
+                        key={c.score}
+                        onClick={() => onScoreChange(c.score === score ? 0 : c.score)}
+                        className="flex items-start gap-3 w-full text-left rounded-lg px-3 py-2.5 transition-all text-sm"
+                        style={
+                          c.score === score
+                            ? { backgroundColor: `hsl(${getScoreColor(c.score)} / 0.12)`, border: `1.5px solid hsl(${getScoreColor(c.score)} / 0.4)` }
+                            : { backgroundColor: "transparent", border: "1.5px solid hsl(var(--border))" }
+                        }
+                      >
+                        <span className="shrink-0 flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold mt-0.5"
+                          style={c.score === score ? { backgroundColor: `hsl(${getScoreColor(c.score)})`, color: "white" } : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }}>
+                          {c.score}
+                        </span>
+                        <span className="leading-snug pt-1" style={{ color: c.score === score ? `hsl(${getScoreColor(c.score)})` : "hsl(var(--foreground))" }}>{c.label}</span>
+                      </button>
+                    )
+                  ))}
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {Array.from({ length: indicator.maxScore + 1 }, (_, i) => i).map((opt) => (
+                    readOnly ? (
+                      <div key={opt}
+                        className="flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold cursor-default select-none"
+                        style={
+                          opt === score
+                            ? { backgroundColor: `hsl(${getScoreColor(opt)})`, color: "white" }
+                            : { backgroundColor: "hsl(var(--muted)/0.4)", color: "hsl(var(--muted-foreground))", border: "1.5px solid hsl(var(--border))", opacity: 0.5 }
+                        }>
+                        {opt}
+                      </div>
+                    ) : (
+                      <button key={opt} onClick={() => onScoreChange(opt === score ? 0 : opt)}
+                        className="flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold transition-all"
+                        style={
+                          opt === score
+                            ? { backgroundColor: `hsl(${getScoreColor(opt)})`, color: "white" }
+                            : { backgroundColor: "transparent", color: "hsl(var(--muted-foreground))", border: "1.5px solid hsl(var(--border))" }
+                        }>
+                        {opt}
+                      </button>
+                    )
+                  ))}
+                </div>
+              )}
+            </div>
+            {indicator.notes && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">หมายเหตุเกณฑ์การให้คะแนน</p>
+                <div className="text-sm font-medium text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-md p-3 leading-relaxed whitespace-pre-line">{indicator.notes}</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {navItems && navItems.length > 0 && <NavStrip navItems={navItems} currentNavIndex={currentNavIndex} onJumpTo={handleJumpTo} />}
+
+        <div className="flex items-center gap-2 px-6 py-4 border-t bg-muted/20 shrink-0">
+          {isWizardMode ? (
+            <div className="flex items-center gap-2 flex-1">
+              <Button variant="outline" size="sm" onClick={handlePrevClick} disabled={!hasPrev || saving}><ChevronLeft className="h-4 w-4 mr-1" />ก่อนหน้า</Button>
+              <Button variant="outline" size="sm" onClick={handleNextClick} disabled={!hasNext || saving}>ถัดไป<ChevronRight className="h-4 w-4 ml-1" /></Button>
+            </div>
+          ) : <div className="flex-1" />}
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>{isWizardMode ? "ปิด" : "ยกเลิก"}</Button>
+            {!readOnly && (
+              <Button size="sm" disabled={saving} onClick={async () => { setSaving(true); if (onSave) await onSave(); setSaving(false); if (!isWizardMode) onOpenChange(false); }}>
+                {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}บันทึก
+              </Button>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Dialog สำหรับผู้ประเมิน ────────────────────────────────────────────────────
+function EvaluatorIndicatorDialog({
+  indicator, score, color, files,
+  open, onOpenChange, onSave,
+  implementationDetail,
+  committeeScore, onCommitteeScoreChange,
+  committeeComment, onCommitteeCommentChange,
+  viewOnly = false,
+  readOnly = false,
+  hasPrev, hasNext, onPrev, onNext, progressLabel, navItems, currentNavIndex, onJumpTo,
+}: {
+  indicator: Category["topics"][0]["indicators"][0];
+  score: number;
+  color: string;
+  files: UploadedFile[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave?: () => Promise<void>;
+  implementationDetail?: string;
+  committeeScore?: number;
+  onCommitteeScoreChange?: (score: number) => void;
+  committeeComment?: string;
+  onCommitteeCommentChange?: (value: string) => void;
+  viewOnly?: boolean;
+  readOnly?: boolean;
+  hasPrev?: boolean;
+  hasNext?: boolean;
+  onPrev?: () => void;
+  onNext?: () => void;
+  progressLabel?: string;
+  navItems?: IndicatorNavItem[];
+  currentNavIndex?: number;
+  onJumpTo?: (index: number) => void;
+}) {
+  const [saving, setSaving] = useState(false);
+  const criteria = indicator.scoringCriteria || [];
+  const isWizardMode = hasPrev !== undefined || hasNext !== undefined;
+
+  const doSave = async () => {
+    if (onSave && !readOnly) { setSaving(true); await onSave(); setSaving(false); }
+  };
+  const handlePrevClick = async () => { await doSave(); onPrev?.(); };
+  const handleNextClick = async () => { await doSave(); onNext?.(); };
+  const handleJumpTo = async (idx: number) => { if (idx !== currentNavIndex) await doSave(); onJumpTo?.(idx); };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-5xl w-[95vw] h-[90vh] overflow-hidden p-0 flex flex-col">
+        <DialogHeader className="px-6 pt-5 pb-4 pr-14 shrink-0" style={{ backgroundColor: `hsl(${color} / 0.06)` }}>
+          <div className="flex items-start gap-3">
+            <span className="h-2.5 w-2.5 rounded-full shrink-0 mt-1.5" style={{ backgroundColor: `hsl(${color})` }} />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start gap-2">
+                <DialogTitle className="flex-1 text-base font-semibold text-foreground leading-snug text-left">{indicator.name}</DialogTitle>
+                {indicator.description && (
+                  <TooltipProvider delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button className="shrink-0 mt-0.5 text-muted-foreground hover:text-foreground transition-colors"><Info className="h-4 w-4" /></button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" align="end" className="max-w-sm z-[9999]">
+                        <p className="text-sm leading-relaxed">{indicator.description}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+                {progressLabel && <span className="shrink-0 text-xs font-medium text-muted-foreground bg-muted rounded-full px-2 py-0.5 mt-0.5">{progressLabel}</span>}
+              </div>
+            </div>
+          </div>
+        </DialogHeader>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-0 md:divide-x overflow-hidden flex-1 min-h-0">
+          {/* ซ้าย: รายละเอียด + เอกสาร (ดูอย่างเดียว) */}
+          <div className="overflow-y-auto scrollbar-thin px-6 py-5 space-y-5">
+            {indicator.detail && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">รายละเอียดตัวชี้วัด</p>
+                <div className="text-base font-medium text-foreground leading-relaxed whitespace-pre-line bg-muted/30 rounded-md p-3">{indicator.detail}</div>
+              </div>
+            )}
+            {indicator.evidenceDescription && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">หลักฐานอ้างอิง</p>
+                <div className="text-sm text-foreground/70 bg-muted/30 border rounded-md p-3 leading-relaxed whitespace-pre-line">{indicator.evidenceDescription}</div>
+              </div>
+            )}
+            {implementationDetail && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">รายละเอียดการดำเนินการ</p>
+                <div className="text-sm text-foreground/80 bg-muted/30 border rounded-md p-3 leading-relaxed whitespace-pre-line min-h-[60px]">{implementationDetail}</div>
+              </div>
+            )}
+            {files.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">เอกสารแนบ</p>
+                <div className="flex flex-wrap gap-2">
+                  {files.map((f) => (
+                    <div key={f.path} className="flex items-center gap-2 bg-muted/50 border rounded-lg px-3 py-1.5 text-sm">
+                      <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="truncate max-w-[180px]">{f.name}</span>
+                      <a href={f.url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-muted-foreground hover:text-foreground"><Eye className="h-3.5 w-3.5" /></a>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ขวา: คะแนนตนเอง (compact) + กรรมการให้คะแนน */}
+          <div className="overflow-y-auto scrollbar-thin px-6 py-5 space-y-5">
+            {/* คะแนนจากการประเมินตนเอง — compact เฉพาะข้อที่เลือก */}
+            <div className="rounded-lg border bg-muted/20 px-4 py-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">คะแนนจากการประเมินตนเอง</p>
+                <span className="text-sm font-bold px-2 py-0.5 rounded-md"
+                  style={{ backgroundColor: score > 0 ? `hsl(${getScoreColor(score)} / 0.12)` : "hsl(var(--muted))", color: score > 0 ? `hsl(${getScoreColor(score)})` : "hsl(var(--muted-foreground))" }}>
+                  {score}/{indicator.maxScore}
+                </span>
+              </div>
+              {criteria.length > 0 ? (
+                (() => {
+                  const selected = criteria.find((c: ScoringCriterion) => c.score === score);
+                  return selected ? (
+                    <div className="flex items-start gap-2.5 rounded-md px-3 py-2 text-sm select-none"
+                      style={{ backgroundColor: `hsl(${getScoreColor(selected.score)} / 0.08)`, border: `1px solid hsl(${getScoreColor(selected.score)} / 0.25)` }}>
+                      <span className="shrink-0 flex h-6 w-6 items-center justify-center rounded text-xs font-bold mt-0.5"
+                        style={{ backgroundColor: `hsl(${getScoreColor(selected.score)})`, color: "white" }}>
+                        {selected.score}
+                      </span>
+                      <span className="leading-snug text-foreground/80">{selected.label}</span>
+                    </div>
+                  ) : <p className="text-xs text-muted-foreground italic">ยังไม่ได้ประเมิน</p>;
+                })()
+              ) : (
+                <div className="flex items-center gap-1.5 select-none">
+                  {Array.from({ length: indicator.maxScore + 1 }, (_, i) => i).map((opt) => (
+                    <div key={opt} className="flex h-8 w-8 items-center justify-center rounded-md text-sm font-semibold"
+                      style={opt === score ? { backgroundColor: `hsl(${getScoreColor(opt)})`, color: "white" } : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }}>
+                      {opt}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* กรรมการให้คะแนน + ความเห็นกรรมการ — ซ่อนเมื่อ viewOnly (ดูฝั่งผู้ถูกประเมิน) */}
+            {!viewOnly && <>
+            <div className="space-y-2" style={{ pointerEvents: readOnly ? "none" : undefined, opacity: readOnly ? 0.7 : undefined }}>
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">ให้คะแนน</p>
+                <div>
+                  {committeeScore !== undefined ? (
+                    <span className="text-xl font-bold"
+                      style={{ color: committeeScore > 0 ? `hsl(${getScoreColor(committeeScore)})` : "hsl(var(--muted-foreground))" }}>
+                      {committeeScore}
+                    </span>
+                  ) : (
+                    <span className="text-sm font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">รอ</span>
+                  )}
+                  <span className="text-sm text-muted-foreground">/{indicator.maxScore}</span>
+                </div>
+              </div>
+              {criteria.length > 0 ? (
+                <div className="space-y-1.5">
+                  {criteria.map((c: ScoringCriterion) => {
+                    const effectiveScore = committeeScore ?? -1;
+                    const isSelected = c.score === effectiveScore;
+                    return (
+                      <button key={`committee-${c.score}`}
+                        onClick={() => onCommitteeScoreChange?.(isSelected ? 0 : c.score)}
+                        className="flex items-start gap-3 w-full text-left rounded-lg px-3 py-2.5 transition-all text-sm"
+                        style={isSelected
+                          ? { backgroundColor: `hsl(${getScoreColor(c.score)} / 0.12)`, border: `1.5px solid hsl(${getScoreColor(c.score)} / 0.4)` }
+                          : { backgroundColor: "transparent", border: "1.5px solid hsl(var(--border))" }}>
+                        <span className="shrink-0 flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold mt-0.5"
+                          style={isSelected ? { backgroundColor: `hsl(${getScoreColor(c.score)})`, color: "white" } : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }}>
+                          {c.score}
+                        </span>
+                        <span className="leading-snug pt-1"
+                          style={{ color: isSelected ? `hsl(${getScoreColor(c.score)})` : "hsl(var(--foreground))" }}>
+                          {c.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {Array.from({ length: indicator.maxScore + 1 }, (_, i) => i).map((opt) => {
+                    const effectiveScore = committeeScore ?? -1;
+                    const isSelected = opt === effectiveScore;
+                    return (
+                      <button key={`committee-btn-${opt}`}
+                        onClick={() => onCommitteeScoreChange?.(isSelected ? 0 : opt)}
+                        className="flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold transition-all"
+                        style={isSelected
+                          ? { backgroundColor: `hsl(${getScoreColor(opt)})`, color: "white" }
+                          : { backgroundColor: "transparent", color: "hsl(var(--muted-foreground))", border: "1.5px solid hsl(var(--border))" }}>
+                        {opt}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* ความเห็นกรรมการ */}
+            <div className="space-y-1.5" style={{ pointerEvents: readOnly ? "none" : undefined, opacity: readOnly ? 0.7 : undefined }}>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">ความเห็นกรรมการ</p>
+              <textarea
+                value={committeeComment || ""}
+                onChange={(e) => onCommitteeCommentChange?.(e.target.value)}
+                placeholder="ระบุความเห็นของกรรมการ..."
+                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              />
+            </div>
+            </>}
+
+            {indicator.notes && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">หมายเหตุเกณฑ์การให้คะแนน</p>
+                <div className="text-sm font-medium text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-md p-3 leading-relaxed whitespace-pre-line">{indicator.notes}</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {navItems && navItems.length > 0 && <NavStrip navItems={navItems} currentNavIndex={currentNavIndex} onJumpTo={handleJumpTo} />}
+
+        <div className="flex items-center gap-2 px-6 py-4 border-t bg-muted/20 shrink-0">
+          {isWizardMode ? (
+            <div className="flex items-center gap-2 flex-1">
+              <Button variant="outline" size="sm" onClick={handlePrevClick} disabled={!hasPrev || saving}><ChevronLeft className="h-4 w-4 mr-1" />ก่อนหน้า</Button>
+              <Button variant="outline" size="sm" onClick={handleNextClick} disabled={!hasNext || saving}>ถัดไป<ChevronRight className="h-4 w-4 ml-1" /></Button>
+            </div>
+          ) : <div className="flex-1" />}
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>{isWizardMode ? "ปิด" : "ยกเลิก"}</Button>
+            {!readOnly && (
+              <Button size="sm" disabled={saving} onClick={async () => { setSaving(true); if (onSave) await onSave(); setSaving(false); if (!isWizardMode) onOpenChange(false); }}>
+                {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}บันทึก
+              </Button>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Public wrapper — เลือก dialog ตาม role ────────────────────────────────────
 export function IndicatorDialog({
   indicator,
   score,
@@ -83,7 +640,7 @@ export function IndicatorDialog({
   committeeComment,
   onCommitteeCommentChange,
   userRole,
-  viewOnly = false,
+  readOnly = false,
   // Wizard / navigation props
   hasPrev,
   hasNext,
@@ -111,6 +668,7 @@ export function IndicatorDialog({
   onCommitteeCommentChange?: (value: string) => void;
   userRole?: string | null;
   viewOnly?: boolean;
+  readOnly?: boolean;
   // Wizard / navigation
   hasPrev?: boolean;
   hasNext?: boolean;
@@ -121,632 +679,60 @@ export function IndicatorDialog({
   currentNavIndex?: number;
   onJumpTo?: (index: number) => void;
 }) {
-  const [uploading, setUploading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const criteria = indicator.scoringCriteria || [];
-  const isWizardMode = hasPrev !== undefined || hasNext !== undefined;
-
-  const getScoreColor = (s: number) => {
-    if (s <= 1) return "0 72% 51%";
-    if (s <= 3) return "30 60% 45%";
-    return "142 60% 40%";
-  };
-
-  const doSave = async () => {
-    if (onSave && !viewOnly) {
-      setSaving(true);
-      await onSave();
-      setSaving(false);
-    }
-  };
-
-  const handlePrevClick = async () => {
-    await doSave();
-    onPrev?.();
-  };
-
-  const handleNextClick = async () => {
-    await doSave();
-    onNext?.();
-  };
-
-  const handleJumpTo = async (idx: number) => {
-    if (idx !== currentNavIndex) await doSave();
-    onJumpTo?.(idx);
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = e.target.files;
-    if (!selectedFiles || selectedFiles.length === 0) return;
-
-    setUploading(true);
-    const newFiles: UploadedFile[] = [];
-
-    for (const file of Array.from(selectedFiles)) {
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error(`ไฟล์ ${file.name} ใหญ่เกิน 10MB`);
-        continue;
-      }
-      try {
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("folder", indicator.id);
-        const { data } = await apiClient.post("evaluation/files/upload", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-        newFiles.push({ name: data.name ?? file.name, url: data.url, path: data.url });
-      } catch {
-        toast.error(`อัปโหลด ${file.name} ไม่สำเร็จ`);
-      }
-    }
-
-    onFilesChange([...files, ...newFiles]);
-    setUploading(false);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  const handleDeleteFile = async (file: UploadedFile) => {
-    try {
-      await apiClient.delete("evaluation/files/delete", { data: { url: file.url } });
-    } catch { /* ลบออกจาก UI ต่อไปแม้ลบจาก server ไม่สำเร็จ */ }
-    onFilesChange(files.filter((f) => f.url !== file.url));
-  };
-
+  if (userRole === 'user') {
+    return (
+      <EvaluateeIndicatorDialog
+        indicator={indicator}
+        score={score}
+        onScoreChange={onScoreChange!}
+        color={color}
+        files={files}
+        onFilesChange={onFilesChange}
+        open={open}
+        onOpenChange={onOpenChange}
+        onSave={onSave}
+        implementationDetail={implementationDetail}
+        onImplementationDetailChange={onImplementationDetailChange}
+        readOnly={readOnly}
+        hasPrev={hasPrev}
+        hasNext={hasNext}
+        onPrev={onPrev}
+        onNext={onNext}
+        progressLabel={progressLabel}
+        navItems={navItems}
+        currentNavIndex={currentNavIndex}
+        onJumpTo={onJumpTo}
+      />
+    );
+  }
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl w-[95vw] h-[90vh] overflow-hidden p-0 flex flex-col">
-        {/* Header */}
-        <DialogHeader
-          className="px-6 pt-5 pb-4 pr-14 shrink-0"
-          style={{ backgroundColor: `hsl(${color} / 0.06)` }}
-        >
-          <div className="flex items-start gap-3">
-            <span
-              className="h-2.5 w-2.5 rounded-full shrink-0 mt-1.5"
-              style={{ backgroundColor: `hsl(${color})` }}
-            />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-start gap-2">
-                <DialogTitle className="flex-1 text-base font-semibold text-foreground leading-snug text-left">
-                  {indicator.name}
-                </DialogTitle>
-                {indicator.description && (
-                  <TooltipProvider delayDuration={200}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button className="shrink-0 mt-0.5 text-muted-foreground hover:text-foreground transition-colors">
-                          <Info className="h-4 w-4" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" align="end" className="max-w-sm z-[9999]">
-                        <p className="text-sm leading-relaxed">{indicator.description}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
-                {progressLabel && (
-                  <span className="shrink-0 text-xs font-medium text-muted-foreground bg-muted rounded-full px-2 py-0.5 mt-0.5">
-                    {progressLabel}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        </DialogHeader>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-0 md:divide-x overflow-hidden flex-1 min-h-0">
-          {/* ===== ด้านซ้าย: รายละเอียด + เอกสารแนบ + หลักฐานอ้างอิง ===== */}
-          <div className="overflow-y-auto scrollbar-thin px-6 py-5 space-y-5">
-            {indicator.detail && (
-              <div className="space-y-1.5">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  รายละเอียดตัวชี้วัด
-                </p>
-                <div className="text-base font-medium text-foreground leading-relaxed whitespace-pre-line bg-muted/30 rounded-md p-3">
-                  {indicator.detail}
-                </div>
-              </div>
-            )}
-
-            {indicator.evidenceDescription && (
-              <div className="space-y-1.5">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  หลักฐานอ้างอิง
-                </p>
-                <div className="text-sm text-foreground/70 bg-muted/30 border rounded-md p-3 leading-relaxed whitespace-pre-line">
-                  {indicator.evidenceDescription}
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-1.5">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                รายละเอียดการดำเนินการ
-              </p>
-              <textarea
-                value={implementationDetail || ""}
-                onChange={(e) => onImplementationDetailChange?.(e.target.value)}
-                placeholder="ระบุรายละเอียดการดำเนินการ..."
-                className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                เอกสารแนบ
-              </p>
-              {files.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {files.map((f) => (
-                    <div
-                      key={f.path}
-                      className="flex items-center gap-2 bg-muted/50 border rounded-lg px-3 py-1.5 text-sm"
-                    >
-                      <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <span className="truncate max-w-[180px]">{f.name}</span>
-                      <a href={f.url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-muted-foreground hover:text-foreground">
-                        <Eye className="h-3.5 w-3.5" />
-                      </a>
-                      <button
-                        onClick={() => handleDeleteFile(f)}
-                        className="shrink-0 text-muted-foreground hover:text-destructive"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf,.png,.jpg,.jpeg"
-                multiple
-                className="hidden"
-                onChange={handleFileUpload}
-              />
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/20 py-6 cursor-pointer hover:bg-muted/40 hover:border-muted-foreground/40 transition-colors"
-              >
-                <ListChecks className="h-6 w-6 text-muted-foreground/40 mb-1.5" />
-                <p className="text-xs text-muted-foreground text-center">รองรับไฟล์ PDF, PNG, JPG</p>
-                <p className="text-xs text-muted-foreground/70 text-center mb-2">ลากไฟล์มาวางหรือคลิกเพื่ออัปโหลด</p>
-                <button
-                  disabled={uploading}
-                  className="flex items-center gap-1.5 text-xs font-medium px-4 py-1.5 rounded-md border bg-background text-foreground hover:bg-muted transition-colors"
-                >
-                  <Plus className="h-3 w-3" />
-                  {uploading ? "กำลังอัปโหลด..." : "เลือกไฟล์"}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* ===== ด้านขวา: ให้คะแนน + หมายเหตุเกณฑ์คะแนน ===== */}
-          <div className="overflow-y-auto scrollbar-thin px-6 py-5 space-y-5">
-
-            {/* คะแนนประเมินตนเอง */}
-            {userRole !== "user" ? (
-              viewOnly ? (
-                /* viewOnly=true: ดูฝั่งผู้ถูกประเมิน — แสดงทุกตัวเลือก read-only */
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      คะแนนจากการประเมินตนเอง
-                    </p>
-                    <div>
-                      <span className="text-xl font-bold" style={{ color: score > 0 ? `hsl(${getScoreColor(score)})` : "hsl(var(--muted-foreground))" }}>{score}</span>
-                      <span className="text-sm text-muted-foreground">/{indicator.maxScore}</span>
-                    </div>
-                  </div>
-                  {criteria.length > 0 ? (
-                    <div className="space-y-1.5">
-                      {criteria.map((c: ScoringCriterion) => (
-                        <div
-                          key={c.score}
-                          className="flex items-start gap-3 w-full text-left rounded-lg px-3 py-2.5 text-sm select-none cursor-default"
-                          style={
-                            c.score === score
-                              ? { backgroundColor: `hsl(${getScoreColor(c.score)} / 0.12)`, border: `1.5px solid hsl(${getScoreColor(c.score)} / 0.4)` }
-                              : { backgroundColor: "hsl(var(--muted)/0.4)", border: "1.5px solid hsl(var(--border))", opacity: 0.5 }
-                          }
-                        >
-                          <span
-                            className="shrink-0 flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold mt-0.5"
-                            style={
-                              c.score === score
-                                ? { backgroundColor: `hsl(${getScoreColor(c.score)})`, color: "white" }
-                                : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }
-                            }
-                          >
-                            {c.score}
-                          </span>
-                          <span className="leading-snug pt-1" style={{ color: c.score === score ? `hsl(${getScoreColor(c.score)})` : "hsl(var(--muted-foreground))" }}>
-                            {c.label}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1.5 select-none">
-                      {Array.from({ length: indicator.maxScore + 1 }, (_, i) => i).map((opt) => (
-                        <div
-                          key={opt}
-                          className="flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold cursor-default"
-                          style={
-                            opt === score
-                              ? { backgroundColor: `hsl(${getScoreColor(opt)})`, color: "white" }
-                              : { backgroundColor: "hsl(var(--muted)/0.4)", color: "hsl(var(--muted-foreground))", border: "1.5px solid hsl(var(--border))", opacity: 0.5 }
-                          }
-                        >
-                          {opt}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {score === 0 && <p className="text-xs text-muted-foreground italic">ยังไม่ได้ประเมิน</p>}
-                </div>
-              ) : (
-                /* viewOnly=false: ฝั่งผู้ประเมิน — compact แสดงแค่ข้อที่เลือก */
-                <div className="rounded-lg border bg-muted/20 px-4 py-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      คะแนนจากการประเมินตนเอง
-                    </p>
-                    <span
-                      className="text-sm font-bold px-2 py-0.5 rounded-md"
-                      style={{
-                        backgroundColor: score > 0 ? `hsl(${getScoreColor(score)} / 0.12)` : "hsl(var(--muted))",
-                        color: score > 0 ? `hsl(${getScoreColor(score)})` : "hsl(var(--muted-foreground))",
-                      }}
-                    >
-                      {score}/{indicator.maxScore}
-                    </span>
-                  </div>
-                  {criteria.length > 0 ? (
-                    (() => {
-                      const selected = criteria.find((c: ScoringCriterion) => c.score === score);
-                      return selected ? (
-                        <div
-                          className="flex items-start gap-2.5 rounded-md px-3 py-2 text-sm select-none"
-                          style={{ backgroundColor: `hsl(${getScoreColor(selected.score)} / 0.08)`, border: `1px solid hsl(${getScoreColor(selected.score)} / 0.25)` }}
-                        >
-                          <span
-                            className="shrink-0 flex h-6 w-6 items-center justify-center rounded text-xs font-bold mt-0.5"
-                            style={{ backgroundColor: `hsl(${getScoreColor(selected.score)})`, color: "white" }}
-                          >
-                            {selected.score}
-                          </span>
-                          <span className="leading-snug text-foreground/80">{selected.label}</span>
-                        </div>
-                      ) : (
-                        <p className="text-xs text-muted-foreground italic">ยังไม่ได้ประเมิน</p>
-                      );
-                    })()
-                  ) : (
-                    <div className="flex items-center gap-1.5 select-none">
-                      {Array.from({ length: indicator.maxScore + 1 }, (_, i) => i).map((opt) => (
-                        <div
-                          key={opt}
-                          className="flex h-8 w-8 items-center justify-center rounded-md text-sm font-semibold"
-                          style={
-                            opt === score
-                              ? { backgroundColor: `hsl(${getScoreColor(opt)})`, color: "white" }
-                              : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }
-                          }
-                        >
-                          {opt}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )
-            ) : (
-              /* Evaluatee: editable full criteria */
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">ให้คะแนนประเมินตนเอง</p>
-                  <div>
-                    <span className="text-xl font-bold" style={{ color: score > 0 ? `hsl(${getScoreColor(score)})` : "hsl(var(--muted-foreground))" }}>{score}</span>
-                    <span className="text-sm text-muted-foreground">/{indicator.maxScore}</span>
-                  </div>
-                </div>
-                {criteria.length > 0 ? (
-                  <div className="space-y-1.5">
-                    {criteria.map((c: ScoringCriterion) => (
-                      <button
-                        key={c.score}
-                        onClick={() => onScoreChange(c.score === score ? 0 : c.score)}
-                        className="flex items-start gap-3 w-full text-left rounded-lg px-3 py-2.5 transition-all text-sm"
-                        style={
-                          c.score === score
-                            ? { backgroundColor: `hsl(${getScoreColor(c.score)} / 0.12)`, border: `1.5px solid hsl(${getScoreColor(c.score)} / 0.4)` }
-                            : { backgroundColor: "transparent", border: "1.5px solid hsl(var(--border))" }
-                        }
-                      >
-                        <span
-                          className="shrink-0 flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold mt-0.5"
-                          style={
-                            c.score === score
-                              ? { backgroundColor: `hsl(${getScoreColor(c.score)})`, color: "white" }
-                              : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }
-                          }
-                        >
-                          {c.score}
-                        </span>
-                        <span className="leading-snug pt-1" style={{ color: c.score === score ? `hsl(${getScoreColor(c.score)})` : "hsl(var(--foreground))" }}>
-                          {c.label}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {Array.from({ length: indicator.maxScore + 1 }, (_, i) => i).map((opt) => (
-                      <button
-                        key={opt}
-                        onClick={() => onScoreChange(opt === score ? 0 : opt)}
-                        className="flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold transition-all"
-                        style={
-                          opt === score && opt > 0
-                            ? { backgroundColor: `hsl(${getScoreColor(opt)})`, color: "white" }
-                            : opt === score && opt === 0
-                            ? { backgroundColor: `hsl(${getScoreColor(0)})`, color: "white" }
-                            : { backgroundColor: "transparent", color: "hsl(var(--muted-foreground))", border: "1.5px solid hsl(var(--border))" }
-                        }
-                      >
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* กรรมการให้คะแนน */}
-            {!viewOnly && <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  {userRole === "user" ? "คะแนนกรรมการ" : "ให้คะแนน"}
-                </p>
-                <div>
-                  <span
-                    className="text-xl font-bold"
-                    style={{ color: (committeeScore || 0) > 0 ? `hsl(${getScoreColor(committeeScore || 0)})` : "hsl(var(--muted-foreground))" }}
-                  >
-                    {committeeScore || 0}
-                  </span>
-                  <span className="text-sm text-muted-foreground">/{indicator.maxScore}</span>
-                </div>
-              </div>
-              {userRole === "user" ? (
-                (committeeScore || 0) > 0 ? (
-                  criteria.length > 0 ? (
-                    (() => {
-                      const selected = criteria.find((c: ScoringCriterion) => c.score === (committeeScore || 0));
-                      return selected ? (
-                        <div
-                          className="flex items-start gap-2.5 rounded-md px-3 py-2 text-sm select-none"
-                          style={{ backgroundColor: `hsl(${getScoreColor(selected.score)} / 0.08)`, border: `1px solid hsl(${getScoreColor(selected.score)} / 0.25)` }}
-                        >
-                          <span
-                            className="shrink-0 flex h-6 w-6 items-center justify-center rounded text-xs font-bold mt-0.5"
-                            style={{ backgroundColor: `hsl(${getScoreColor(selected.score)})`, color: "white" }}
-                          >
-                            {selected.score}
-                          </span>
-                          <span className="leading-snug text-foreground/80">{selected.label}</span>
-                        </div>
-                      ) : null;
-                    })()
-                  ) : (
-                    <div className="flex items-center gap-1.5 select-none">
-                      {Array.from({ length: indicator.maxScore + 1 }, (_, i) => i).map((opt) => (
-                        <div
-                          key={opt}
-                          className="flex h-8 w-8 items-center justify-center rounded-md text-sm font-semibold"
-                          style={
-                            opt === (committeeScore || 0)
-                              ? { backgroundColor: `hsl(${getScoreColor(opt)})`, color: "white" }
-                              : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }
-                          }
-                        >
-                          {opt}
-                        </div>
-                      ))}
-                    </div>
-                  )
-                ) : (
-                  <p className="text-sm text-muted-foreground italic">ยังไม่มีคะแนนจากกรรมการ</p>
-                )
-              ) : (
-                criteria.length > 0 ? (
-                  <div className="space-y-1.5">
-                    {criteria.map((c: ScoringCriterion) => (
-                      <button
-                        key={`committee-${c.score}`}
-                        onClick={() => onCommitteeScoreChange?.(c.score === (committeeScore || 0) ? 0 : c.score)}
-                        className="flex items-start gap-3 w-full text-left rounded-lg px-3 py-2.5 transition-all text-sm"
-                        style={
-                          c.score === (committeeScore || 0)
-                            ? { backgroundColor: `hsl(${getScoreColor(c.score)} / 0.12)`, border: `1.5px solid hsl(${getScoreColor(c.score)} / 0.4)` }
-                            : { backgroundColor: "transparent", border: "1.5px solid hsl(var(--border))" }
-                        }
-                      >
-                        <span
-                          className="shrink-0 flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold mt-0.5"
-                          style={
-                            c.score === (committeeScore || 0)
-                              ? { backgroundColor: `hsl(${getScoreColor(c.score)})`, color: "white" }
-                              : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }
-                          }
-                        >
-                          {c.score}
-                        </span>
-                        <span className="leading-snug pt-1" style={{ color: c.score === (committeeScore || 0) ? `hsl(${getScoreColor(c.score)})` : "hsl(var(--foreground))" }}>
-                          {c.label}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {Array.from({ length: indicator.maxScore + 1 }, (_, i) => i).map((opt) => (
-                      <button
-                        key={`committee-btn-${opt}`}
-                        onClick={() => onCommitteeScoreChange?.(opt === (committeeScore || 0) ? 0 : opt)}
-                        className="flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold transition-all"
-                        style={
-                          opt === (committeeScore || 0) && opt > 0
-                            ? { backgroundColor: `hsl(${getScoreColor(opt)})`, color: "white" }
-                            : opt === (committeeScore || 0) && opt === 0
-                            ? { backgroundColor: `hsl(${getScoreColor(0)})`, color: "white" }
-                            : { backgroundColor: "transparent", color: "hsl(var(--muted-foreground))", border: "1.5px solid hsl(var(--border))" }
-                        }
-                      >
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
-                )
-              )}
-            </div>}
-
-            {/* ความเห็นกรรมการ */}
-            {!viewOnly && <div className="space-y-1.5">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                ความเห็นกรรมการ
-              </p>
-              {userRole === "user" ? (
-                <div className="text-sm text-foreground/70 bg-muted/30 border rounded-md p-3 leading-relaxed whitespace-pre-line min-h-[60px]">
-                  {committeeComment || <span className="text-muted-foreground italic">ยังไม่มีความเห็น</span>}
-                </div>
-              ) : (
-                <textarea
-                  value={committeeComment || ""}
-                  onChange={(e) => onCommitteeCommentChange?.(e.target.value)}
-                  placeholder="ระบุความเห็นของกรรมการ..."
-                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                />
-              )}
-            </div>}
-
-            {indicator.notes && (
-              <div className="space-y-1.5">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  หมายเหตุเกณฑ์การให้คะแนน
-                </p>
-                <div className="text-sm font-medium text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-md p-3 leading-relaxed whitespace-pre-line">
-                  {indicator.notes}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ════ Bottom nav strip (wizard mode) ════ */}
-        {navItems && navItems.length > 0 && (
-          <div className="border-t bg-muted/10 px-4 py-2 shrink-0">
-            <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-thin">
-              {navItems.map((item, idx) => {
-                const isActive = idx === currentNavIndex;
-                const hasScore = item.score > 0;
-                const shortLabel = item.name.match(/^[\d.]+/)?.[0] ?? item.name.slice(0, 5);
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => handleJumpTo(idx)}
-                    title={item.name}
-                    className="flex-shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold transition-all border"
-                    style={
-                      isActive
-                        ? {
-                            backgroundColor: `hsl(${item.color} / 0.18)`,
-                            borderColor: `hsl(${item.color} / 0.6)`,
-                            color: `hsl(${item.color})`,
-                          }
-                        : hasScore
-                        ? {
-                            backgroundColor: `hsl(${item.color} / 0.06)`,
-                            borderColor: `hsl(${item.color} / 0.25)`,
-                            color: `hsl(${item.color})`,
-                          }
-                        : {
-                            backgroundColor: "transparent",
-                            borderColor: "hsl(var(--border))",
-                            color: "hsl(var(--muted-foreground))",
-                          }
-                    }
-                  >
-                    {shortLabel}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Footer */}
-        <div className="flex items-center gap-2 px-6 py-4 border-t bg-muted/20 shrink-0">
-          {/* Left: Prev / Next (wizard mode) */}
-          {isWizardMode ? (
-            <div className="flex items-center gap-2 flex-1">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePrevClick}
-                disabled={!hasPrev || saving}
-              >
-                <ChevronLeft className="h-4 w-4 mr-1" />
-                ก่อนหน้า
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleNextClick}
-                disabled={!hasNext || saving}
-              >
-                ถัดไป
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            </div>
-          ) : (
-            <div className="flex-1" />
-          )}
-
-          {/* Right: Save / Close */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onOpenChange(false)}
-            >
-              {isWizardMode ? "ปิด" : "ยกเลิก"}
-            </Button>
-            {!viewOnly && (
-              <Button
-                size="sm"
-                disabled={saving}
-                onClick={async () => {
-                  setSaving(true);
-                  if (onSave) await onSave();
-                  setSaving(false);
-                  if (!isWizardMode) onOpenChange(false);
-                }}
-              >
-                {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
-                บันทึก
-              </Button>
-            )}
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+    <EvaluatorIndicatorDialog
+      indicator={indicator}
+      score={score}
+      color={color}
+      files={files}
+      open={open}
+      onOpenChange={onOpenChange}
+      onSave={onSave}
+      implementationDetail={implementationDetail}
+      committeeScore={committeeScore}
+      onCommitteeScoreChange={onCommitteeScoreChange}
+      committeeComment={committeeComment}
+      onCommitteeCommentChange={onCommitteeCommentChange}
+      viewOnly={viewOnly}
+      readOnly={readOnly}
+      hasPrev={hasPrev}
+      hasNext={hasNext}
+      onPrev={onPrev}
+      onNext={onNext}
+      progressLabel={progressLabel}
+      navItems={navItems}
+      currentNavIndex={currentNavIndex}
+      onJumpTo={onJumpTo}
+    />
   );
 }
+
 
 export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDelete, uploadedFiles, onFilesChange, onSave, implementationDetails, onImplementationDetailChange, committeeScores, onCommitteeScoreChange, committeeComments, onCommitteeCommentChange, userRole, scoreView, onIndicatorClick }: Props) {
   const [isOpen, setIsOpen] = useState(false);
@@ -816,8 +802,10 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
               </div>
               <div className="divide-y">
                 {topic.indicators.map((indicator) => {
-                  const indScore = displayScores[indicator.id] || 0;
+                  const rawScore = displayScores[indicator.id];
+                  const indScore = rawScore ?? 0;
                   const fileCount = (uploadedFiles[indicator.id] || []).length;
+                  const isCommitteeUnscored = scoreView === "committee" && committeeScores && rawScore === undefined;
                   return (
                     <button
                       key={indicator.id}
@@ -838,12 +826,16 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
                           {fileCount}
                         </span>
                       )}
-                      <span
-                        className="text-sm font-bold tabular-nums min-w-[3rem] text-right"
-                        style={{ color: indScore > 0 ? `hsl(${color})` : "hsl(var(--muted-foreground))" }}
-                      >
-                        {indScore}/{indicator.maxScore}
-                      </span>
+                      {isCommitteeUnscored ? (
+                        <span className="text-xs font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">รอ</span>
+                      ) : (
+                        <span
+                          className="text-sm font-bold tabular-nums min-w-[3rem] text-right"
+                          style={{ color: indScore > 0 ? `hsl(${color})` : "hsl(var(--muted-foreground))" }}
+                        >
+                          {indScore}/{indicator.maxScore}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -867,7 +859,7 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
           onSave={onSave ? () => onSave(selectedIndicator.id) : undefined}
           implementationDetail={implementationDetails?.[selectedIndicator.id] || ""}
           onImplementationDetailChange={(v) => onImplementationDetailChange?.(selectedIndicator.id, v)}
-          committeeScore={committeeScores?.[selectedIndicator.id] || 0}
+          committeeScore={committeeScores?.[selectedIndicator.id]}
           onCommitteeScoreChange={(v) => onCommitteeScoreChange?.(selectedIndicator.id, v)}
           committeeComment={committeeComments?.[selectedIndicator.id] || ""}
           onCommitteeCommentChange={(v) => onCommitteeCommentChange?.(selectedIndicator.id, v)}
