@@ -2,9 +2,25 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  Building2, MapPin, Phone, Mail, User, ClipboardCheck,
-  CalendarDays, Hash, ArrowRight, Trophy, TrendingUp,
-  CheckCircle2, Clock, ChevronRight, Loader2, Pencil, Plus, Eye, ListChecks
+  Building2,
+  MapPin,
+  Phone,
+  Mail,
+  User,
+  ClipboardCheck,
+  CalendarDays,
+  Hash,
+  ArrowRight,
+  Trophy,
+  TrendingUp,
+  CheckCircle2,
+  Clock,
+  ChevronRight,
+  Loader2,
+  Pencil,
+  Plus,
+  Eye,
+  ListChecks,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -52,10 +68,16 @@ interface Registration {
   createdAt: string;
 }
 
-const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  pending:  { label: "รอดำเนินการ",         variant: "secondary" },
-  selected: { label: "ผ่านการคัดเลือก",      variant: "default" },
-  rejected: { label: "ไม่ผ่านการคัดเลือก",   variant: "destructive" },
+const statusMap: Record<
+  string,
+  {
+    label: string;
+    variant: "default" | "secondary" | "destructive" | "outline";
+  }
+> = {
+  pending: { label: "รอดำเนินการ", variant: "secondary" },
+  selected: { label: "ผ่านการคัดเลือก", variant: "default" },
+  rejected: { label: "ไม่ผ่านการคัดเลือก", variant: "destructive" },
 };
 
 export default function EvaluateeHome() {
@@ -76,9 +98,12 @@ export default function EvaluateeHome() {
 
   useEffect(() => {
     // Fetch individual registration
-    apiClient.get("project-registrations/my")
+    apiClient
+      .get("project-registrations/my")
       .then(({ data }) => setReg(data))
-      .catch(() => {/* no registration record — use auth fallback */})
+      .catch(() => {
+        /* no registration record — use auth fallback */
+      })
       .finally(() => setRegLoading(false));
 
     // Fetch summary for the table
@@ -100,27 +125,51 @@ export default function EvaluateeHome() {
 
   const getSelfAssessmentBadge = (status: string | null, hasScore: boolean) => {
     if (status === "submitted" || status === "completed") {
-      return <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white border-none px-3">ทำประเมินแล้ว</Badge>;
+      return (
+        <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white border-none px-3">
+          ทำประเมินแล้ว
+        </Badge>
+      );
     }
     if (status === "draft" && hasScore) {
-      return <Badge className="bg-amber-500 hover:bg-amber-600 text-white border-none px-3">ร่าง</Badge>;
+      return (
+        <Badge className="bg-amber-500 hover:bg-amber-600 text-white border-none px-3">
+          ร่าง
+        </Badge>
+      );
     }
-    return <Badge variant="outline" className="text-slate-400 border-slate-200 px-3">ยังไม่ได้ประเมิน</Badge>;
+    return (
+      <Badge variant="outline" className="text-slate-400 border-slate-200 px-3">
+        ยังไม่ได้ประเมิน
+      </Badge>
+    );
   };
 
   const getCommitteeBadge = (hasScore: boolean) => {
-    if (hasScore) return <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white border-none px-3">ประเมินแล้ว</Badge>;
-    return <Badge variant="outline" className="text-slate-400 border-slate-200 px-3">ยังไม่ได้ประเมิน</Badge>;
+    if (hasScore)
+      return (
+        <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white border-none px-3">
+          ประเมินแล้ว
+        </Badge>
+      );
+    return (
+      <Badge variant="outline" className="text-slate-400 border-slate-200 px-3">
+        ยังไม่ได้ประเมิน
+      </Badge>
+    );
   };
 
   const programId = reg?.programId ?? user?.programAccess?.[0] ?? null;
   const hasAccess = !!programId;
 
   const regStatus = reg
-    ? (statusMap[reg.status] ?? { label: reg.status, variant: "outline" as const })
+    ? (statusMap[reg.status] ?? {
+        label: reg.status,
+        variant: "outline" as const,
+      })
     : { label: "ผ่านการคัดเลือก", variant: "default" as const };
 
-  const hasEvaluations = rows.some(row => row.evaluation_status !== null);
+  const hasEvaluations = rows.some((row) => row.evaluation_status !== null);
 
   if (regLoading || rowsLoading) {
     return (
@@ -141,89 +190,131 @@ export default function EvaluateeHome() {
   return (
     <div className="min-h-full bg-[#f8fafc]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-10">
-
         {/* ════ SECTION 1: ข้อมูลหน่วยงาน ════ */}
         <section className="space-y-4">
           <div className="flex items-center gap-2.5 px-1">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 shadow-sm">
               <Building2 className="h-5.5 w-5.5" />
             </div>
-            <h1 className="text-xl font-bold text-slate-800 tracking-tight">ข้อมูลการเข้าร่วมโครงการ</h1>
+            <h1 className="text-xl font-bold text-slate-800 tracking-tight">
+              ข้อมูลการเข้าร่วมโครงการ
+            </h1>
           </div>
 
-          <Card className="overflow-hidden border-none shadow-sm bg-white">
-            <CardContent className="p-0">
-              {/* Org Header */}
-              <div className="p-8 border-b border-slate-50 flex items-start gap-6 bg-gradient-to-br from-white to-slate-50/50">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white border border-slate-100 shrink-0 shadow-sm">
-                  <Building2 className="h-8 w-8 text-emerald-500" />
-                </div>
-                <div className="flex-1 min-w-0 pt-1">
-                  <div className="flex items-center gap-3 flex-wrap mb-1.5">
-                    <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
-                      {reg?.organizationName ?? user?.name ?? "-"}
-                    </h2>
-                    <Badge className="bg-blue-600 hover:bg-blue-700 text-white border-none px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider">
-                      {regStatus.label}
-                    </Badge>
+          <div className="rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-500 to-emerald-500 pr-[4px] pb-[4px]">
+            <Card className="overflow-hidden border-none shadow-sm bg-white rounded-xl h-full w-full">
+              <CardContent className="p-0">
+                {/* Org Header */}
+                <div className="p-8 border-b border-slate-50 flex items-start gap-6 bg-gradient-to-br from-white to-slate-50/50">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white border border-slate-100 shrink-0 shadow-sm">
+                    <Building2 className="h-8 w-8 text-emerald-500" />
                   </div>
-                  <p className="text-sm font-semibold text-slate-400 uppercase tracking-[0.1em]">{reg?.organizationType || "General Organization"}</p>
-                </div>
-              </div>
-
-              {/* Info Tiles Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-0 divide-y sm:divide-y-0 sm:divide-x border-b border-slate-50">
-                <InfoTile icon={<ClipboardCheck className="h-5 w-5 text-emerald-500" />} label="โครงการ">
-                  <span className="text-base font-bold text-slate-700">{reg?.programName ?? programId}</span>
-                </InfoTile>
-                <InfoTile icon={<MapPin className="h-5 w-5 text-emerald-500" />} label="จังหวัด">
-                  <span className="text-base font-bold text-slate-700">
-                    {(() => {
-                      const pValue = reg?.province ?? user?.province;
-                      const found = provinces.find((p: any) => String(p.code) === pValue || p.name === pValue);
-                      return found ? found.name : pValue ?? "-";
-                    })()}
-                  </span>
-                </InfoTile>
-                <InfoTile icon={<User className="h-5 w-5 text-emerald-500" />} label="ผู้ติดต่อ">
-                  <div className="flex flex-col">
-                    <span className="text-base font-bold text-slate-700 truncate">{reg?.contactName ?? user?.name ?? "-"}</span>
-                    <span className="text-xs text-slate-400 font-medium truncate">{reg?.contactEmail ?? user?.email ?? "-"}</span>
-                  </div>
-                </InfoTile>
-                <InfoTile icon={<CalendarDays className="h-5 w-5 text-emerald-500" />} label="วันที่เข้าร่วม">
-                  <span className="text-base font-bold text-slate-700">
-                    {reg
-                      ? new Date(reg.createdAt).toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric" })
-                      : new Date(user?.createdAt ?? Date.now()).toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric" })}
-                  </span>
-                </InfoTile>
-              </div>
-
-              {/* CTA Section */}
-              {(!reg || reg.status === "selected") && (
-                <div className="p-6 bg-slate-50/30">
-                  <div className="flex flex-col md:flex-row items-center justify-between gap-6 rounded-2xl bg-white border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="space-y-1 text-center md:text-left">
-                      <p className="text-lg font-bold text-slate-800">พร้อมประเมินตนเองแล้วหรือยัง?</p>
-                      <p className="text-sm text-slate-500 font-medium">
-                        กรอกแบบประเมินตนเองสำหรับโครงการ{" "}
-                        <span className="text-blue-600 font-bold underline underline-offset-4 decoration-2 decoration-blue-100">{reg?.programName || programId}</span>
-                      </p>
+                  <div className="flex-1 min-w-0 pt-1">
+                    <div className="flex items-center gap-3 flex-wrap mb-1.5">
+                      <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+                        {reg?.organizationName ?? user?.name ?? "-"}
+                      </h2>
+                      <Badge className="bg-blue-600 hover:bg-blue-700 text-white border-none px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider">
+                        {regStatus.label}
+                      </Badge>
                     </div>
-                    <Button
-                      onClick={() => navigate("/register/evaluate")}
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-6 rounded-xl shadow-lg shadow-blue-100 transition-all hover:translate-y-[-2px] active:translate-y-0 gap-2.5 w-full md:w-auto"
-                    >
-                      <ClipboardCheck className="h-5 w-5" />
-                      เริ่มประเมินตนเอง
-                      <ArrowRight className="h-5 w-5" />
-                    </Button>
+                    <p className="text-sm font-semibold text-slate-400 uppercase tracking-[0.1em]">
+                      {reg?.organizationType || "General Organization"}
+                    </p>
                   </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+
+                {/* Info Tiles Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-0 divide-y sm:divide-y-0 sm:divide-x border-b border-slate-50">
+                  <InfoTile
+                    icon={
+                      <ClipboardCheck className="h-5 w-5 text-emerald-500" />
+                    }
+                    label="โครงการ"
+                  >
+                    <span className="text-base font-bold text-slate-700">
+                      {reg?.programName ?? programId}
+                    </span>
+                  </InfoTile>
+                  <InfoTile
+                    icon={<MapPin className="h-5 w-5 text-emerald-500" />}
+                    label="จังหวัด"
+                  >
+                    <span className="text-base font-bold text-slate-700">
+                      {(() => {
+                        const pValue = reg?.province ?? user?.province;
+                        const found = provinces.find(
+                          (p: any) =>
+                            String(p.code) === pValue || p.name === pValue,
+                        );
+                        return found ? found.name : (pValue ?? "-");
+                      })()}
+                    </span>
+                  </InfoTile>
+                  <InfoTile
+                    icon={<User className="h-5 w-5 text-emerald-500" />}
+                    label="ผู้ติดต่อ"
+                  >
+                    <div className="flex flex-col">
+                      <span className="text-base font-bold text-slate-700 truncate">
+                        {reg?.contactName ?? user?.name ?? "-"}
+                      </span>
+                      <span className="text-xs text-slate-400 font-medium truncate">
+                        {reg?.contactEmail ?? user?.email ?? "-"}
+                      </span>
+                    </div>
+                  </InfoTile>
+                  <InfoTile
+                    icon={<CalendarDays className="h-5 w-5 text-emerald-500" />}
+                    label="วันที่เข้าร่วม"
+                  >
+                    <span className="text-base font-bold text-slate-700">
+                      {reg
+                        ? new Date(reg.createdAt).toLocaleDateString("th-TH", {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          })
+                        : new Date(
+                            user?.createdAt ?? Date.now(),
+                          ).toLocaleDateString("th-TH", {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          })}
+                    </span>
+                  </InfoTile>
+                </div>
+
+                {/* CTA Section */}
+                {(!reg || reg.status === "selected") && (
+                  <div className="p-6 bg-slate-50/30">
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-6 rounded-2xl bg-white border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="space-y-1 text-center md:text-left">
+                        <p className="text-lg font-bold text-slate-800">
+                          พร้อมประเมินตนเองแล้วหรือยัง?
+                        </p>
+                        <p className="text-sm text-slate-500 font-medium">
+                          กรอกแบบประเมินตนเองสำหรับโครงการ{" "}
+                          <span className="text-blue-600 font-bold underline underline-offset-4 decoration-2 decoration-blue-100">
+                            {reg?.programName || programId}
+                          </span>
+                        </p>
+                      </div>
+                      <Button
+                        onClick={() => navigate("/register/evaluate")}
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-6 rounded-xl shadow-lg shadow-blue-100 transition-all hover:translate-y-[-2px] active:translate-y-0 gap-2.5 w-full md:w-auto"
+                      >
+                        <ClipboardCheck className="h-5 w-5" />
+                        เริ่มประเมินตนเอง
+                        <ArrowRight className="h-5 w-5" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </section>
 
         {/* ════ SECTION 2: ตารางรายการประเมิน ════ */}
@@ -233,7 +324,9 @@ export default function EvaluateeHome() {
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600 border border-slate-200 shadow-sm">
                 <ListChecks className="h-5.5 w-5.5" />
               </div>
-              <h2 className="text-xl font-bold text-slate-800 tracking-tight">รายการประเมิน</h2>
+              <h2 className="text-xl font-bold text-slate-800 tracking-tight">
+                รายการประเมิน
+              </h2>
             </div>
 
             <div className="rounded-2xl border border-slate-100 bg-white overflow-hidden shadow-sm">
@@ -241,41 +334,66 @@ export default function EvaluateeHome() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-slate-50/50 hover:bg-slate-50/50 border-b border-slate-100">
-                      <TableHead className="text-center min-w-[140px] text-slate-400 font-bold uppercase text-[10px] tracking-[0.1em]">สถานะการประเมินตนเอง</TableHead>
-                      <TableHead className="text-center min-w-[100px] text-slate-400 font-bold uppercase text-[10px] tracking-[0.1em]">คะแนนรวม</TableHead>
-                      <TableHead className="text-center min-w-[140px] text-slate-400 font-bold uppercase text-[10px] tracking-[0.1em]">สถานะการประเมินกรรมการ</TableHead>
-                      <TableHead className="text-center min-w-[100px] text-slate-400 font-bold uppercase text-[10px] tracking-[0.1em]">คะแนนรวมกรรมการ</TableHead>
-                      <TableHead className="text-center w-24 text-slate-400 font-bold uppercase text-[10px] tracking-[0.1em]">จัดการ</TableHead>
+                      <TableHead className="text-center min-w-[140px] text-slate-400 font-bold uppercase text-[10px] tracking-[0.1em]">
+                        สถานะการประเมินตนเอง
+                      </TableHead>
+                      <TableHead className="text-center min-w-[100px] text-slate-400 font-bold uppercase text-[10px] tracking-[0.1em]">
+                        คะแนนรวม
+                      </TableHead>
+                      <TableHead className="text-center min-w-[140px] text-slate-400 font-bold uppercase text-[10px] tracking-[0.1em]">
+                        สถานะการประเมินกรรมการ
+                      </TableHead>
+                      <TableHead className="text-center min-w-[100px] text-slate-400 font-bold uppercase text-[10px] tracking-[0.1em]">
+                        คะแนนรวมกรรมการ
+                      </TableHead>
+                      <TableHead className="text-center w-24 text-slate-400 font-bold uppercase text-[10px] tracking-[0.1em]">
+                        จัดการ
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {rows.filter(r => r.evaluation_status !== null).slice(0, 1).map((row) => (
-                      <TableRow key={row.id} className="hover:bg-slate-50/50 transition-colors border-b border-slate-50 last:border-0 group">
-                        <TableCell className="text-center">
-                          {getSelfAssessmentBadge(row.evaluation_status, row.has_self_score)}
-                        </TableCell>
-                        <TableCell className="text-center font-bold text-slate-600">
-                          {row.has_self_score ? `${row.total_score || 0}/${row.total_max || 0}` : "-"}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {getCommitteeBadge(row.has_committee_score)}
-                        </TableCell>
-                        <TableCell className="text-center font-bold text-slate-600">
-                          {row.has_committee_score ? `${row.total_committee_score || 0}/${row.total_max || 0}` : "-"}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => navigate(`/register/evaluate?filter=evaluated`)}
-                            className="h-10 w-10 rounded-xl border-emerald-100 bg-emerald-50/50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 transition-all shadow-sm"
-                            title="แก้ไขการประเมิน"
-                          >
-                            <Pencil className="h-5 w-5" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {rows
+                      .filter((r) => r.evaluation_status !== null)
+                      .slice(0, 1)
+                      .map((row) => (
+                        <TableRow
+                          key={row.id}
+                          className="hover:bg-slate-50/50 transition-colors border-b border-slate-50 last:border-0 group"
+                        >
+                          <TableCell className="text-center">
+                            {getSelfAssessmentBadge(
+                              row.evaluation_status,
+                              row.has_self_score,
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center font-bold text-slate-600">
+                            {row.has_self_score
+                              ? `${row.total_score || 0}/${row.total_max || 0}`
+                              : "-"}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {getCommitteeBadge(row.has_committee_score)}
+                          </TableCell>
+                          <TableCell className="text-center font-bold text-slate-600">
+                            {row.has_committee_score
+                              ? `${row.total_committee_score || 0}/${row.total_max || 0}`
+                              : "-"}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() =>
+                                navigate(`/register/evaluate?filter=evaluated`)
+                              }
+                              className="h-10 w-10 rounded-xl border-emerald-100 bg-emerald-50/50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 transition-all shadow-sm"
+                              title="แก้ไขการประเมิน"
+                            >
+                              <Pencil className="h-5 w-5" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
                   </TableBody>
                 </Table>
               </div>
@@ -288,14 +406,24 @@ export default function EvaluateeHome() {
 }
 
 // ─── Small helpers ────────────────────────────────────────────────────────────
-function InfoTile({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
+function InfoTile({
+  icon,
+  label,
+  children,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex items-start gap-4 p-6 transition-all hover:bg-slate-50/50 group">
       <div className="mt-0.5 shrink-0 p-2.5 rounded-xl bg-slate-50 border border-slate-100 group-hover:bg-white group-hover:shadow-sm transition-all">
         {icon}
       </div>
       <div className="flex flex-col gap-0.5 min-w-0 overflow-hidden">
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">{label}</p>
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">
+          {label}
+        </p>
         <div className="flex flex-col justify-center min-h-[1.5rem]">
           {children}
         </div>
