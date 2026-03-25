@@ -4,7 +4,7 @@ import { Category } from "@/data/evaluationData";
 import type { UploadedFile, IndicatorNavItem } from "@/components/evaluation/CategoryCard";
 import { CategoryCard, IndicatorDialog, getCategoryColor } from "@/components/evaluation/CategoryCard";
 import { ScoreSummary } from "@/components/evaluation/ScoreSummary";
-import { ClipboardCheck, Loader2, ArrowLeft, RotateCcw, CheckCircle2 } from "lucide-react";
+import { ClipboardCheck, Loader2, ArrowLeft, RotateCcw, CheckCircle2, Clock, FileText, AlertCircle, XCircle } from "lucide-react";
 import apiClient from "@/lib/axios";
 import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -239,8 +239,19 @@ const EvaluationByProgramPage = () => {
     })),
   [flatIndicators, scores, committeeScores, role]);
 
-  const isCompleted = evaluationStatus === "completed";
-  const isSubmitted = evaluationStatus === "submitted";
+  const isCompleted = evaluationStatus === "completed" || evaluationStatus === "complete";
+  const isSubmitted = evaluationStatus === "submitted" || evaluationStatus === "submit";
+
+  const statusConfig: Record<string, { label: string; icon: React.ReactNode; badge: string; banner?: string }> = {
+    draft:     { label: "ร่าง",             icon: <FileText className="h-3.5 w-3.5" />,    badge: "bg-gray-100 text-gray-600 border-gray-300" },
+    submit:    { label: "รอผู้ประเมิน",     icon: <Clock className="h-3.5 w-3.5" />,        badge: "bg-blue-100 text-blue-700 border-blue-300" },
+    submitted: { label: "รอผู้ประเมิน",     icon: <Clock className="h-3.5 w-3.5" />,        badge: "bg-blue-100 text-blue-700 border-blue-300" },
+    complete:  { label: "ประเมินเสร็จสิ้น", icon: <CheckCircle2 className="h-3.5 w-3.5" />, badge: "bg-green-100 text-green-700 border-green-300" },
+    completed: { label: "ประเมินเสร็จสิ้น", icon: <CheckCircle2 className="h-3.5 w-3.5" />, badge: "bg-green-100 text-green-700 border-green-300" },
+    revision:  { label: "ส่งกลับแก้ไข",    icon: <AlertCircle className="h-3.5 w-3.5" />,  badge: "bg-amber-100 text-amber-700 border-amber-300", banner: "bg-amber-50 border-amber-300 text-amber-800" },
+    cancel:    { label: "ยกเลิก",           icon: <XCircle className="h-3.5 w-3.5" />,      badge: "bg-red-100 text-red-700 border-red-300",    banner: "bg-red-50 border-red-300 text-red-800" },
+  };
+  const currentStatus = evaluationStatus ? statusConfig[evaluationStatus] : null;
 
   const allCommitteeScored = useMemo(() => {
     if (role === "user") return true;
@@ -312,7 +323,15 @@ const EvaluationByProgramPage = () => {
             <ClipboardCheck className="h-5 w-5 text-primary-foreground" />
           </div>
           <div className="flex-1">
-            <h2 className="text-lg font-bold text-foreground">ประเมิน {programName}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-bold text-foreground">ประเมิน {programName}</h2>
+              {currentStatus && (
+                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${currentStatus.badge}`}>
+                  {currentStatus.icon}
+                  {currentStatus.label}
+                </span>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground">
               {categories.length} หมวด · {totalTopics} ประเด็น · {totalIndicators} ตัวชี้วัด · คะแนนเต็ม {grandMax}
             </p>
@@ -347,9 +366,15 @@ const EvaluationByProgramPage = () => {
             </Button>
           )}
           {isCompleted ? (
-            <span className="ml-2 text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-700 border border-green-300">
-              ✓ ยืนยันผลแล้ว
-            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/evaluation/${programId}/summary?evaluateeId=${evaluateeId || ""}`)}
+              className="ml-2 gap-1.5 text-green-700 border-green-300 bg-green-50 hover:bg-green-100"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              ดูสรุปผลการประเมิน
+            </Button>
           ) : (
             role !== "user" && isSubmitted && (
               <div className="flex items-center gap-2 ml-2">
@@ -366,6 +391,14 @@ const EvaluationByProgramPage = () => {
           )}
         </div>
       </div>
+
+      {currentStatus?.banner && (
+        <div className={`flex items-center gap-2 px-6 py-2.5 border-b text-sm font-medium ${currentStatus.banner}`}>
+          {currentStatus.icon}
+          {evaluationStatus === "revision" && "เอกสารนี้ถูกส่งกลับเพื่อแก้ไข กรุณารอการแก้ไขจากผู้ถูกประเมิน"}
+          {evaluationStatus === "cancel" && "เอกสารนี้ถูกยกเลิกแล้ว"}
+        </div>
+      )}
 
       <div className="px-6 py-6 space-y-6">
         <ScoreSummary data={summaryData} committeeData={committeeSummaryData} />

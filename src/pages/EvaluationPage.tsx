@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ClipboardCheck, Loader2, Plus, Pencil, Search, X, Eye } from "lucide-react";
+import { ClipboardCheck, Loader2, Plus, Pencil, Search, X, Eye, BarChart2 } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,8 @@ interface RegistrationRow {
   has_self_score: boolean;
   total_score?: number;
   total_max?: number;
+  self_total_score?: number;
+  committee_total_score?: number;
 }
 
 const EvaluationPage = () => {
@@ -243,6 +245,9 @@ const EvaluationPage = () => {
                   <TableHead>จังหวัด</TableHead>
                   <TableHead className="text-center">สถานะประเมินตนเอง</TableHead>
                   <TableHead className="text-center">สถานะกรรมการประเมิน</TableHead>
+                  <TableHead className="text-center w-28">คะแนนรวมตนเอง</TableHead>
+                  <TableHead className="text-center w-28">คะแนนรวมกรรมการ</TableHead>
+                  <TableHead className="text-center w-24">สรุปผล</TableHead>
                   <TableHead className="text-center w-20">จัดการ</TableHead>
                 </TableRow>
               </TableHeader>
@@ -255,6 +260,28 @@ const EvaluationPage = () => {
                     <TableCell>{row.province}</TableCell>
                     <TableCell className="text-center">{getSelfAssessmentBadge(row.self_status, row.has_self_score)}</TableCell>
                     <TableCell className="text-center">{getCommitteeBadge(row.has_committee_score)}</TableCell>
+                    <TableCell className="text-center text-sm">
+                      {row.self_total_score != null
+                        ? <span>{row.self_total_score}{row.total_max != null ? <span className="text-muted-foreground">/{row.total_max}</span> : null}</span>
+                        : <span className="text-muted-foreground">-</span>}
+                    </TableCell>
+                    <TableCell className="text-center text-sm">
+                      {row.committee_total_score != null
+                        ? <span className="text-primary font-medium">{row.committee_total_score}{row.total_max != null ? <span className="text-muted-foreground font-normal">/{row.total_max}</span> : null}</span>
+                        : <span className="text-muted-foreground">-</span>}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {(row.committee_status === "complete" || row.committee_status === "completed") && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => navigate(`/evaluation/${row.program_id}/summary?evaluateeId=${row.user_id}`)}
+                          title="ดูสรุปผลการประเมิน"
+                        >
+                          <BarChart2 className="h-4 w-4 text-green-600" />
+                        </Button>
+                      )}
+                    </TableCell>
                     <TableCell className="text-center">
                       <Button
                         variant="ghost"

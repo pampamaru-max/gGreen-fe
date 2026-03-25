@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Building2, MapPin, Phone, Mail, User, ClipboardCheck,
   Loader2, CheckCircle2, CalendarDays, Hash, ArrowLeft,
+  Clock, FileText, AlertCircle, XCircle, RotateCcw,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -342,6 +343,17 @@ export default function ProjectRegistration() {
   const isEvalReadOnly = evaluationStatus === "submitted" || evaluationStatus === "completed";
   const isEvalCompleted = evaluationStatus === "completed";
 
+  const evalStatusConfig: Record<string, { label: string; icon: React.ReactNode; badge: string; banner?: string }> = {
+    draft:     { label: "ร่าง",             icon: <FileText className="h-3.5 w-3.5" />,    badge: "bg-gray-100 text-gray-600 border-gray-300" },
+    submit:    { label: "รอผู้ประเมิน",     icon: <Clock className="h-3.5 w-3.5" />,        badge: "bg-blue-100 text-blue-700 border-blue-300" },
+    submitted: { label: "รอผู้ประเมิน",     icon: <Clock className="h-3.5 w-3.5" />,        badge: "bg-blue-100 text-blue-700 border-blue-300" },
+    complete:  { label: "ประเมินเสร็จสิ้น", icon: <CheckCircle2 className="h-3.5 w-3.5" />, badge: "bg-green-100 text-green-700 border-green-300" },
+    completed: { label: "ประเมินเสร็จสิ้น", icon: <CheckCircle2 className="h-3.5 w-3.5" />, badge: "bg-green-100 text-green-700 border-green-300" },
+    revision:  { label: "ส่งกลับแก้ไข",    icon: <AlertCircle className="h-3.5 w-3.5" />,  badge: "bg-amber-100 text-amber-700 border-amber-300", banner: "bg-amber-50 border-amber-300 text-amber-800" },
+    cancel:    { label: "ยกเลิก",           icon: <XCircle className="h-3.5 w-3.5" />,      badge: "bg-red-100 text-red-700 border-red-300",    banner: "bg-red-50 border-red-300 text-red-800" },
+  };
+  const currentEvalStatus = evaluationStatus ? evalStatusConfig[evaluationStatus] : null;
+
   // ── Render ─────────────────────────────────────────────────────────────────
   if (regLoading || !programId) {
     return (
@@ -381,6 +393,12 @@ export default function ProjectRegistration() {
                 {registration?.organizationName ?? user?.name ?? "-"}
               </h2>
               <Badge variant={status.variant}>{status.label}</Badge>
+              {currentEvalStatus && (
+                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${currentEvalStatus.badge}`}>
+                  {currentEvalStatus.icon}
+                  {currentEvalStatus.label}
+                </span>
+              )}
             </div>
             <p className="text-sm text-muted-foreground">{registration?.organizationType ?? ""}</p>
           </div>
@@ -421,6 +439,15 @@ export default function ProjectRegistration() {
           </InfoTile>
         </div>
       </div>
+
+      {/* ════ EVALUATION STATUS BANNER ════ */}
+      {currentEvalStatus?.banner && (
+        <div className={`flex items-center gap-2 px-4 sm:px-6 py-2.5 border-b text-sm font-medium ${currentEvalStatus.banner}`}>
+          {currentEvalStatus.icon}
+          {evaluationStatus === "revision" && "เอกสารนี้ถูกส่งกลับเพื่อแก้ไข กรุณาตรวจสอบและส่งใหม่อีกครั้ง"}
+          {evaluationStatus === "cancel" && "เอกสารนี้ถูกยกเลิกแล้ว"}
+        </div>
+      )}
 
       {/* ════ EVALUATION FORM ════ */}
       <div className="px-4 sm:px-6 py-6 space-y-6">
@@ -505,9 +532,11 @@ export default function ProjectRegistration() {
                 >
                   {submitting
                     ? <><Loader2 className="h-4 w-4 animate-spin" />กำลังส่งแบบประเมิน...</>
-                    : !allScored 
+                    : !allScored
                       ? <><ClipboardCheck className="h-4 w-4" />กรุณาประเมินให้ครบทุกตัวชี้วัด</>
-                      : <><ClipboardCheck className="h-4 w-4" />ส่งแบบประเมินตนเอง</>}
+                      : evaluationStatus === "revision"
+                        ? <><RotateCcw className="h-4 w-4" />ส่งแบบประเมินใหม่อีกครั้ง</>
+                        : <><ClipboardCheck className="h-4 w-4" />ส่งแบบประเมินตนเอง</>}
                 </Button>
               )
             )}
