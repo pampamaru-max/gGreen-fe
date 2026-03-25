@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   Building2, MapPin, Phone, Mail, User, ClipboardCheck,
   Loader2, CheckCircle2, CalendarDays, Hash, ArrowLeft,
@@ -83,11 +83,6 @@ export default function ProjectRegistration() {
   const [evaluationStatus, setEvaluationStatus] = useState<string | null>(null);
   const [wizardIndex, setWizardIndex]       = useState<number | null>(null);
   const navigate = useNavigate();
-  const location = useLocation();
-
-  const queryParams = new URLSearchParams(location.search);
-  const filterType = queryParams.get("filter");
-
   // ── Fetch evaluation form + existing answers ───────────────────────────────
   useEffect(() => {
     if (!programId) return;
@@ -414,7 +409,7 @@ export default function ProjectRegistration() {
             )}
 
             {/* Score summary grid */}
-            {summaryData.length > 0 && <ScoreSummary data={summaryData} showOnlyWithScore={true} />}
+            {summaryData.length > 0 && <ScoreSummary data={summaryData} />}
 
             {/* Category cards */}
             {categories.map((category, idx) => (
@@ -430,6 +425,7 @@ export default function ProjectRegistration() {
                 implementationDetails={implDetails}
                 onImplementationDetailChange={handleDetailChange}
                 userRole="user"
+                onIndicatorClick={handleOpenWizard}
               />
             ))}
 
