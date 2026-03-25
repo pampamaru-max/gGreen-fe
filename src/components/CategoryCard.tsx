@@ -149,9 +149,21 @@ function EvaluateeIndicatorDialog({
   const doSave = async () => {
     if (onSave && !readOnly) { setSaving(true); await onSave(); setSaving(false); }
   };
-  const handlePrevClick = async () => { await doSave(); onPrev?.(); };
-  const handleNextClick = async () => { await doSave(); onNext?.(); };
-  const handleJumpTo = async (idx: number) => { if (idx !== currentNavIndex) await doSave(); onJumpTo?.(idx); };
+
+  const handlePrevClick = async () => {
+    await doSave();
+    onPrev?.();
+  };
+
+  const handleNextClick = async () => {
+    await doSave();
+    onNext?.();
+  };
+
+  const handleJumpTo = async (idx: number) => {
+    if (idx !== currentNavIndex) await doSave();
+    onJumpTo?.(idx);
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = e.target.files;
@@ -159,22 +171,32 @@ function EvaluateeIndicatorDialog({
     setUploading(true);
     const newFiles: UploadedFile[] = [];
     for (const file of Array.from(selectedFiles)) {
-      if (file.size > 10 * 1024 * 1024) { toast.error(`ไฟล์ ${file.name} ใหญ่เกิน 10MB`); continue; }
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(`ไฟล์ ${file.name} ใหญ่เกิน 10MB`);
+        continue;
+      }
       try {
         const formData = new FormData();
         formData.append("file", file);
         formData.append("folder", indicator.id);
-        const { data } = await apiClient.post("evaluation/files/upload", formData, { headers: { "Content-Type": "multipart/form-data" } });
+        const { data } = await apiClient.post("evaluation/files/upload", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
         newFiles.push({ name: data.name ?? file.name, url: data.url, path: data.url });
-      } catch { toast.error(`อัปโหลด ${file.name} ไม่สำเร็จ`); }
+      } catch {
+        toast.error(`อัปโหลด ${file.name} ไม่สำเร็จ`);
+      }
     }
+
     onFilesChange([...files, ...newFiles]);
     setUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleDeleteFile = async (file: UploadedFile) => {
-    try { await apiClient.delete("evaluation/files/delete", { data: { url: file.url } }); } catch {}
+    try {
+      await apiClient.delete("evaluation/files/delete", { data: { url: file.url } });
+    } catch { /* ลบออกจาก UI ต่อไปแม้ลบจาก server ไม่สำเร็จ */ }
     onFilesChange(files.filter((f) => f.url !== file.url));
   };
 
@@ -238,10 +260,15 @@ function EvaluateeIndicatorDialog({
                     <div key={f.path} className="flex items-center gap-2 bg-muted/50 border rounded-lg px-3 py-1.5 text-sm">
                       <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                       <span className="truncate max-w-[180px]">{f.name}</span>
-                      <a href={f.url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-muted-foreground hover:text-foreground"><Eye className="h-3.5 w-3.5" /></a>
-                      {!readOnly && (
-                        <button onClick={() => handleDeleteFile(f)} className="shrink-0 text-muted-foreground hover:text-destructive"><X className="h-3.5 w-3.5" /></button>
-                      )}
+                      <a href={f.url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-muted-foreground hover:text-foreground">
+                        <Eye className="h-3.5 w-3.5" />
+                      </a>
+                      <button
+                        onClick={() => handleDeleteFile(f)}
+                        className="shrink-0 text-muted-foreground hover:text-destructive"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   ))}
                 </div>

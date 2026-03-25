@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Building2, MapPin, Phone, Mail, User, ClipboardCheck,
   Loader2, CheckCircle2, CalendarDays, Hash, ArrowLeft,
@@ -83,6 +83,10 @@ export default function ProjectRegistration() {
   const [evaluationStatus, setEvaluationStatus] = useState<string | null>(null);
   const [wizardIndex, setWizardIndex]       = useState<number | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const queryParams = new URLSearchParams(location.search);
+  const filterType = queryParams.get("filter");
 
   // ── Fetch evaluation form + existing answers ───────────────────────────────
   useEffect(() => {
@@ -210,15 +214,24 @@ export default function ProjectRegistration() {
 
   // ── Derived stats ──────────────────────────────────────────────────────────
   const summaryData = useMemo(() =>
-    categories.map((cat) => {
+    categories.map((cat, idx) => {
       let totalScore = 0, totalMax = 0;
       cat.topics.forEach((t) => t.indicators.forEach((i) => {
         totalScore += scores[i.id] ?? 0;
         totalMax   += i.maxScore;
       }));
-      return { id: cat.id, name: cat.name, score: totalScore, maxScore: cat.maxScore, totalPossible: totalMax };
+      return { id: cat.id, name: cat.name, score: totalScore, maxScore: cat.maxScore, totalPossible: totalMax, index: idx };
     }),
   [scores, categories]);
+
+  const allScored = useMemo(() => {
+    if (categories.length === 0) return false;
+    return categories.every(cat =>
+      cat.topics.every(topic =>
+        topic.indicators.every(ind => scores[ind.id] !== undefined)
+      )
+    );
+  }, [categories, scores]);
 
   const grandTotal    = summaryData.reduce((s, c) => s + c.score, 0);
   const grandMax      = summaryData.reduce((s, c) => s + c.totalPossible, 0);
@@ -401,7 +414,7 @@ export default function ProjectRegistration() {
             )}
 
             {/* Score summary grid */}
-            {summaryData.length > 0 && <ScoreSummary data={summaryData} />}
+            {summaryData.length > 0 && <ScoreSummary data={summaryData} showOnlyWithScore={true} />}
 
             {/* Category cards */}
             {categories.map((category, idx) => (
@@ -417,7 +430,6 @@ export default function ProjectRegistration() {
                 implementationDetails={implDetails}
                 onImplementationDetailChange={handleDetailChange}
                 userRole="user"
-                onIndicatorClick={handleOpenWizard}
               />
             ))}
 
@@ -452,13 +464,15 @@ export default function ProjectRegistration() {
               ) : (
                 <Button
                   onClick={handleSubmitAll}
-                  disabled={submitting}
+                  disabled={submitting || !allScored}
                   size="lg"
                   className="w-full h-12 text-base font-bold gap-2"
                 >
                   {submitting
                     ? <><Loader2 className="h-4 w-4 animate-spin" />กำลังส่งแบบประเมิน...</>
-                    : <><ClipboardCheck className="h-4 w-4" />ส่งแบบประเมินตนเอง</>}
+                    : !allScored 
+                      ? <><ClipboardCheck className="h-4 w-4" />กรุณาประเมินให้ครบทุกตัวชี้วัด</>
+                      : <><ClipboardCheck className="h-4 w-4" />ส่งแบบประเมินตนเอง</>}
                 </Button>
               )
             )}
