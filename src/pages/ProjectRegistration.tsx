@@ -93,6 +93,9 @@ export default function ProjectRegistration() {
     const load = async () => {
       setEvalLoading(true);
       try {
+        const searchParams = new URLSearchParams(window.location.search);
+        const urlEvalId = searchParams.get("id");
+
         // 1. Form structure — GET /programs/:id/evaluation-form
         const { data: formData } = await apiClient.get(`programs/${programId}/evaluation-form`);
         const prog = formData?.program;
@@ -128,16 +131,18 @@ export default function ProjectRegistration() {
 
         // 3. Check latest evaluation status — if completed, create a new draft explicitly
         let isLastCompleted = false;
-        try {
-          const { data: statusData } = await apiClient.get(
-            `evaluation/status?userId=${user?.id}&programId=${programId}`
-          );
-          if (statusData?.self_status === "completed") {
-            isLastCompleted = true;
-          }
-        } catch { /* no status record yet — treat as new */ }
+        if (!urlEvalId) {
+          try {
+            const { data: statusData } = await apiClient.get(
+              `evaluation/status?userId=${user?.id}&programId=${programId}`
+            );
+            if (statusData?.self_status === "completed") {
+              isLastCompleted = true;
+            }
+          } catch { /* no status record yet — treat as new */ }
+        }
 
-        if (isLastCompleted) {
+        if (isLastCompleted && !urlEvalId) {
           // POST /evaluation to create a brand-new draft (backend findFirst would reuse old otherwise)
           const { data: newEval } = await apiClient.post("evaluation", {
             programId,
@@ -149,7 +154,8 @@ export default function ProjectRegistration() {
           }
         } else {
           // 4. Load existing evaluation
-          const { data: evalData } = await apiClient.get(`evaluation/program/${programId}`);
+          const fetchUrl = urlEvalId ? `evaluation/${urlEvalId}` : `evaluation/program/${programId}`;
+          const { data: evalData } = await apiClient.get(fetchUrl);
           if (evalData) {
             setEvaluationId(evalData.id);
             setEvaluationStatus(evalData.status);
@@ -270,6 +276,9 @@ export default function ProjectRegistration() {
 
   const grandTotal    = summaryData.reduce((s, c) => s + c.score, 0);
   const grandMax      = summaryData.reduce((s, c) => s + c.totalPossible, 0);
+  const grandCommitteeTotal = summaryData.every(s => s.committeeScore === undefined)
+    ? undefined
+    : summaryData.reduce((s, c) => s + (c.committeeScore || 0), 0);
 
   // ── Wizard flat list ───────────────────────────────────────────────────────
   const flatIndicators = useMemo(() => {
@@ -467,6 +476,7 @@ export default function ProjectRegistration() {
               grandTotal={grandTotal}
               grandMax={grandMax}
               submitted={isEvalReadOnly}
+              committeeTotal={grandCommitteeTotal}
             />
 
             {/* Scoring levels */}
