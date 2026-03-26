@@ -116,7 +116,6 @@ function NavStrip({ navItems, currentNavIndex, onJumpTo }: {
 function EvaluateeIndicatorDialog({
   indicator, score, onScoreChange, color, files, onFilesChange,
   open, onOpenChange, onSave, implementationDetail, onImplementationDetailChange,
-  committeeScore, committeeComment,
   readOnly = false,
   hasPrev, hasNext, onPrev, onNext, progressLabel, navItems, currentNavIndex, onJumpTo,
 }: {
@@ -131,8 +130,6 @@ function EvaluateeIndicatorDialog({
   onSave?: () => Promise<void>;
   implementationDetail?: string;
   onImplementationDetailChange?: (value: string) => void;
-  committeeScore?: number;
-  committeeComment?: string;
   readOnly?: boolean;
   hasPrev?: boolean;
   hasNext?: boolean;
@@ -292,7 +289,7 @@ function EvaluateeIndicatorDialog({
             </div>
           </div>
 
-          {/* ขวา: คะแนนจากการประเมินตนเอง — แสดงครบทุกข้อ, interactive เมื่อไม่ readOnly */}
+          {/* ขวา: คะแนนจากการประเมินตนเอง */}
           <div className="overflow-y-auto scrollbar-thin px-6 py-5 space-y-5">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -369,30 +366,6 @@ function EvaluateeIndicatorDialog({
                 </div>
               )}
             </div>
-            {/* คะแนนจากกรรมการ (read-only) */}
-            <div className="rounded-lg border bg-muted/20 px-4 py-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">กรรมการให้คะแนน</p>
-                <div>
-                  {committeeScore !== undefined ? (
-                    <span className="text-xl font-bold"
-                      style={{ color: committeeScore > 0 ? `hsl(${getScoreColor(committeeScore)})` : "hsl(var(--muted-foreground))" }}>
-                      {committeeScore}
-                    </span>
-                  ) : (
-                    <span className="text-sm font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">รอ</span>
-                  )}
-                  <span className="text-sm text-muted-foreground">/{indicator.maxScore}</span>
-                </div>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">ความเห็นกรรมการ</p>
-                <p className="text-sm text-foreground/70 bg-background border rounded-md px-3 py-2 min-h-[48px] whitespace-pre-line">
-                  {committeeComment || <span className="text-muted-foreground italic">ยังไม่มีความเห็น</span>}
-                </p>
-              </div>
-            </div>
-
             {indicator.notes && (
               <div className="space-y-1.5">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">หมายเหตุเกณฑ์การให้คะแนน</p>
@@ -571,7 +544,7 @@ function EvaluatorIndicatorDialog({
               )}
             </div>
 
-            {/* กรรมการให้คะแนน + ความเห็นกรรมการ — ซ่อนเมื่อ viewOnly (ดูฝั่งผู้ถูกประเมิน) */}
+            {/* กรรมการให้คะแนน + ความเห็นกรรมการ — ซ่อนเมื่อ viewOnly */}
             {!viewOnly && <>
             <div className="space-y-2" style={{ pointerEvents: readOnly ? "none" : undefined, opacity: readOnly ? 0.7 : undefined }}>
               <div className="flex items-center justify-between">
@@ -694,9 +667,7 @@ export function IndicatorDialog({
   committeeComment,
   onCommitteeCommentChange,
   userRole,
-  viewOnly = false,
   readOnly = false,
-  // Wizard / navigation props
   hasPrev,
   hasNext,
   onPrev,
@@ -705,6 +676,7 @@ export function IndicatorDialog({
   navItems,
   currentNavIndex,
   onJumpTo,
+  viewOnly,
 }: {
   indicator: Category["topics"][0]["indicators"][0];
   score: number;
@@ -724,7 +696,6 @@ export function IndicatorDialog({
   userRole?: string | null;
   viewOnly?: boolean;
   readOnly?: boolean;
-  // Wizard / navigation
   hasPrev?: boolean;
   hasNext?: boolean;
   onPrev?: () => void;
@@ -748,8 +719,6 @@ export function IndicatorDialog({
         onSave={onSave}
         implementationDetail={implementationDetail}
         onImplementationDetailChange={onImplementationDetailChange}
-        committeeScore={committeeScore}
-        committeeComment={committeeComment}
         readOnly={readOnly}
         hasPrev={hasPrev}
         hasNext={hasNext}
@@ -789,7 +758,6 @@ export function IndicatorDialog({
     />
   );
 }
-
 
 export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDelete, uploadedFiles, onFilesChange, onSave, implementationDetails, onImplementationDetailChange, committeeScores, onCommitteeScoreChange, committeeComments, onCommitteeCommentChange, userRole, scoreView, onIndicatorClick }: Props) {
   const [isOpen, setIsOpen] = useState(false);
@@ -859,10 +827,10 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
               </div>
               <div className="divide-y">
                 {topic.indicators.map((indicator) => {
-                  const rawScore = displayScores[indicator.id];
-                  const indScore = rawScore ?? 0;
+                  const selfScore = scores[indicator.id] ?? 0;
+                  const cScore = committeeScores?.[indicator.id];
                   const fileCount = (uploadedFiles[indicator.id] || []).length;
-                  const isCommitteeUnscored = scoreView === "committee" && committeeScores && rawScore === undefined;
+                  const isCommitteeMode = scoreView === "committee";
                   return (
                     <button
                       key={indicator.id}
@@ -883,14 +851,33 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
                           {fileCount}
                         </span>
                       )}
-                      {isCommitteeUnscored ? (
-                        <span className="text-xs font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">รอ</span>
+                      {isCommitteeMode ? (
+                        <div className="flex items-center gap-2 shrink-0">
+                          {/* คะแนนตนเอง */}
+                          <span className="text-xs text-muted-foreground tabular-nums">
+                            {selfScore}/{indicator.maxScore}
+                          </span>
+                          <span className="text-muted-foreground/40">→</span>
+                          {/* คะแนนกรรมการ */}
+                          {cScore !== undefined ? (
+                            <span
+                              className="text-sm font-bold tabular-nums min-w-[3rem] text-right"
+                              style={{ color: `hsl(${color})` }}
+                            >
+                              {cScore}/{indicator.maxScore}
+                            </span>
+                          ) : (
+                            <span className="text-xs font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 min-w-[3rem] text-center">
+                              รอ
+                            </span>
+                          )}
+                        </div>
                       ) : (
                         <span
                           className="text-sm font-bold tabular-nums min-w-[3rem] text-right"
-                          style={{ color: indScore > 0 ? `hsl(${color})` : "hsl(var(--muted-foreground))" }}
+                          style={{ color: selfScore > 0 ? `hsl(${color})` : "hsl(var(--muted-foreground))" }}
                         >
-                          {indScore}/{indicator.maxScore}
+                          {selfScore}/{indicator.maxScore}
                         </span>
                       )}
                     </button>

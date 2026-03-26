@@ -3,12 +3,13 @@ import { useNavigate } from "react-router-dom";
 import {
   Building2, MapPin, Phone, Mail, User, ClipboardCheck,
   Loader2, CheckCircle2, CalendarDays, Hash, ArrowLeft,
+  Clock, FileText, AlertCircle, XCircle, RotateCcw,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CategoryCard } from "@/components/CategoryCard";
-import type { UploadedFile } from "@/components/CategoryCard";
+import { CategoryCard, IndicatorDialog, getCategoryColor } from "@/components/CategoryCard";
+import type { UploadedFile, IndicatorNavItem } from "@/components/CategoryCard";
 import { ScoreSummary } from "@/components/ScoreSummary";
 import { SelfEvalHeader } from "@/components/self-eval/SelfEvalHeader";
 import { ScoringLevelBadges } from "@/components/self-eval/ScoringLevelBadges";
@@ -79,10 +80,12 @@ export default function ProjectRegistration() {
   const [uploadedFiles, setUploadedFiles]   = useState<Record<string, UploadedFile[]>>({});
   const [implDetails, setImplDetails]       = useState<Record<string, string>>({});
   const [evaluationId, setEvaluationId]     = useState<string | null>(null);
+  const [committeeScores, setCommitteeScores] = useState<Record<string, number>>({});
+  const [committeeComments, setCommitteeComments] = useState<Record<string, string>>({});
   const [submitting, setSubmitting]         = useState(false);
-  const [submitted, setSubmitted]           = useState(false);
+  const [evaluationStatus, setEvaluationStatus] = useState<string | null>(null);
+  const [wizardIndex, setWizardIndex]       = useState<number | null>(null);
   const navigate = useNavigate();
-
   // ── Fetch evaluation form + existing answers ───────────────────────────────
   useEffect(() => {
     if (!programId) return;
@@ -90,6 +93,9 @@ export default function ProjectRegistration() {
     const load = async () => {
       setEvalLoading(true);
       try {
+        const searchParams = new URLSearchParams(window.location.search);
+        const urlEvalId = searchParams.get("id");
+
         // 1. Form structure — GET /programs/:id/evaluation-form
         const { data: formData } = await apiClient.get(`programs/${programId}/evaluation-form`);
         const prog = formData?.program;
@@ -123,19 +129,53 @@ export default function ProjectRegistration() {
           );
         } catch { /* no scoring levels configured */ }
 
-        // 3. Existing self-evaluation — GET /evaluation/program/:programId
-        const { data: evalData } = await apiClient.get(`evaluation/program/${programId}`);
-        if (evalData) {
-          setEvaluationId(evalData.id);
-          if (evalData.status === "submitted") setSubmitted(true);
-          const loadedScores: Record<string, number> = {};
-          const loadedDetails: Record<string, string> = {};
-          (evalData.evaluationScores ?? []).forEach((s: any) => {
-            loadedScores[s.indicatorId] = Number(s.score);
-            if (s.notes) loadedDetails[s.indicatorId] = s.notes;
+        // 3. Check latest evaluation status — if completed, create a new draft explicitly
+        let isLastCompleted = false;
+        if (!urlEvalId) {
+          try {
+            const { data: statusData } = await apiClient.get(
+              `evaluation/status?userId=${user?.id}&programId=${programId}`
+            );
+            if (statusData?.self_status === "completed") {
+              isLastCompleted = true;
+            }
+          } catch { /* no status record yet — treat as new */ }
+        }
+
+        if (isLastCompleted && !urlEvalId) {
+          // POST /evaluation to create a brand-new draft (backend findFirst would reuse old otherwise)
+          const { data: newEval } = await apiClient.post("evaluation", {
+            programId,
+            userId: user?.id,
           });
-          setScores(loadedScores);
-          setImplDetails(loadedDetails);
+          if (newEval?.id) {
+            setEvaluationId(newEval.id);
+            setEvaluationStatus("draft");
+          }
+        } else {
+          // 4. Load existing evaluation
+          const fetchUrl = urlEvalId ? `evaluation/${urlEvalId}` : `evaluation/program/${programId}`;
+          const { data: evalData } = await apiClient.get(fetchUrl);
+          if (evalData) {
+            setEvaluationId(evalData.id);
+            setEvaluationStatus(evalData.status);
+            const loadedScores: Record<string, number> = {};
+            const loadedDetails: Record<string, string> = {};
+            const loadedCommittee: Record<string, number> = {};
+            const loadedCommitteeComments: Record<string, string> = {};
+            (evalData.evaluationScores ?? []).forEach((s: any) => {
+              loadedScores[s.indicatorId] = Number(s.score);
+              if (s.notes) loadedDetails[s.indicatorId] = s.notes;
+              if (s.committeeScore !== null && s.committeeScore !== undefined) {
+                loadedCommittee[s.indicatorId] = Number(s.committeeScore);
+              }
+              if (s.evidenceUrl) loadedCommitteeComments[s.indicatorId] = s.evidenceUrl;
+            });
+            setScores(loadedScores);
+            setImplDetails(loadedDetails);
+            setCommitteeScores(loadedCommittee);
+            setCommitteeComments(loadedCommitteeComments);
+          }
         }
       } catch (err) {
         toast.error("ไม่สามารถโหลดข้อมูลแบบประเมินได้");
@@ -198,7 +238,7 @@ export default function ProjectRegistration() {
         description: "ทีมงานจะตรวจสอบและแจ้งผลให้ทราบในภายหลัง",
         duration: 5000,
       });
-      setSubmitted(true);
+      setEvaluationStatus("submitted");
       navigate("/register");
     } catch (err: any) {
       toast.error(err?.response?.data?.message ?? "เกิดข้อผิดพลาดในการส่งแบบประเมิน");
@@ -209,23 +249,119 @@ export default function ProjectRegistration() {
 
   // ── Derived stats ──────────────────────────────────────────────────────────
   const summaryData = useMemo(() =>
-    categories.map((cat) => {
-      let totalScore = 0, totalMax = 0;
+    categories.map((cat, idx) => {
+      let totalScore = 0, totalMax = 0, totalCommittee = 0;
       cat.topics.forEach((t) => t.indicators.forEach((i) => {
-        totalScore += scores[i.id] ?? 0;
-        totalMax   += i.maxScore;
+        totalScore     += scores[i.id] ?? 0;
+        totalMax       += i.maxScore;
+        totalCommittee += committeeScores[i.id] ?? 0;
       }));
-      return { id: cat.id, name: cat.name, score: totalScore, maxScore: cat.maxScore, totalPossible: totalMax };
+      const hasCommittee = Object.keys(committeeScores).length > 0;
+      return {
+        id: cat.id, name: cat.name, score: totalScore,
+        maxScore: cat.maxScore, totalPossible: totalMax, index: idx,
+        committeeScore: hasCommittee ? totalCommittee : undefined,
+      };
     }),
-  [scores, categories]);
+  [scores, categories, committeeScores]);
+
+  const allScored = useMemo(() => {
+    if (categories.length === 0) return false;
+    return categories.every(cat =>
+      cat.topics.every(topic =>
+        topic.indicators.every(ind => scores[ind.id] !== undefined)
+      )
+    );
+  }, [categories, scores]);
 
   const grandTotal    = summaryData.reduce((s, c) => s + c.score, 0);
   const grandMax      = summaryData.reduce((s, c) => s + c.totalPossible, 0);
+  const grandCommitteeTotal = summaryData.every(s => s.committeeScore === undefined)
+    ? undefined
+    : summaryData.reduce((s, c) => s + (c.committeeScore || 0), 0);
+
+  // ── Wizard flat list ───────────────────────────────────────────────────────
+  const flatIndicators = useMemo(() => {
+    const items: Array<{
+      indicator: Category["topics"][0]["indicators"][0];
+      colorIndex: number;
+    }> = [];
+    categories.forEach((cat, catIdx) => {
+      cat.topics.forEach((topic) => {
+        topic.indicators.forEach((indicator) => {
+          items.push({ indicator, colorIndex: catIdx });
+        });
+      });
+    });
+    return items;
+  }, [categories]);
+
+  // สุ่มคะแนนทุกตัวชี้วัดแล้วบันทึก
+  const handleFillRandom = async () => {
+    if (!programId) return;
+    const newScores: Record<string, number> = {};
+    for (const { indicator } of flatIndicators) {
+      const criteria = indicator.scoringCriteria;
+      if (criteria && criteria.length > 0) {
+        newScores[indicator.id] = criteria[Math.floor(Math.random() * criteria.length)].score;
+      } else {
+        newScores[indicator.id] = Math.floor(Math.random() * (indicator.maxScore + 1));
+      }
+    }
+    setScores((prev) => ({ ...prev, ...newScores }));
+    let currentEvalId = evaluationId;
+    for (const { indicator } of flatIndicators) {
+      const { data } = await apiClient.post("evaluation/score", {
+        programId,
+        indicatorId: indicator.id,
+        score: newScores[indicator.id],
+        notes: implDetails[indicator.id] ?? "",
+        ...(currentEvalId ? { evaluationId: currentEvalId } : {}),
+      });
+      if (data?.evaluationId && !currentEvalId) {
+        currentEvalId = data.evaluationId;
+        setEvaluationId(currentEvalId);
+      }
+    }
+    toast.success(`สุ่มคะแนนครบ ${flatIndicators.length} ตัวชี้วัดแล้ว`);
+  };
+
+  const handleOpenWizard = useCallback((indicator: Category["topics"][0]["indicators"][0]) => {
+    const idx = flatIndicators.findIndex((item) => item.indicator.id === indicator.id);
+    if (idx !== -1) setWizardIndex(idx);
+  }, [flatIndicators]);
+
+  const wizardItem = wizardIndex !== null ? flatIndicators[wizardIndex] : null;
+
+  const navItems: IndicatorNavItem[] = useMemo(() =>
+    flatIndicators.map(({ indicator, colorIndex }) => ({
+      id: indicator.id,
+      name: indicator.name,
+      score: scores[indicator.id] ?? 0,
+      maxScore: indicator.maxScore,
+      color: getCategoryColor(colorIndex),
+    })),
+  [flatIndicators, scores]);
   const totalTopics   = categories.reduce((s, c) => s + c.topics.length, 0);
   const totalIndicators = categories.reduce((s, c) => s + c.topics.reduce((ts, t) => ts + t.indicators.length, 0), 0);
   const status = registration
     ? (statusMap[registration.status] ?? { label: registration.status, variant: "outline" as const })
     : { label: "ผ่านการคัดเลือก", variant: "default" as const };
+
+  // Derived from evaluationStatus
+  const isEvalReadOnly = evaluationStatus === "submitted" || evaluationStatus === "completed";
+  const isEvalCompleted = evaluationStatus === "completed";
+
+  const evalStatusConfig: Record<string, { label: string; icon: React.ReactNode; badge: string; banner?: string }> = {
+    draft:     { label: "ร่าง",             icon: <FileText className="h-3.5 w-3.5" />,    badge: "bg-gray-100 text-gray-600 border-gray-300" },
+    submit:    { label: "รอผู้ประเมิน",     icon: <Clock className="h-3.5 w-3.5" />,        badge: "bg-blue-100 text-blue-700 border-blue-300" },
+    submitted: { label: "รอผู้ประเมิน",     icon: <Clock className="h-3.5 w-3.5" />,        badge: "bg-blue-100 text-blue-700 border-blue-300" },
+    complete:  { label: "ประเมินเสร็จสิ้น", icon: <CheckCircle2 className="h-3.5 w-3.5" />, badge: "bg-green-100 text-green-700 border-green-300" },
+    completed: { label: "ประเมินเสร็จสิ้น", icon: <CheckCircle2 className="h-3.5 w-3.5" />, badge: "bg-green-100 text-green-700 border-green-300" },
+    revision:  { label: "ส่งกลับแก้ไข",    icon: <AlertCircle className="h-3.5 w-3.5" />,  badge: "bg-amber-100 text-amber-700 border-amber-300", banner: "bg-amber-50 border-amber-300 text-amber-800" },
+    cancel:    { label: "ยกเลิก",           icon: <XCircle className="h-3.5 w-3.5" />,      badge: "bg-red-100 text-red-700 border-red-300",    banner: "bg-red-50 border-red-300 text-red-800" },
+  };
+  const currentEvalStatus = evaluationStatus ? evalStatusConfig[evaluationStatus] : null;
 
   // ── Render ─────────────────────────────────────────────────────────────────
   if (regLoading || !programId) {
@@ -242,11 +378,18 @@ export default function ProjectRegistration() {
       {/* ════ TOP — ข้อมูลผู้สมัคร ════ */}
       <div className="border-b bg-card/50 px-4 sm:px-6 py-5 space-y-4">
 
-        {/* Back button */}
-        <Button variant="ghost" size="sm" className="gap-1.5 -ml-2 text-muted-foreground" onClick={() => navigate("/register")}>
-          <ArrowLeft className="h-4 w-4" />
-          กลับ
-        </Button>
+        {/* Back button + random fill */}
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" size="sm" className="gap-1.5 -ml-2 text-muted-foreground" onClick={() => navigate("/register")}>
+            <ArrowLeft className="h-4 w-4" />
+            กลับ
+          </Button>
+          {!isEvalReadOnly && !evalLoading && categories.length > 0 && (
+            <Button variant="outline" size="sm" onClick={handleFillRandom} className="gap-1.5 text-purple-600 border-purple-300 hover:bg-purple-50 text-xs">
+              🎲 สุ่มคะแนน
+            </Button>
+          )}
+        </div>
 
         {/* หัว: ชื่อองค์กร + สถานะ */}
         <div className="flex items-start gap-3">
@@ -259,6 +402,12 @@ export default function ProjectRegistration() {
                 {registration?.organizationName ?? user?.name ?? "-"}
               </h2>
               <Badge variant={status.variant}>{status.label}</Badge>
+              {currentEvalStatus && (
+                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${currentEvalStatus.badge}`}>
+                  {currentEvalStatus.icon}
+                  {currentEvalStatus.label}
+                </span>
+              )}
             </div>
             <p className="text-sm text-muted-foreground">{registration?.organizationType ?? ""}</p>
           </div>
@@ -300,6 +449,15 @@ export default function ProjectRegistration() {
         </div>
       </div>
 
+      {/* ════ EVALUATION STATUS BANNER ════ */}
+      {currentEvalStatus?.banner && (
+        <div className={`flex items-center gap-2 px-4 sm:px-6 py-2.5 border-b text-sm font-medium ${currentEvalStatus.banner}`}>
+          {currentEvalStatus.icon}
+          {evaluationStatus === "revision" && "เอกสารนี้ถูกส่งกลับเพื่อแก้ไข กรุณาตรวจสอบและส่งใหม่อีกครั้ง"}
+          {evaluationStatus === "cancel" && "เอกสารนี้ถูกยกเลิกแล้ว"}
+        </div>
+      )}
+
       {/* ════ EVALUATION FORM ════ */}
       <div className="px-4 sm:px-6 py-6 space-y-6">
 
@@ -317,7 +475,8 @@ export default function ProjectRegistration() {
               indicatorCount={totalIndicators}
               grandTotal={grandTotal}
               grandMax={grandMax}
-              submitted={submitted}
+              submitted={isEvalReadOnly}
+              committeeTotal={grandCommitteeTotal}
             />
 
             {/* Scoring levels */}
@@ -342,6 +501,7 @@ export default function ProjectRegistration() {
                 implementationDetails={implDetails}
                 onImplementationDetailChange={handleDetailChange}
                 userRole="user"
+                onIndicatorClick={handleOpenWizard}
               />
             ))}
 
@@ -355,9 +515,17 @@ export default function ProjectRegistration() {
               </Card>
             )}
 
-            {/* Submit / Success */}
+            {/* Submit / Success / Completed */}
             {categories.length > 0 && (
-              submitted ? (
+              isEvalCompleted ? (
+                <div className="flex items-center gap-4 rounded-xl border border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-900/40 p-5">
+                  <CheckCircle2 className="h-7 w-7 text-blue-600 dark:text-blue-400 shrink-0" />
+                  <div>
+                    <p className="font-semibold text-blue-800 dark:text-blue-300">ผลการประเมินเสร็จสมบูรณ์แล้ว</p>
+                    <p className="text-sm text-blue-700/70 dark:text-blue-400/70">คณะกรรมการได้ยืนยันผลการประเมินเรียบร้อยแล้ว</p>
+                  </div>
+                </div>
+              ) : isEvalReadOnly ? (
                 <div className="flex items-center gap-4 rounded-xl border border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-900/40 p-5">
                   <CheckCircle2 className="h-7 w-7 text-green-600 dark:text-green-400 shrink-0" />
                   <div>
@@ -368,19 +536,52 @@ export default function ProjectRegistration() {
               ) : (
                 <Button
                   onClick={handleSubmitAll}
-                  disabled={submitting}
+                  disabled={submitting || !allScored}
                   size="lg"
                   className="w-full h-12 text-base font-bold gap-2"
                 >
                   {submitting
                     ? <><Loader2 className="h-4 w-4 animate-spin" />กำลังส่งแบบประเมิน...</>
-                    : <><ClipboardCheck className="h-4 w-4" />ส่งแบบประเมินตนเอง</>}
+                    : !allScored
+                      ? <><ClipboardCheck className="h-4 w-4" />กรุณาประเมินให้ครบทุกตัวชี้วัด</>
+                      : evaluationStatus === "revision"
+                        ? <><RotateCcw className="h-4 w-4" />ส่งแบบประเมินใหม่อีกครั้ง</>
+                        : <><ClipboardCheck className="h-4 w-4" />ส่งแบบประเมินตนเอง</>}
                 </Button>
               )
             )}
           </>
         )}
       </div>
+
+      {/* ════ Global Wizard Dialog ════ */}
+      {wizardItem && (
+        <IndicatorDialog
+          indicator={wizardItem.indicator}
+          score={scores[wizardItem.indicator.id] ?? 0}
+          onScoreChange={(v) => handleScoreChange(wizardItem.indicator.id, v)}
+          committeeScore={committeeScores[wizardItem.indicator.id]}
+          committeeComment={committeeComments[wizardItem.indicator.id]}
+          color={getCategoryColor(wizardItem.colorIndex)}
+          files={uploadedFiles[wizardItem.indicator.id] ?? []}
+          onFilesChange={(f) => handleFilesChange(wizardItem.indicator.id, f)}
+          open={wizardIndex !== null}
+          onOpenChange={(open) => { if (!open) setWizardIndex(null); }}
+          onSave={isEvalReadOnly ? undefined : () => handleSaveIndicator(wizardItem.indicator.id)}
+          implementationDetail={implDetails[wizardItem.indicator.id] ?? ""}
+          onImplementationDetailChange={(v) => handleDetailChange(wizardItem.indicator.id, v)}
+          readOnly={isEvalReadOnly}
+          userRole="user"
+          hasPrev={wizardIndex! > 0}
+          hasNext={wizardIndex! < flatIndicators.length - 1}
+          onPrev={() => setWizardIndex((i) => (i !== null ? i - 1 : i))}
+          onNext={() => setWizardIndex((i) => (i !== null ? i + 1 : i))}
+          progressLabel={`${wizardIndex! + 1} / ${flatIndicators.length}`}
+          navItems={navItems}
+          currentNavIndex={wizardIndex ?? undefined}
+          onJumpTo={(idx) => setWizardIndex(idx)}
+        />
+      )}
     </div>
   );
 }

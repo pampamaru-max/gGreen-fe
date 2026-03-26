@@ -9,6 +9,7 @@ interface Props {
   grandTotal: number;
   grandMax: number;
   submitted: boolean;
+  committeeTotal?: number;
 }
 
 export function SelfEvalHeader({
@@ -19,8 +20,10 @@ export function SelfEvalHeader({
   grandTotal,
   grandMax,
   submitted,
+  committeeTotal,
 }: Props) {
   const pct = grandMax > 0 ? Math.round((grandTotal / grandMax) * 100) : 0;
+  const committeePct = committeeTotal !== undefined && grandMax > 0 ? Math.round((committeeTotal / grandMax) * 100) : null;
 
   return (
     <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -31,12 +34,12 @@ export function SelfEvalHeader({
         <div>
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="text-base font-bold text-foreground">
-              แบบประเมินตนเอง{programName ? ` — ${programName}` : ""}
+              แบบประเมิน{programName ? ` — ${programName}` : ""}
             </h3>
             {submitted && (
               <Badge variant="default" className="gap-1 bg-green-600 hover:bg-green-700">
                 <CheckCircle2 className="h-3 w-3" />
-                ส่งแล้ว
+                ประเมินเสร็จสิ้น
               </Badge>
             )}
           </div>
@@ -46,13 +49,26 @@ export function SelfEvalHeader({
         </div>
       </div>
 
-      <div className="text-right shrink-0">
-        <p className="text-xs text-muted-foreground mb-0.5">คะแนนรวม (ประเมินตนเอง)</p>
-        <p className="text-3xl font-bold text-primary leading-none">
-          {grandTotal}
-          <span className="text-sm font-normal text-muted-foreground">/{grandMax}</span>
-        </p>
-        <p className="text-xs text-muted-foreground mt-1">{pct}%</p>
+      <div className="flex gap-6">
+        <div className="text-right shrink-0">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">ประเมินตนเอง</p>
+          <p className="text-2xl font-bold text-primary leading-none">
+            {grandTotal}
+            <span className="text-xs font-normal text-muted-foreground">/{grandMax}</span>
+          </p>
+          <p className="text-[10px] text-muted-foreground mt-1">{pct}%</p>
+        </div>
+
+        {committeeTotal !== undefined && (
+          <div className="text-right shrink-0">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">กรรมการ</p>
+            <p className="text-2xl font-bold text-emerald-600 leading-none">
+              {committeeTotal}
+              <span className="text-xs font-normal text-muted-foreground">/{grandMax}</span>
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-1">{committeePct}%</p>
+          </div>
+        )}
       </div>
     </div>
   );

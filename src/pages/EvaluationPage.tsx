@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ClipboardCheck, Loader2, Plus, Pencil, Search, X } from "lucide-react";
+import { ClipboardCheck, Loader2, Plus, Pencil, Search, X, Eye, BarChart2 } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -8,37 +8,29 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import apiClient from "@/lib/axios";
-import { useQuery } from "@tanstack/react-query";
 
 interface RegistrationRow {
-  id: string;
+  evaluation_id: string;
   user_id: string;
-  organization_name: string;
+  user_name: string;
   province: string;
   program_id: string;
   program_name: string;
-  evaluation_id: string | null;
-  evaluation_status: string | null;
+  self_status: string | null;
+  committee_status: string | null;
   has_committee_score: boolean;
   has_self_score: boolean;
-  created_year: number;
   total_score?: number;
   total_max?: number;
+  self_total_score?: number;
+  committee_total_score?: number;
 }
 
 const EvaluationPage = () => {
   const [rows, setRows] = useState<RegistrationRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const { loading: roleLoading } = useUserRole();
+  const { loading: roleLoading, accessibleProgramIds } = useUserRole();
   const navigate = useNavigate();
-
-  const { data: provinces = [] } = useQuery({
-    queryKey: ["provinces"],
-    queryFn: async () => {
-      const { data } = await apiClient.get("provinces");
-      return data ?? [];
-    },
-  });
 
   // Filter states
   const [searchOrg, setSearchOrg] = useState("");
@@ -46,7 +38,6 @@ const EvaluationPage = () => {
   const [filterProvince, setFilterProvince] = useState<string>("all");
   const [filterSelfStatus, setFilterSelfStatus] = useState<string>("all");
   const [filterCommitteeStatus, setFilterCommitteeStatus] = useState<string>("all");
-  const [filterYear, setFilterYear] = useState<string>("all");
 
   useEffect(() => {
     if (roleLoading) return;
@@ -55,7 +46,15 @@ const EvaluationPage = () => {
       setLoading(true);
 
       try {
-        const { data: result } = await apiClient.get("evaluation/summary");
+        let url: string;
+        if (accessibleProgramIds.length === 0) {
+          url = "evaluation/list";
+        } else if (accessibleProgramIds.length === 1) {
+          url = `evaluation/list/${accessibleProgramIds[0]}`;
+        } else {
+          url = `evaluation/list?programs=${accessibleProgramIds.join(",")}`;
+        }
+        const { data: result } = await apiClient.get(url);
         if (Array.isArray(result)) {
           setRows(result);
         } else {
@@ -71,37 +70,26 @@ const EvaluationPage = () => {
     };
 
     fetchData();
-  }, [roleLoading]);
+  }, [roleLoading, accessibleProgramIds]);
 
   // Derived unique values for dropdowns
   const programOptions = useMemo(() => [...new Set(rows.map((r) => r.program_name))].filter(Boolean).sort(), [rows]);
-  const provinceOptions = useMemo(() => {
-    const provs = new Set(rows.map((r) => {
-      const found = provinces.find((p: any) => String(p.id) === r.province);
-      return found ? found.nameTh : r.province;
-    }).filter(Boolean));
-    return Array.from(provs).sort();
-  }, [rows, provinces]);
-  const yearOptions = useMemo(() => [...new Set(rows.map((r) => String(r.created_year)))].sort().reverse(), [rows]);
+  const provinceOptions = useMemo(() => [...new Set(rows.map((r) => r.province))].filter(Boolean).sort(), [rows]);
 
   // Filtering logic
   const filteredRows = useMemo(() => {
     return rows.filter((row) => {
-      if (searchOrg && !row.organization_name.toLowerCase().includes(searchOrg.toLowerCase())) return false;
+      if (searchOrg && !row.user_name.toLowerCase().includes(searchOrg.toLowerCase())) return false;
       if (filterProgram !== "all" && row.program_name !== filterProgram) return false;
-      if (filterProvince !== "all") {
-        const rProvName = provinces.find((p: any) => String(p.id) === row.province)?.nameTh || row.province;
-        if (rProvName !== filterProvince) return false;
-      }
-      if (filterYear !== "all" && String(row.created_year) !== filterYear) return false;
+      if (filterProvince !== "all" && row.province !== filterProvince) return false;
 
       if (filterSelfStatus !== "all") {
-        const status = row.evaluation_status;
+        const status = row.self_status;
         const hasProgress = row.has_self_score;
-        
+
         if (filterSelfStatus === "none" && (status || hasProgress)) return false;
         if (filterSelfStatus === "draft" && status !== "draft" && !hasProgress) return false;
-        if (filterSelfStatus === "completed" && status !== "completed") return false;
+        if (filterSelfStatus === "completed" && status !== "completed" && status !== "submitted") return false;
       }
 
       if (filterCommitteeStatus !== "all") {
@@ -111,9 +99,9 @@ const EvaluationPage = () => {
 
       return true;
     });
-  }, [rows, searchOrg, filterProgram, filterProvince, filterSelfStatus, filterCommitteeStatus, filterYear]);
+  }, [rows, searchOrg, filterProgram, filterProvince, filterSelfStatus, filterCommitteeStatus]);
 
-  const hasActiveFilters = searchOrg || filterProgram !== "all" || filterProvince !== "all" || filterSelfStatus !== "all" || filterCommitteeStatus !== "all" || filterYear !== "all";
+  const hasActiveFilters = searchOrg || filterProgram !== "all" || filterProvince !== "all" || filterSelfStatus !== "all" || filterCommitteeStatus !== "all";
 
   const clearFilters = () => {
     setSearchOrg("");
@@ -121,15 +109,14 @@ const EvaluationPage = () => {
     setFilterProvince("all");
     setFilterSelfStatus("all");
     setFilterCommitteeStatus("all");
-    setFilterYear("all");
   };
 
-  const getSelfAssessmentBadge = (status: string | null, hasProgress: boolean) => {
-    if (status === "completed") {
+  const getSelfAssessmentBadge = (status: string | null, _hasProgress: boolean) => {
+    if (status === "completed" || status === "submitted") {
       return <Badge className="bg-green-600 hover:bg-green-700">ประเมินแล้ว</Badge>;
     }
 
-    if (status === "draft" || hasProgress) {
+    if (status === "draft") {
       return (
         <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100">
           ร่าง
@@ -169,7 +156,7 @@ const EvaluationPage = () => {
 
       <div className="px-6 py-4 space-y-4">
         {/* Filters */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -227,17 +214,6 @@ const EvaluationPage = () => {
             </SelectContent>
           </Select>
 
-          <Select value={filterYear} onValueChange={setFilterYear}>
-            <SelectTrigger>
-              <SelectValue placeholder="ปี" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">ปีทั้งหมด</SelectItem>
-              {yearOptions.map((y) => (
-                <SelectItem key={y} value={y}>พ.ศ. {y}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
 
         {hasActiveFilters && (
@@ -267,35 +243,55 @@ const EvaluationPage = () => {
                   <TableHead>ชื่อหน่วยงาน</TableHead>
                   <TableHead>ชื่อโครงการ</TableHead>
                   <TableHead>จังหวัด</TableHead>
-                  <TableHead className="text-center">ปี</TableHead>
                   <TableHead className="text-center">สถานะประเมินตนเอง</TableHead>
                   <TableHead className="text-center">สถานะกรรมการประเมิน</TableHead>
+                  <TableHead className="text-center w-28">คะแนนรวมตนเอง</TableHead>
+                  <TableHead className="text-center w-28">คะแนนรวมกรรมการ</TableHead>
+                  <TableHead className="text-center w-24">สรุปผล</TableHead>
                   <TableHead className="text-center w-20">จัดการ</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredRows.map((row, idx) => (
-                  <TableRow key={row.id}>
+                  <TableRow key={row.evaluation_id}>
                     <TableCell className="text-center text-muted-foreground">{idx + 1}</TableCell>
-                    <TableCell className="font-medium">{row.organization_name}</TableCell>
+                    <TableCell className="font-medium">{row.user_name}</TableCell>
                     <TableCell>{row.program_name}</TableCell>
-                    <TableCell>
-                      {(() => {
-                        const found = provinces.find((p: any) => String(p.id) === row.province);
-                        return found ? found.nameTh : row.province;
-                      })()}
-                    </TableCell>
-                    <TableCell className="text-center">{row.created_year}</TableCell>
-                    <TableCell className="text-center">{getSelfAssessmentBadge(row.evaluation_status, row.has_self_score)}</TableCell>
+                    <TableCell>{row.province}</TableCell>
+                    <TableCell className="text-center">{getSelfAssessmentBadge(row.self_status, row.has_self_score)}</TableCell>
                     <TableCell className="text-center">{getCommitteeBadge(row.has_committee_score)}</TableCell>
+                    <TableCell className="text-center text-sm">
+                      {row.self_total_score != null
+                        ? <span>{row.self_total_score}{row.total_max != null ? <span className="text-muted-foreground">/{row.total_max}</span> : null}</span>
+                        : <span className="text-muted-foreground">-</span>}
+                    </TableCell>
+                    <TableCell className="text-center text-sm">
+                      {row.committee_total_score != null
+                        ? <span className="text-primary font-medium">{row.committee_total_score}{row.total_max != null ? <span className="text-muted-foreground font-normal">/{row.total_max}</span> : null}</span>
+                        : <span className="text-muted-foreground">-</span>}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {row.has_committee_score && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => navigate(`/evaluation/${row.program_id}/summary?evaluationId=${row.evaluation_id}`)}
+                          title="ดูสรุปผลการประเมิน"
+                        >
+                          <BarChart2 className="h-4 w-4 text-green-600" />
+                        </Button>
+                      )}
+                    </TableCell>
                     <TableCell className="text-center">
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => navigate(`/evaluation/${row.program_id}${row.user_id ? `?evaluateeId=${row.user_id}` : ""}`)}
-                        title={row.evaluation_id || (row.total_max ?? 0) > 0 ? "แก้ไขการประเมิน" : "เพิ่มการประเมิน"}
+                        onClick={() => navigate(`/evaluation/${row.program_id}?evaluationId=${row.evaluation_id}`)}
+                        title={row.self_status === "completed" ? "ดูผลการประเมิน" : row.evaluation_id ? "แก้ไขการประเมิน" : "เพิ่มการประเมิน"}
                       >
-                        {row.evaluation_id || (row.total_max ?? 0) > 0 ? (
+                        {row.self_status === "completed" ? (
+                          <Eye className="h-4 w-4 text-muted-foreground" />
+                        ) : row.evaluation_id ? (
                           <Pencil className="h-4 w-4 text-primary" />
                         ) : (
                           <Plus className="h-4 w-4 text-primary" />

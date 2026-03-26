@@ -35,7 +35,7 @@ const Index = () => {
   );
 
   const summaryData = useMemo(() => {
-    return categories.map((cat) => {
+    return categories.map((cat, idx) => {
       let totalScore = 0;
       let totalMax = 0;
       cat.topics.forEach((topic) => {
@@ -44,7 +44,7 @@ const Index = () => {
           totalMax += ind.maxScore;
         });
       });
-      return { id: cat.id, name: cat.name, score: totalScore, maxScore: cat.maxScore, totalPossible: totalMax };
+      return { id: cat.id, name: cat.name, score: totalScore, maxScore: cat.maxScore, totalPossible: totalMax, index: idx };
     });
   }, [scores, categories]);
 
@@ -78,7 +78,7 @@ const Index = () => {
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6">
-        <ScoreSummary data={summaryData} />
+        <ScoreSummary data={summaryData} showOnlyWithScore={true} />
         {categories.map((category, idx) => (
           <CategoryCard
             key={category.id}

@@ -10,6 +10,7 @@ import HomePage from "@/pages/HomePage";
 import LoginPage from "@/pages/LoginPage";
 import EvaluationPage from "@/pages/EvaluationPage";
 import EvaluationByProgramPage from "@/pages/EvaluationByProgramPage";
+import EvaluationSummaryPage from "@/pages/EvaluationSummaryPage";
 import ProjectOperations from "@/pages/ProjectOperations";
 import ProjectRegistration from "@/pages/ProjectRegistration";
 import EvaluateeHome from "@/pages/EvaluateeHome";
@@ -49,6 +50,7 @@ const App = () => (
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route path="/evaluation" element={<EvaluationPage />} />
               <Route path="/evaluation/:programId" element={<EvaluationByProgramPage />} />
+              <Route path="/evaluation/:programId/summary" element={<EvaluationSummaryPage />} />
               <Route path="/projects" element={<ProjectOperations />} />
               <Route path="/register" element={<EvaluateeHome />} />
               <Route path="/register/evaluate" element={<ProjectRegistration />} />
