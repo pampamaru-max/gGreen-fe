@@ -385,7 +385,7 @@ const SettingsScoringCriteria = () => {
   }
 
   return (
-    <div className="min-h-full bg-background">
+    <div className="min-h-full">
       {/* Header */}
       <div className="border-b bg-card/50 px-6 py-4">
         <div className="flex items-center gap-3">

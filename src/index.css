@@ -6,60 +6,96 @@
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
-    --foreground: 215 25% 15%;
+    --background: 138 20% 97%;
+    --foreground: 140 25% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 215 25% 15%;
+    --card-foreground: 140 25% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 215 25% 15%;
+    --popover-foreground: 140 25% 12%;
 
-    --primary: 210 70% 45%;
+    --primary: 142 71% 29%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 30% 92%;
-    --secondary-foreground: 210 70% 35%;
+    --secondary: 142 35% 92%;
+    --secondary-foreground: 142 71% 22%;
 
-    --muted: 210 20% 95%;
-    --muted-foreground: 215 15% 50%;
+    --muted: 138 20% 94%;
+    --muted-foreground: 140 15% 48%;
 
-    --accent: 165 60% 40%;
+    --accent: 162 55% 38%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 20% 88%;
-    --input: 214 20% 88%;
-    --ring: 210 70% 45%;
+    --border: 140 20% 88%;
+    --input: 140 20% 88%;
+    --ring: 142 71% 29%;
 
     --radius: 0.75rem;
 
-    --chart-1: 210 70% 45%;
-    --chart-2: 165 60% 40%;
+    --chart-1: 142 71% 29%;
+    --chart-2: 162 55% 38%;
     --chart-3: 40 90% 55%;
     --chart-4: 340 65% 55%;
 
-    --category-1: 210 70% 45%;
-    --category-2: 165 60% 40%;
+    --category-1: 142 71% 29%;
+    --category-2: 162 55% 38%;
     --category-3: 40 90% 50%;
     --category-4: 340 65% 50%;
 
-    --score-excellent: 150 60% 42%;
-    --score-good: 165 55% 45%;
+    --score-excellent: 142 65% 35%;
+    --score-good: 162 55% 40%;
     --score-fair: 40 85% 52%;
     --score-poor: 15 80% 55%;
-    --score-none: 215 15% 75%;
+    --score-none: 140 15% 72%;
 
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 142 40% 14%;
+    --sidebar-foreground: 138 25% 88%;
+    --sidebar-primary: 0 0% 100%;
+    --sidebar-primary-foreground: 142 40% 14%;
+    --sidebar-accent: 142 35% 22%;
+    --sidebar-accent-foreground: 138 25% 92%;
+    --sidebar-border: 142 30% 20%;
+    --sidebar-ring: 142 60% 45%;
+  }
+
+  /* ── Theme: Rose ── */
+  .theme-rose {
+    --primary: 346 84% 46%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 346 40% 92%;
+    --secondary-foreground: 346 84% 36%;
+    --accent: 24 95% 50%;
+    --accent-foreground: 0 0% 100%;
+    --ring: 346 84% 46%;
+    --sidebar-primary: 346 84% 46%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-ring: 346 84% 46%;
+    --chart-1: 346 84% 46%;
+    --chart-2: 24 95% 50%;
+    --category-1: 346 84% 46%;
+    --category-2: 24 95% 50%;
+  }
+
+  /* ── Theme: Purple ── */
+  .theme-purple {
+    --primary: 262 80% 56%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 262 35% 92%;
+    --secondary-foreground: 262 80% 43%;
+    --accent: 316 70% 52%;
+    --accent-foreground: 0 0% 100%;
+    --ring: 262 80% 56%;
+    --sidebar-primary: 262 80% 56%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-ring: 262 80% 56%;
+    --chart-1: 262 80% 56%;
+    --chart-2: 316 70% 52%;
+    --category-1: 262 80% 56%;
+    --category-2: 316 70% 52%;
   }
 
   .dark {
@@ -98,8 +134,10 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply text-foreground font-sans;
     font-family: 'Noto Sans Thai', sans-serif;
+    background-color: #f0f7f3;
+    min-height: 100vh;
   }
 }
 

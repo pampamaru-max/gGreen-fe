@@ -89,7 +89,7 @@ const EvaluationSummaryPage = () => {
   const pct = totalMaxScore > 0 ? Math.round((totalScore / totalMaxScore) * 100) : 0;
 
   return (
-    <div className="min-h-full bg-background">
+    <div className="min-h-full">
       {/* Header */}
       <div className="border-b bg-card/50 px-6 py-4">
         <div className="flex items-center gap-3">

@@ -373,7 +373,7 @@ export default function ProjectRegistration() {
   }
 
   return (
-    <div className="min-h-full bg-background">
+    <div className="min-h-full">
 
       {/* ════ TOP — ข้อมูลผู้สมัคร ════ */}
       <div className="border-b bg-card/50 px-4 sm:px-6 py-5 space-y-4">

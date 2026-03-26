@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
 import apiClient from "@/lib/axios";
 import { User } from "lucide-react";
+import { ThemeSwatches } from "@/components/ThemeSwatches";
 
 export function AppLayout() {
   const { user } = useAuth();
@@ -23,7 +24,7 @@ export function AppLayout() {
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
           {/* Header */}
-          <header className="h-12 md:h-12 flex items-center justify-between border-b bg-card/90 backdrop-blur-md px-3 sm:px-4 sticky top-0 z-50 shadow-sm">
+          <header className="h-12 md:h-12 flex items-center justify-between border-b bg-white/90 backdrop-blur-md px-3 sm:px-4 sticky top-0 z-50 shadow-sm">
             <div className="flex items-center gap-2 sm:gap-3">
               <SidebarTrigger className="hidden md:flex" />
               <h1 className="text-sm font-bold text-foreground tracking-tight">
@@ -32,6 +33,7 @@ export function AppLayout() {
               </h1>
             </div>
             <div className="flex items-center gap-2">
+              <ThemeSwatches />
               <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center ring-1 ring-primary/20">
                 <User className="h-3.5 w-3.5 text-primary" />
               </div>

@@ -198,7 +198,7 @@ function SortableProgramCard({ program, onEdit, onDelete }: { program: Program; 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: program.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
   return (
-    <Card ref={setNodeRef} style={style} className="bg-accent/10 border-accent/30">
+    <Card ref={setNodeRef} style={style}>
       <CardContent className="p-4 flex items-center justify-between">
         <div className="flex items-center gap-3 min-w-0">
           <button type="button" className="cursor-grab touch-none text-muted-foreground hover:text-foreground" {...attributes} {...listeners}>
@@ -475,7 +475,7 @@ export default function SettingsPrograms() {
   };
 
   return (
-    <div className="min-h-full bg-background">
+    <div className="min-h-full">
       <div className="border-b bg-card/50 px-6 py-4">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">

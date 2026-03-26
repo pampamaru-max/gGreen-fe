@@ -53,7 +53,7 @@ const Index = () => {
   const nextId = categories.length > 0 ? Math.max(...categories.map((c) => c.id)) + 1 : 1;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       <header className="sticky top-0 z-50 border-b bg-card/80 backdrop-blur-md">
         <div className="container mx-auto flex items-center gap-3 px-4 py-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">

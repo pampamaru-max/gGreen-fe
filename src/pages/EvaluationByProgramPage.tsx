@@ -314,7 +314,7 @@ const EvaluationByProgramPage = () => {
   }
 
   return (
-    <div className="min-h-full bg-background">
+    <div className="min-h-full">
       <div className="border-b bg-card/50 px-6 py-4">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate("/evaluation")} className="shrink-0">

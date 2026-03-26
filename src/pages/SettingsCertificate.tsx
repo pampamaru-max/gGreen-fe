@@ -333,7 +333,7 @@ const SettingsCertificate = () => {
   }
 
   return (
-    <div className="min-h-full bg-background">
+    <div className="min-h-full">
       <div className="border-b bg-card/50 px-6 py-4">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
