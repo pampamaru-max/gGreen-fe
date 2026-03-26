@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
 export type AppRole = "admin" | "evaluator" | "user";
@@ -21,16 +22,18 @@ function mapRole(backendRole: string | undefined): AppRole | null {
 export function useUserRole(): UserRoleState {
   const { user, loading } = useAuth();
 
-  if (loading) {
-    return { role: null, accessibleProgramIds: [], isAdmin: false, loading: true };
-  }
+  return useMemo(() => {
+    if (loading) {
+      return { role: null, accessibleProgramIds: [], isAdmin: false, loading: true };
+    }
 
-  const role = mapRole(user?.role);
+    const role = mapRole(user?.role);
 
-  return {
-    role,
-    accessibleProgramIds: user?.programAccess ?? [],
-    isAdmin: role === "admin",
-    loading: false,
-  };
+    return {
+      role,
+      accessibleProgramIds: user?.programAccess ?? [],
+      isAdmin: role === "admin",
+      loading: false,
+    };
+  }, [user, loading]);
 }
