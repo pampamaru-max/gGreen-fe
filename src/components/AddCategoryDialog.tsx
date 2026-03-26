@@ -26,21 +26,21 @@ interface Props {
 
 export function AddCategoryDialog({ nextSortOrder, onAdd }: Props) {
   const [open, setOpen] = useState(false);
-  const [sortOrder, setSortOrder] = useState(nextSortOrder);
+  const [sortOrder, setSortOrder] = useState<string>(nextSortOrder.toString());
   const [name, setName] = useState("");
-  const [maxScore, setMaxScore] = useState(15);
+  const [maxScore, setMaxScore] = useState<string>("15");
 
   const reset = () => {
-    setSortOrder(nextSortOrder);
+    setSortOrder(nextSortOrder.toString());
     setName("");
-    setMaxScore(15);
+    setMaxScore("15");
   };
 
-  const isValid = name.trim() && maxScore > 0 && sortOrder >= 0;
+  const isValid = name.trim() && Number(maxScore) > 0 && Number(sortOrder) >= 0;
 
   const handleSubmit = () => {
     if (!isValid) return;
-    onAdd({ name: name.trim(), maxScore, sortOrder });
+    onAdd({ name: name.trim(), maxScore: Number(maxScore), sortOrder: Number(sortOrder) });
     reset();
     setOpen(false);
   };
@@ -64,7 +64,7 @@ export function AddCategoryDialog({ nextSortOrder, onAdd }: Props) {
             <Input
               type="number"
               value={sortOrder}
-              onChange={(e) => setSortOrder(Number(e.target.value))}
+              onChange={(e) => setSortOrder(e.target.value)}
               min={0}
             />
           </div>
@@ -81,7 +81,7 @@ export function AddCategoryDialog({ nextSortOrder, onAdd }: Props) {
             <Input
               type="number"
               value={maxScore}
-              onChange={(e) => setMaxScore(Number(e.target.value))}
+              onChange={(e) => setMaxScore(e.target.value)}
               min={1}
             />
           </div>
