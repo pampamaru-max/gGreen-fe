@@ -54,7 +54,10 @@ const EvaluationSummaryPage = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const res = await apiClient.get(`evaluation/result?evaluationId=${evaluationId}`);
+        let res = await apiClient.get(`evaluation/result?evaluationId=${evaluationId}`);
+        if (!res.data) {
+          res = await apiClient.post(`evaluation/${evaluationId}/calculate`);
+        }
         setResult(res.data);
       } catch {
         setError("ไม่สามารถโหลดผลการประเมินได้");
