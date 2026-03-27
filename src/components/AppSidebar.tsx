@@ -1,4 +1,4 @@
-import { ClipboardCheck, Settings, FolderTree, ListChecks, FolderKanban, UserPlus, Award, FileText, LogOut, User, FileBarChart, Users, ShieldCheck, Home, FileArchive, Shield } from "lucide-react";
+import { ClipboardCheck, Settings, FolderTree, ListChecks, FolderKanban, UserPlus, Award, FileText, LogOut, User, FileBarChart, Users, ShieldCheck, Home, FileArchive, Shield, Clock } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -37,6 +37,7 @@ const settingsSubItems = [
   { title: "เกณฑ์คะแนน", url: "/settings/scoring-criteria", icon: Award },
   { title: "ใบประกาศนียบัตร", url: "/settings/certificate", icon: FileText },
   { title: "จัดการเอกสารการสมัคร", url: "/settings/documents", icon: FileArchive },
+  { title: "จัดการระยะเวลาโครงการ", url: "/settings/project-duration", icon: Clock },
   { title: "จัดการผู้ใช้", url: "/settings/users", icon: Shield },
 ];
 

@@ -1,12 +1,16 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Users, Search, ArrowLeft, Loader2 } from "lucide-react";
+import { Users, Search, ArrowLeft, Loader2, CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { th } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import apiClient from "@/lib/axios";
 
 const ReportParticipants = () => {
@@ -14,12 +18,15 @@ const ReportParticipants = () => {
   const [search, setSearch] = useState("");
   const [programFilter, setProgramFilter] = useState("all");
   const [provinceFilter, setProvinceFilter] = useState("all");
-  const [yearFilter, setYearFilter] = useState("all");
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
   const { data: registrations = [], isLoading } = useQuery({
     queryKey: ["report-participants"],
     queryFn: async () => {
-      const { data } = await apiClient.get("project-registrations/public");
+      const { data } = await apiClient.get("project-registrations/public", {
+        params: { status: "selected" },
+      });
       return data ?? [];
     },
   });
@@ -32,24 +39,9 @@ const ReportParticipants = () => {
     },
   });
 
-  const { data: provincesList = [] } = useQuery({
-    queryKey: ["provinces"],
-    queryFn: async () => {
-      const { data } = await apiClient.get("provinces");
-      return data ?? [];
-    },
-  });
-
   const provinces = useMemo(() => {
     const set = new Set(registrations.map((r: any) => r.provinceName || r.province).filter(Boolean));
     return Array.from(set).sort();
-  }, [registrations]);
-
-  const years = useMemo(() => {
-    const set = new Set(
-      registrations.map((r: any) => new Date(r.createdAt).getFullYear() + 543)
-    );
-    return Array.from(set).sort((a: any, b: any) => (b as number) - (a as number));
   }, [registrations]);
 
   const filtered = useMemo(() => {
@@ -57,24 +49,32 @@ const ReportParticipants = () => {
       if (programFilter !== "all" && r.programId !== programFilter) return false;
       const provName = r.provinceName || r.province;
       if (provinceFilter !== "all" && provName !== provinceFilter) return false;
-      if (yearFilter !== "all") {
-        const buddhistYear = new Date(r.createdAt).getFullYear() + 543;
-        if (String(buddhistYear) !== yearFilter) return false;
+      if (startDate || endDate) {
+        const created = new Date(r.createdAt);
+        if (startDate && created < startDate) return false;
+        if (endDate) {
+          const endOfDay = new Date(endDate);
+          endOfDay.setHours(23, 59, 59, 999);
+          if (created > endOfDay) return false;
+        }
       }
       if (search) {
         const q = search.toLowerCase();
         return (
           r.organizationName.toLowerCase().includes(q) ||
-          r.contactName.toLowerCase().includes(q) ||
-          r.contactEmail.toLowerCase().includes(q) ||
+          (r.contactName && r.contactName.toLowerCase().includes(q)) ||
+          (r.contactEmail && r.contactEmail.toLowerCase().includes(q)) ||
           (provName && provName.toLowerCase().includes(q))
         );
       }
       return true;
     });
-  }, [registrations, search, programFilter, provinceFilter, yearFilter]);
+  }, [registrations, search, programFilter, provinceFilter, startDate, endDate]);
 
   const getProgramName = (id: string) => programs.find((p: any) => p.id === id)?.name ?? id;
+
+  const formatThaiDate = (date: Date) =>
+    format(date, "d MMM yyyy", { locale: th });
 
   return (
     <div className="p-6 space-y-6">
@@ -126,17 +126,48 @@ const ReportParticipants = () => {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={yearFilter} onValueChange={setYearFilter}>
-              <SelectTrigger className="w-[160px] h-10">
-                <SelectValue placeholder="ปีทั้งหมด" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">ปีทั้งหมด</SelectItem>
-                {years.map((y: any) => (
-                  <SelectItem key={y} value={String(y)}>พ.ศ. {y}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant={startDate ? "default" : "outline"} className="h-10 gap-2 min-w-[160px]">
+                  <CalendarIcon className="h-4 w-4" />
+                  {startDate ? formatThaiDate(startDate) : "ตั้งแต่วันที่"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={startDate}
+                  onSelect={setStartDate}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant={endDate ? "default" : "outline"} className="h-10 gap-2 min-w-[160px]">
+                  <CalendarIcon className="h-4 w-4" />
+                  {endDate ? formatThaiDate(endDate) : "ถึงวันที่"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={endDate}
+                  onSelect={setEndDate}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+            {(startDate || endDate) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-10 text-muted-foreground"
+                onClick={() => { setStartDate(undefined); setEndDate(undefined); }}
+              >
+                ล้างวันที่
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -162,30 +193,38 @@ const ReportParticipants = () => {
             <div className="overflow-x-auto border-t">
               <Table>
                 <TableHeader>
-                 <TableRow className="bg-muted/30">
-                     <TableHead className="w-[80px] text-center">ลำดับ</TableHead>
-                     <TableHead>ชื่อหน่วยงาน</TableHead>
-                     <TableHead>โครงการ</TableHead>
-                     <TableHead>จังหวัด</TableHead>
-                     <TableHead className="w-[150px]">วันที่สมัคร</TableHead>
-                   </TableRow>
-                 </TableHeader>
-                 <TableBody>
-                   {filtered.map((r: any, idx: number) => (
-                     <TableRow key={r.id}>
-                       <TableCell className="text-center text-muted-foreground">{idx + 1}</TableCell>
-                       <TableCell className="font-semibold text-foreground">{r.organizationName}</TableCell>
-                       <TableCell>{r.program?.name || getProgramName(r.programId)}</TableCell>
-                       <TableCell>{r.provinceName || r.province}</TableCell>
-                       <TableCell className="text-muted-foreground">
-                         {new Date(r.createdAt).toLocaleDateString("th-TH", {
-                           year: "numeric",
-                           month: "short",
-                           day: "numeric",
-                         })}
-                       </TableCell>
-                     </TableRow>
-                   ))}
+                  <TableRow className="bg-muted/30">
+                    <TableHead className="w-[60px] text-center">ลำดับ</TableHead>
+                    <TableHead>ชื่อหน่วยงาน</TableHead>
+                    <TableHead>เลขทะเบียนนิติบุคคล</TableHead>
+                    <TableHead>โครงการ</TableHead>
+                    <TableHead>จังหวัด</TableHead>
+                    <TableHead>ผู้ติดต่อ</TableHead>
+                    <TableHead>เบอร์โทรศัพท์</TableHead>
+                    <TableHead>อีเมล</TableHead>
+                    <TableHead className="w-[130px]">วันที่สมัคร</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((r: any, idx: number) => (
+                    <TableRow key={r.id}>
+                      <TableCell className="text-center text-muted-foreground">{idx + 1}</TableCell>
+                      <TableCell className="font-semibold text-foreground">{r.organizationName}</TableCell>
+                      <TableCell className="text-muted-foreground">{r.juristicId || "-"}</TableCell>
+                      <TableCell>{r.program?.name || getProgramName(r.programId)}</TableCell>
+                      <TableCell>{r.provinceName || r.province}</TableCell>
+                      <TableCell>{r.contactName ? `${r.contactName} ${r.contactLastName || ""}`.trim() : "-"}</TableCell>
+                      <TableCell className="text-muted-foreground">{r.contactPhone || "-"}</TableCell>
+                      <TableCell className="text-muted-foreground">{r.contactEmail || "-"}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {new Date(r.createdAt).toLocaleDateString("th-TH", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
             </div>

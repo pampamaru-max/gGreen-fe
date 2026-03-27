@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef, useMemo } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 interface Registration {
   id: string;
   programId: string;
+  juristicId?: string;
   organizationName: string;
   organizationNameEn: string;
   organizationType: string;
@@ -102,18 +102,15 @@ export default function RegistrationDetailDialog({ registration, programName, op
       try {
         const [tplRes, docRes] = await Promise.all([
           apiClient.get("document-templates", { params: { programId: registration.programId } }),
-          supabase
-            .from("registration_documents")
-            .select("*")
-            .eq("registration_id", registration.id),
+          apiClient.get("registration-documents", { params: { registrationId: registration.id } }),
         ]);
         setTemplates(tplRes.data ?? []);
         const mappedDocs = (docRes.data ?? []).map((d: any) => ({
           id: d.id,
-          documentTemplateId: d.document_template_id,
-          fileName: d.file_name,
-          fileUrl: d.file_url,
-          filePath: d.file_path,
+          documentTemplateId: d.documentTemplateId,
+          fileName: d.fileName,
+          fileUrl: d.fileUrl,
+          filePath: d.filePath,
         }));
         setDocuments(mappedDocs);
       } catch (error) {
@@ -132,65 +129,40 @@ export default function RegistrationDetailDialog({ registration, programName, op
     if (!registration) return;
     setUploading((prev) => ({ ...prev, [templateId]: true }));
 
-    const filePath = `${registration.id}/${templateId}/${Date.now()}_${file.name}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("registration-documents")
-      .upload(filePath, file, { cacheControl: "3600" });
-
-    if (uploadError) {
-      toast.error("อัปโหลดไฟล์ไม่สำเร็จ: " + uploadError.message);
-      setUploading((prev) => ({ ...prev, [templateId]: false }));
-      return;
-    }
-
-    const { data: urlData } = supabase.storage
-      .from("registration-documents")
-      .getPublicUrl(filePath);
-
-    // Remove old doc if exists
-    const existing = getDocForTemplate(templateId);
-    if (existing) {
-      await supabase.storage.from("registration-documents").remove([existing.filePath]);
-      await supabase.from("registration_documents").delete().eq("id", existing.id);
-    }
-
-    const { data: newDoc, error: insertError } = await supabase
-      .from("registration_documents")
-      .insert({
-        registration_id: registration.id,
-        document_template_id: templateId,
-        file_name: file.name,
-        file_url: urlData.publicUrl,
-        file_path: filePath,
-      })
-      .select()
-      .single();
-
-    if (insertError) {
-      toast.error("บันทึกข้อมูลไม่สำเร็จ: " + insertError.message);
-    } else if (newDoc) {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const { data: newDoc } = await apiClient.post(
+        `registration-documents?registrationId=${registration.id}&documentTemplateId=${templateId}`,
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } },
+      );
       setDocuments((prev) => [
         ...prev.filter((d) => d.documentTemplateId !== templateId),
         {
           id: newDoc.id,
-          documentTemplateId: newDoc.document_template_id,
-          fileName: newDoc.file_name,
-          fileUrl: newDoc.file_url,
-          filePath: newDoc.file_path,
+          documentTemplateId: newDoc.documentTemplateId,
+          fileName: newDoc.fileName,
+          fileUrl: newDoc.fileUrl,
+          filePath: newDoc.filePath,
         },
       ]);
       toast.success("อัปโหลดไฟล์สำเร็จ");
+    } catch (err: any) {
+      toast.error("อัปโหลดไฟล์ไม่สำเร็จ: " + (err.response?.data?.message ?? err.message));
+    } finally {
+      setUploading((prev) => ({ ...prev, [templateId]: false }));
     }
-
-    setUploading((prev) => ({ ...prev, [templateId]: false }));
   };
 
   const handleDelete = async (doc: RegistrationDocument) => {
-    await supabase.storage.from("registration-documents").remove([doc.filePath]);
-    await supabase.from("registration_documents").delete().eq("id", doc.id);
-    setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
-    toast.success("ลบไฟล์สำเร็จ");
+    try {
+      await apiClient.delete(`registration-documents/${doc.id}`);
+      setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
+      toast.success("ลบไฟล์สำเร็จ");
+    } catch (err: any) {
+      toast.error("ลบไฟล์ไม่สำเร็จ: " + (err.response?.data?.message ?? err.message));
+    }
   };
 
   if (!registration) return null;
@@ -212,6 +184,9 @@ export default function RegistrationDetailDialog({ registration, programName, op
         {/* Registration Info */}
         <div className="space-y-2 text-sm">
           <DetailRow label="โครงการ" value={programName} />
+          {registration.juristicId && (
+            <DetailRow label="เลขทะเบียนนิติบุคคล" value={registration.juristicId} />
+          )}
           <DetailRow label="ชื่อหน่วยงาน (ไทย)" value={registration.organizationName} />
           <DetailRow label="ชื่อหน่วยงาน (อังกฤษ)" value={registration.organizationNameEn} />
           <DetailRow label="ประเภทองค์กร" value={registration.organizationType} />
