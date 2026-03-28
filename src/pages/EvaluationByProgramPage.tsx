@@ -99,18 +99,21 @@ const EvaluationByProgramPage = () => {
           const loadedDetails: Record<string, string> = {};
           const loadedCommittee: Record<string, number> = {};
           const loadedComments: Record<string, string> = {};
+          const loadedFiles: Record<string, any[]> = {};
 
           scoresData.forEach((s: any) => {
             loaded[s.indicatorId] = Number(s.score);
             if (s.notes) loadedDetails[s.indicatorId] = s.notes;
             if (s.committeeScore !== null && s.committeeScore !== undefined) loadedCommittee[s.indicatorId] = Number(s.committeeScore);
             if (s.evidenceUrl) loadedComments[s.indicatorId] = s.evidenceUrl;
+            if (Array.isArray(s.fileUrls) && s.fileUrls.length > 0) loadedFiles[s.indicatorId] = s.fileUrls;
           });
 
           setScores(loaded);
           setImplementationDetails(loadedDetails);
           setCommitteeScores(loadedCommittee);
           setCommitteeComments(loadedComments);
+          setUploadedFiles(loadedFiles);
         }
       }
       } catch (err) {
@@ -164,6 +167,7 @@ const EvaluationByProgramPage = () => {
       notes: detail,
       committeeScore: cScore,
       committeeComment: cComment,
+      fileUrls: uploadedFiles[indicatorId] ?? [],
       programId,
       programName,
       evaluateeId,

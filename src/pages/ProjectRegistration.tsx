@@ -164,6 +164,7 @@ export default function ProjectRegistration() {
             const loadedDetails: Record<string, string> = {};
             const loadedCommittee: Record<string, number> = {};
             const loadedCommitteeComments: Record<string, string> = {};
+            const loadedFiles: Record<string, any[]> = {};
             (evalData.evaluationScores ?? []).forEach((s: any) => {
               loadedScores[s.indicatorId] = Number(s.score);
               if (s.notes) loadedDetails[s.indicatorId] = s.notes;
@@ -171,11 +172,13 @@ export default function ProjectRegistration() {
                 loadedCommittee[s.indicatorId] = Number(s.committeeScore);
               }
               if (s.evidenceUrl) loadedCommitteeComments[s.indicatorId] = s.evidenceUrl;
+              if (Array.isArray(s.fileUrls) && s.fileUrls.length > 0) loadedFiles[s.indicatorId] = s.fileUrls;
             });
             setScores(loadedScores);
             setImplDetails(loadedDetails);
             setCommitteeScores(loadedCommittee);
             setCommitteeComments(loadedCommitteeComments);
+            setUploadedFiles(loadedFiles);
           }
         }
       } catch (err) {
@@ -201,11 +204,12 @@ export default function ProjectRegistration() {
       indicatorId,
       score: scores[indicatorId] ?? 0,
       notes: implDetails[indicatorId] ?? "",
+      fileUrls: uploadedFiles[indicatorId] ?? [],
       ...(evaluationId ? { evaluationId } : {}),
     });
     if (data?.evaluationId && !evaluationId) setEvaluationId(data.evaluationId);
     toast.success("บันทึกเรียบร้อยแล้ว");
-  }, [evaluationId, scores, implDetails, programId]);
+  }, [evaluationId, scores, implDetails, uploadedFiles, programId]);
 
   // POST /evaluation/:id/submit — final submit
   const handleSubmitAll = async () => {
