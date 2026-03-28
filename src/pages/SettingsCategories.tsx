@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { AddCategoryDialog } from "@/components/AddCategoryDialog";
+import { AddCategoryDialog, type AddScoreType } from "@/components/AddCategoryDialog";
 import { EditCategoryDialog } from "@/components/EditCategoryDialog";
-import { Trash2, FolderTree, Loader2, ChevronDown, ChevronRight } from "lucide-react";
+import { Trash2, FolderTree, Loader2, ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import apiClient from "@/lib/axios";
 import { toast } from "@/hooks/use-toast";
@@ -23,6 +24,7 @@ interface DbCategory {
   sortOrder: number;
   isDefault: boolean;
   programId: string | null;
+  scoreType: "score" | "upgrade" | "yes_no";
 }
 
 interface DbProgram {
@@ -41,17 +43,26 @@ interface CategoryItemProps {
 }
 
 const CategoryItem = ({ cat, topicCount, indicatorCount, onEdit, onDelete }: CategoryItemProps) => {
+  const scoreBadge =
+    cat.scoreType === "yes_no"  ? { label: "ผ่าน/ไม่ผ่าน", cls: "border-orange-300 text-orange-600 bg-orange-50" } :
+    cat.scoreType === "upgrade" ? { label: "ปรับเกณฑ์",    cls: "border-purple-300 text-purple-600 bg-purple-50" } :
+                                  { label: "คะแนน",         cls: "border-blue-300 text-blue-600 bg-blue-50" };
+
   return (
     <div className="flex items-center gap-3 rounded-lg border bg-background p-3 shadow-sm">
       <div className="flex-1 min-w-0">
-        <p className="font-medium text-sm text-foreground">{cat.name}</p>
+        <div className="flex items-center gap-2">
+          <p className="font-medium text-sm text-foreground">{cat.name}</p>
+          <Badge variant="outline" className={`text-xs ${scoreBadge.cls}`}>{scoreBadge.label}</Badge>
+        </div>
         <p className="text-xs text-muted-foreground">
-          ลำดับที่ {cat.sortOrder} · {topicCount} ประเด็น · {indicatorCount} ตัวชี้วัด · คะแนนเต็ม {cat.maxScore}
+          ลำดับที่ {cat.sortOrder} · {topicCount} ประเด็น · {indicatorCount} ตัวชี้วัด
+          {cat.scoreType !== "yes_no" && ` · คะแนนเต็ม ${cat.maxScore}`}
         </p>
       </div>
       <EditCategoryDialog
-        category={{ id: cat.id, name: cat.name, maxScore: cat.maxScore, sortOrder: cat.sortOrder }}
-        onSave={(updated) => onEdit({ ...cat, name: updated.name, maxScore: updated.maxScore, sortOrder: updated.sortOrder })}
+        category={{ id: cat.id, name: cat.name, maxScore: cat.maxScore, sortOrder: cat.sortOrder, scoreType: cat.scoreType }}
+        onSave={(updated) => onEdit({ ...cat, name: updated.name, maxScore: updated.maxScore, sortOrder: updated.sortOrder, scoreType: updated.scoreType })}
       />
       {topicCount > 0 ? (
         <Tooltip>
@@ -101,23 +112,18 @@ interface ProgramCardProps {
   categories: DbCategory[];
   topicCounts: Record<number, number>;
   indicatorCounts: Record<number, number>;
-  onAddCategory: (data: { name: string; maxScore: number; sortOrder: number }, programId: string) => void;
+  onAddCategory: (data: { name: string; maxScore: number; sortOrder: number; scoreType: AddScoreType }, programId: string) => void;
   onEditCategory: (updated: DbCategory) => void;
   onDeleteCategory: (id: number) => void;
 }
 
 const ProgramCard = ({ program, categories, topicCounts, indicatorCounts, onAddCategory, onEditCategory, onDeleteCategory }: ProgramCardProps) => {
   const [open, setOpen] = useState(false);
-  const totalMax = categories.reduce((sum, c) => sum + c.maxScore, 0);
+  const [addingType, setAddingType] = useState<AddScoreType | null>(null);
+  const totalNormal = categories.filter((c) => c.scoreType === "score").reduce((sum, c) => sum + c.maxScore, 0);
+  const totalUpgrade = categories.filter((c) => c.scoreType === "score" || c.scoreType === "upgrade").reduce((sum, c) => sum + c.maxScore, 0);
+  const hasUpgrade = categories.some((c) => c.scoreType === "upgrade");
   const nextSortOrder = categories.length > 0 ? Math.max(...categories.map((c) => c.sortOrder)) + 1 : 1;
-
-  const isUnder = totalMax < 100;
-  const isExact = totalMax === 100;
-  const statusColor = isUnder
-    ? "text-yellow-600 bg-yellow-50 border-yellow-200"
-    : isExact
-      ? "text-green-600 bg-green-50 border-green-200"
-      : "text-red-600 bg-red-50 border-red-200";
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
@@ -129,8 +135,15 @@ const ProgramCard = ({ program, categories, topicCounts, indicatorCounts, onAddC
               <p className="font-bold text-foreground">{program.name}</p>
               <p className="text-xs text-muted-foreground">{categories.length} หมวด</p>
             </div>
-            <div className={`rounded-lg border px-3 py-1 text-xs font-semibold ${statusColor}`}>
-              {totalMax} / 100
+            <div className="flex items-center gap-2 shrink-0">
+              <div className={`rounded-lg border px-3 py-1 text-xs font-semibold ${totalNormal === 0 ? "text-red-600 bg-red-50 border-red-200" : "text-green-600 bg-green-50 border-green-200"}`}>
+                รวม {totalNormal}
+              </div>
+              {hasUpgrade && (
+                <div className="rounded-lg border px-3 py-1 text-xs font-semibold border-purple-300 text-purple-600 bg-purple-50">
+                  ปรับเกณฑ์ {totalUpgrade}
+                </div>
+              )}
             </div>
           </button>
         </CollapsibleTrigger>
@@ -150,12 +163,24 @@ const ProgramCard = ({ program, categories, topicCounts, indicatorCounts, onAddC
                 onDelete={onDeleteCategory}
               />
             ))}
-            <div className="pt-1">
-              <AddCategoryDialog
-                nextSortOrder={nextSortOrder}
-                onAdd={(data) => onAddCategory(data, program.id)}
-              />
+            <div className="pt-1 flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setAddingType("score")}>
+                <Plus className="h-3.5 w-3.5" /> เพิ่มหมวด
+              </Button>
+              <Button variant="outline" size="sm" className="gap-1.5 border-purple-300 text-purple-700 hover:bg-purple-50" onClick={() => setAddingType("upgrade")}>
+                <Plus className="h-3.5 w-3.5" /> เพิ่มหมวดปรับเกณฑ์
+              </Button>
+              <Button variant="outline" size="sm" className="gap-1.5 border-orange-300 text-orange-700 hover:bg-orange-50" onClick={() => setAddingType("yes_no")}>
+                <Plus className="h-3.5 w-3.5" /> เพิ่มหมวดไม่คิดคะแนน
+              </Button>
             </div>
+            <AddCategoryDialog
+              open={addingType !== null}
+              onOpenChange={(v) => { if (!v) setAddingType(null); }}
+              scoreType={addingType ?? "score"}
+              nextSortOrder={nextSortOrder}
+              onAdd={(data) => { onAddCategory(data, program.id); setAddingType(null); }}
+            />
           </div>
         </CollapsibleContent>
       </div>
@@ -207,12 +232,13 @@ const SettingsCategories = () => {
     fetchData().finally(() => setLoading(false));
   }, []);
 
-  const handleAddCategory = async (data: { name: string; maxScore: number; sortOrder: number }, programId: string) => {
+  const handleAddCategory = async (data: { name: string; maxScore: number; sortOrder: number; scoreType: AddScoreType }, programId: string) => {
     try {
       await apiClient.post("categories", {
         name: data.name,
         maxScore: data.maxScore,
         sortOrder: data.sortOrder,
+        scoreType: data.scoreType,
         isDefault: false,
         programId,
       });
@@ -239,6 +265,7 @@ const SettingsCategories = () => {
         name: updated.name,
         maxScore: updated.maxScore,
         sortOrder: updated.sortOrder,
+        scoreType: updated.scoreType,
       });
       toast({ title: "แก้ไขหมวดสำเร็จ" });
       fetchData();

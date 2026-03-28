@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -27,6 +28,7 @@ interface IndicatorDraft {
 interface Category {
   id: number;
   name: string;
+  scoreType?: "score" | "upgrade" | "yes_no";
 }
 
 interface Props {
@@ -40,9 +42,11 @@ interface Props {
   triggerLabel?: string;
   /** Whether to show as a small ghost button */
   compact?: boolean;
+  /** Remaining score budget per category id */
+  categoryBudgets?: Record<number, number>;
 }
 
-export default function AddTopicWithIndicatorsDialog({ categories, onSave, preSelectedCatId, triggerLabel, compact }: Props) {
+export default function AddTopicWithIndicatorsDialog({ categories, onSave, preSelectedCatId, triggerLabel, compact, categoryBudgets }: Props) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [catId, setCatId] = useState<string>(preSelectedCatId ? String(preSelectedCatId) : "");
@@ -71,8 +75,13 @@ export default function AddTopicWithIndicatorsDialog({ categories, onSave, preSe
     setIndicators((prev) => prev.filter((_, i) => i !== idx));
   };
 
+  const selectedCat = categories.find(c => c.id === Number(catId));
+  const isYesNoCat = selectedCat?.scoreType === "yes_no";
   const validIndicators = indicators.filter((ind) => ind.name.trim());
-  const canSubmit = catId && topicName.trim() && validIndicators.length > 0;
+  const remaining = (!isYesNoCat && catId && categoryBudgets) ? (categoryBudgets[Number(catId)] ?? Infinity) : Infinity;
+  const newTotal = isYesNoCat ? 0 : validIndicators.reduce((sum, i) => sum + i.maxScore, 0);
+  const isOverBudget = !isYesNoCat && newTotal > remaining;
+  const canSubmit = catId && topicName.trim() && validIndicators.length > 0 && !isOverBudget;
 
   const handleSave = async () => {
     if (!canSubmit) return;
@@ -91,7 +100,7 @@ export default function AddTopicWithIndicatorsDialog({ categories, onSave, preSe
       <Button variant={compact ? "ghost" : "default"} size={compact ? "sm" : "default"} className={compact ? "gap-1 text-xs h-7" : "gap-1.5"} onClick={() => setOpen(true)}>
         <Plus className={compact ? "h-3 w-3" : "h-4 w-4"} /> {triggerLabel || "เพิ่มประเด็น/ตัวชี้วัด"}
       </Button>
-      <DialogContent className="max-w-xl max-h-[85vh] flex flex-col overflow-hidden">
+      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
           <DialogTitle>เพิ่มประเด็นใหม่</DialogTitle>
         </DialogHeader>
@@ -127,38 +136,62 @@ export default function AddTopicWithIndicatorsDialog({ categories, onSave, preSe
           </div>
 
           {/* Indicators label */}
-          <Label className="text-base font-semibold block pt-1">ตัวชี้วัด</Label>
+          <div className="flex items-center justify-between pt-1">
+            <Label className="text-base font-semibold">ตัวชี้วัด</Label>
+            {isYesNoCat ? (
+              <span className="text-xs rounded-full px-2 py-0.5 bg-orange-100 text-orange-700 border border-orange-200">ผ่าน/ไม่ผ่าน</span>
+            ) : (catId && categoryBudgets && (
+              <span className={`text-xs font-medium ${isOverBudget ? "text-destructive" : "text-muted-foreground"}`}>
+                {isOverBudget
+                  ? `เกินกำหนด ${newTotal - remaining} คะแนน`
+                  : `เหลือได้อีก ${remaining - newTotal} / ${remaining} คะแนน`}
+              </span>
+            ))}
+          </div>
         </div>
 
         {/* Scrollable indicators list */}
         <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin pr-1">
           <div className="rounded-xl border bg-card p-4 space-y-3">
             {indicators.map((ind, idx) => (
-              <div key={idx} className="flex items-start gap-2">
-                <Input
+              <div key={idx} className="rounded-lg border bg-background p-2.5 space-y-2">
+                <Textarea
                   value={ind.name}
-                  onChange={(e) => updateIndicator(idx, "name", e.target.value)}
-                  placeholder="ชื่อตัวชี้วัด"
-                  className="flex-1 min-w-0"
+                  onChange={(e) => {
+                    updateIndicator(idx, "name", e.target.value);
+                    e.target.style.height = "auto";
+                    e.target.style.height = e.target.scrollHeight + "px";
+                  }}
+                  onFocus={(e) => { e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }}
+                  placeholder={"ชื่อตัวชี้วัด\n(กด Enter เพื่อขึ้นบรรทัดใหม่ สำหรับข้อย่อย)"}
+                  className="w-full resize-none overflow-hidden min-h-[60px] text-sm leading-relaxed"
+                  rows={2}
                 />
-                <Input
-                  type="number"
-                  value={ind.maxScore}
-                  onChange={(e) => updateIndicator(idx, "maxScore", Number(e.target.value))}
-                  min={1}
-                  max={10}
-                  className="w-14 text-center shrink-0"
-                />
-                {indicators.length > 1 && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                    onClick={() => removeIndicator(idx)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                )}
+                <div className="flex items-center justify-between gap-2">
+                  {!isYesNoCat && (
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground shrink-0">คะแนนเต็ม</Label>
+                      <Input
+                        type="number"
+                        value={ind.maxScore}
+                        onChange={(e) => updateIndicator(idx, "maxScore", Number(e.target.value))}
+                        min={1}
+                        className="w-16 text-center h-7 text-sm"
+                      />
+                    </div>
+                  )}
+                  {isYesNoCat && <div />}
+                  {indicators.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                      onClick={() => removeIndicator(idx)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
               </div>
             ))}
             <Button
@@ -177,7 +210,7 @@ export default function AddTopicWithIndicatorsDialog({ categories, onSave, preSe
             <Button variant="outline">ยกเลิก</Button>
           </DialogClose>
           <Button onClick={handleSave} disabled={!canSubmit || saving}>
-            {saving ? "กำลังบันทึก..." : "บันทึก"}
+            {saving ? "กำลังบันทึก..." : isOverBudget ? "คะแนนเกินกำหนด" : "บันทึก"}
           </Button>
         </DialogFooter>
       </DialogContent>

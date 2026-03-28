@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Pencil } from "lucide-react";
 
 interface EditCategoryData {
@@ -17,6 +18,7 @@ interface EditCategoryData {
   name: string;
   maxScore: number;
   sortOrder: number;
+  scoreType: "score" | "upgrade" | "yes_no";
 }
 
 interface Props {
@@ -29,18 +31,26 @@ export function EditCategoryDialog({ category, onSave }: Props) {
   const [name, setName] = useState(category.name);
   const [maxScore, setMaxScore] = useState<string>(category.maxScore.toString());
   const [sortOrder, setSortOrder] = useState<string>(category.sortOrder.toString());
+  const [isYesNo, setIsYesNo] = useState(category.scoreType === "yes_no");
 
   const reset = () => {
     setName(category.name);
     setMaxScore(category.maxScore.toString());
     setSortOrder(category.sortOrder.toString());
+    setIsYesNo(category.scoreType === "yes_no");
   };
 
-  const isValid = name.trim() && Number(maxScore) > 0 && Number(sortOrder) >= 0;
+  const isValid = name.trim() && Number(sortOrder) >= 0 && (isYesNo || Number(maxScore) > 0);
 
   const handleSubmit = () => {
     if (!isValid) return;
-    onSave({ id: category.id, name: name.trim(), maxScore: Number(maxScore), sortOrder: Number(sortOrder) });
+    onSave({
+      id: category.id,
+      name: name.trim(),
+      maxScore: isYesNo ? 0 : Number(maxScore),
+      sortOrder: Number(sortOrder),
+      scoreType: isYesNo ? "yes_no" : "score",
+    });
     setOpen(false);
   };
 
@@ -68,10 +78,19 @@ export function EditCategoryDialog({ category, onSave }: Props) {
             <Label>ชื่อหมวด</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} />
           </div>
-          <div className="space-y-1.5">
-            <Label>คะแนนเต็มหมวด</Label>
-            <Input type="number" value={maxScore} onChange={(e) => setMaxScore(e.target.value)} min={1} />
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <div>
+              <p className="text-sm font-medium">ไม่คิดคะแนน (ผ่าน / ไม่ผ่าน)</p>
+              <p className="text-xs text-muted-foreground">หมวดนี้จะใช้ตอบ ผ่าน/ไม่ผ่าน แทนการให้คะแนน</p>
+            </div>
+            <Switch checked={isYesNo} onCheckedChange={setIsYesNo} />
           </div>
+          {!isYesNo && (
+            <div className="space-y-1.5">
+              <Label>คะแนนเต็มหมวด</Label>
+              <Input type="number" value={maxScore} onChange={(e) => setMaxScore(e.target.value)} min={1} />
+            </div>
+          )}
         </div>
 
         <DialogFooter>

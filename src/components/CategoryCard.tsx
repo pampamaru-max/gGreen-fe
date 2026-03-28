@@ -512,15 +512,15 @@ function EvaluatorIndicatorDialog({
                 <div className="text-sm text-foreground/70 bg-muted/30 border rounded-md p-3 leading-relaxed whitespace-pre-line">{indicator.evidenceDescription}</div>
               </div>
             )}
-            {implementationDetail && (
-              <div className="space-y-1.5">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">รายละเอียดการดำเนินการ</p>
-                <div className="text-sm text-foreground/80 bg-muted/30 border rounded-md p-3 leading-relaxed whitespace-pre-line min-h-[60px]">{implementationDetail}</div>
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">รายละเอียดการดำเนินการ</p>
+              <div className="text-sm text-foreground/80 bg-muted/30 border rounded-md p-3 leading-relaxed whitespace-pre-line min-h-[80px]">
+                {implementationDetail || <span className="text-muted-foreground italic">ไม่มีข้อมูล</span>}
               </div>
-            )}
-            {files.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">เอกสารแนบ</p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">เอกสารแนบ</p>
+              {files.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {files.map((f) => (
                     <div key={f.path} className="flex items-center gap-2 bg-muted/50 border rounded-lg px-3 py-1.5 text-sm">
@@ -530,8 +530,10 @@ function EvaluatorIndicatorDialog({
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <p className="text-sm text-muted-foreground italic">ไม่มีเอกสารแนบ</p>
+              )}
+            </div>
           </div>
 
           {/* ขวา: คะแนนตนเอง (compact) + กรรมการให้คะแนน */}

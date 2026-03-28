@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import EvaluationTypeDialog from "@/components/EvaluationTypeDialog";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -60,6 +61,7 @@ export default function EvaluateeHome() {
   const { user } = useAuth();
   const [reg, setReg] = useState<Registration | null>(null);
   const [regLoading, setRegLoading] = useState(true);
+  const [evalTypeDialogOpen, setEvalTypeDialogOpen] = useState(false);
 
   const { data: provinces = [] } = useQuery({
     queryKey: ["provinces"],
@@ -73,13 +75,15 @@ export default function EvaluateeHome() {
   const hasAccess = !!programId;
 
   const { data: evaluations = [], isLoading: evaluationsLoading } = useQuery({
-    queryKey: ["evaluations", programId],
+    queryKey: ["evaluations", programId, user?.id],
     queryFn: async () => {
       if (!programId) return [];
       const res = await apiClient.get(`evaluation/list/${programId}`);
       const data = Array.isArray(res.data) ? res.data : res.data?.data ?? [];
+      // Filter to only show the current user's evaluations
+      const filtered = data.filter((item: any) => !item.user_id || item.user_id === user?.id);
       // Map RegistrationRow to the format used in this component
-      return data.map((item: any) => ({
+      return filtered.map((item: any) => ({
         id: item.evaluation_id,
         program_id: item.program_id,
         program_name: item.program_name,
@@ -319,9 +323,12 @@ export default function EvaluateeHome() {
                         </p>
                       </div>
                       <Button
-                        onClick={() => navigate("/register/evaluate")}
-                        disabled={hasDraft}
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-6 rounded-xl shadow-lg shadow-blue-100 transition-all hover:translate-y-[-2px] active:translate-y-0 gap-2.5 w-full md:w-auto disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:translate-y-0"
+                        onClick={() =>
+                          hasDraft
+                            ? navigate("/register/evaluate")
+                            : setEvalTypeDialogOpen(true)
+                        }
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-6 rounded-xl shadow-lg shadow-blue-100 transition-all hover:translate-y-[-2px] active:translate-y-0 gap-2.5 w-full md:w-auto"
                       >
                         <ClipboardCheck className="h-5 w-5" />
                         {hasDraft ? "คุณมีแบบประเมินที่กำลังดำเนินการ" : "เริ่มประเมินตนเอง"}
@@ -460,6 +467,14 @@ export default function EvaluateeHome() {
           </div>
         </section>
       </div>
+
+      {programId && (
+        <EvaluationTypeDialog
+          open={evalTypeDialogOpen}
+          onClose={() => setEvalTypeDialogOpen(false)}
+          programId={programId}
+        />
+      )}
     </div>
   );
 }

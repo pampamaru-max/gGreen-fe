@@ -1,61 +1,77 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+
+export type AddScoreType = "score" | "upgrade" | "yes_no";
 
 interface AddCategoryData {
   name: string;
   maxScore: number;
   sortOrder: number;
+  scoreType: AddScoreType;
 }
 
 interface Props {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  scoreType: AddScoreType;
   nextSortOrder: number;
   onAdd: (data: AddCategoryData) => void;
 }
 
-export function AddCategoryDialog({ nextSortOrder, onAdd }: Props) {
-  const [open, setOpen] = useState(false);
+const LABELS: Record<AddScoreType, { title: string; badge: string; badgeClass: string }> = {
+  score:   { title: "เพิ่มหมวดใหม่",          badge: "คะแนน",        badgeClass: "border-blue-300 text-blue-600 bg-blue-50" },
+  upgrade: { title: "เพิ่มหมวดปรับเกณฑ์",     badge: "ปรับเกณฑ์",    badgeClass: "border-purple-300 text-purple-600 bg-purple-50" },
+  yes_no:  { title: "เพิ่มหมวดไม่คิดคะแนน",   badge: "ผ่าน/ไม่ผ่าน", badgeClass: "border-orange-300 text-orange-600 bg-orange-50" },
+};
+
+export function AddCategoryDialog({ open, onOpenChange, scoreType, nextSortOrder, onAdd }: Props) {
   const [sortOrder, setSortOrder] = useState<string>(nextSortOrder.toString());
   const [name, setName] = useState("");
   const [maxScore, setMaxScore] = useState<string>("15");
 
-  const reset = () => {
-    setSortOrder(nextSortOrder.toString());
-    setName("");
-    setMaxScore("15");
-  };
+  useEffect(() => {
+    if (open) {
+      setSortOrder(nextSortOrder.toString());
+      setName("");
+      setMaxScore("15");
+    }
+  }, [open, nextSortOrder]);
 
-  const isValid = name.trim() && Number(maxScore) > 0 && Number(sortOrder) >= 0;
+  const hasScore = scoreType !== "yes_no";
+  const isValid = name.trim() && Number(sortOrder) >= 0 && (!hasScore || Number(maxScore) > 0);
 
   const handleSubmit = () => {
     if (!isValid) return;
-    onAdd({ name: name.trim(), maxScore: Number(maxScore), sortOrder: Number(sortOrder) });
-    reset();
-    setOpen(false);
+    onAdd({
+      name: name.trim(),
+      maxScore: hasScore ? Number(maxScore) : 0,
+      sortOrder: Number(sortOrder),
+      scoreType,
+    });
+    onOpenChange(false);
   };
 
+  const { title, badge, badgeClass } = LABELS[scoreType];
+
   return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) reset(); }}>
-      <DialogTrigger asChild>
-        <Button variant="outline" className="gap-2">
-          <Plus className="h-4 w-4" />
-          เพิ่มหมวด
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>เพิ่มหมวดใหม่</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            {title}
+            <Badge variant="outline" className={`text-xs ${badgeClass}`}>{badge}</Badge>
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
@@ -76,15 +92,17 @@ export function AddCategoryDialog({ nextSortOrder, onAdd }: Props) {
               placeholder="เช่น สภาพแวดล้อม"
             />
           </div>
-          <div className="space-y-1.5">
-            <Label>คะแนนเต็มหมวด</Label>
-            <Input
-              type="number"
-              value={maxScore}
-              onChange={(e) => setMaxScore(e.target.value)}
-              min={1}
-            />
-          </div>
+          {hasScore && (
+            <div className="space-y-1.5">
+              <Label>คะแนนเต็มหมวด</Label>
+              <Input
+                type="number"
+                value={maxScore}
+                onChange={(e) => setMaxScore(e.target.value)}
+                min={1}
+              />
+            </div>
+          )}
         </div>
 
         <DialogFooter>

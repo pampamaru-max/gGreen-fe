@@ -143,6 +143,14 @@ const EvaluationByProgramPage = () => {
   };
 
   const handleSaveIndicator = useCallback(async (indicatorId: string) => {
+    if (role === "user" && (evaluationStatus === "submitted" || evaluationStatus === "submit" || evaluationStatus === "completed" || evaluationStatus === "complete")) {
+      toast.error("ไม่สามารถแก้ไขได้ เอกสารถูกส่งแล้ว");
+      return;
+    }
+    if (role !== "user" && (evaluationStatus === "completed" || evaluationStatus === "complete")) {
+      toast.error("ไม่สามารถแก้ไขได้ การประเมินเสร็จสิ้นแล้ว");
+      return;
+    }
     const score = scores[indicatorId] || 0;
     const detail = implementationDetails[indicatorId] || "";
     const cScore = committeeScores[indicatorId] ?? 0;
@@ -165,7 +173,7 @@ const EvaluationByProgramPage = () => {
     }
 
     toast.success("บันทึกเรียบร้อยแล้ว");
-  }, [evaluationId, scores, uploadedFiles, implementationDetails, committeeScores, committeeComments, programId, programName]);
+  }, [evaluationId, evaluationStatus, role, scores, uploadedFiles, implementationDetails, committeeScores, committeeComments, programId, programName]);
 
   const totalTopics = categories.reduce((s, c) => s + c.topics.length, 0);
   const totalIndicators = categories.reduce(
@@ -444,8 +452,8 @@ const EvaluationByProgramPage = () => {
           committeeComment={committeeComments[wizardItem.indicator.id] ?? ""}
           onCommitteeCommentChange={(v) => handleCommitteeCommentChange(wizardItem.indicator.id, v)}
           userRole={role}
-          viewOnly={isCompleted || (role !== "user" && (!isSubmitted || scoreView === "self"))}
-          readOnly={isCompleted}
+          viewOnly={isCompleted || (role === "user" && isSubmitted) || (role !== "user" && (!isSubmitted || scoreView === "self"))}
+          readOnly={isCompleted || (role === "user" && isSubmitted)}
           hasPrev={wizardIndex! > 0}
           hasNext={wizardIndex! < flatIndicators.length - 1}
           onPrev={() => setWizardIndex((i) => (i !== null ? i - 1 : i))}

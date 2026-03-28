@@ -116,6 +116,7 @@ function NavStrip({ navItems, currentNavIndex, onJumpTo }: {
 function EvaluateeIndicatorDialog({
   indicator, score, onScoreChange, color, files, onFilesChange,
   open, onOpenChange, onSave, implementationDetail, onImplementationDetailChange,
+  committeeScore, committeeComment,
   readOnly = false,
   hasPrev, hasNext, onPrev, onNext, progressLabel, navItems, currentNavIndex, onJumpTo,
 }: {
@@ -130,6 +131,8 @@ function EvaluateeIndicatorDialog({
   onSave?: () => Promise<void>;
   implementationDetail?: string;
   onImplementationDetailChange?: (value: string) => void;
+  committeeScore?: number;
+  committeeComment?: string;
   readOnly?: boolean;
   hasPrev?: boolean;
   hasNext?: boolean;
@@ -372,6 +375,27 @@ function EvaluateeIndicatorDialog({
                 <div className="text-sm font-medium text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-md p-3 leading-relaxed whitespace-pre-line">{indicator.notes}</div>
               </div>
             )}
+
+            {/* คะแนนจากกรรมการ — แสดงแบบ read-only เมื่อมีผล */}
+            {committeeScore !== undefined && (
+              <div className="rounded-lg border bg-muted/20 px-4 py-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">คะแนนจากกรรมการ</p>
+                  <div>
+                    <span className="text-xl font-bold" style={{ color: committeeScore > 0 ? `hsl(${getScoreColor(committeeScore)})` : "hsl(var(--muted-foreground))" }}>
+                      {committeeScore}
+                    </span>
+                    <span className="text-sm text-muted-foreground">/{indicator.maxScore}</span>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">ความเห็นกรรมการ</p>
+                  <p className="text-sm text-foreground/70 bg-background border rounded-md px-3 py-2 min-h-[48px] whitespace-pre-line">
+                    {committeeComment || <span className="text-muted-foreground italic">ยังไม่มีความเห็น</span>}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -485,15 +509,15 @@ function EvaluatorIndicatorDialog({
                 <div className="text-sm text-foreground/70 bg-muted/30 border rounded-md p-3 leading-relaxed whitespace-pre-line">{indicator.evidenceDescription}</div>
               </div>
             )}
-            {implementationDetail && (
-              <div className="space-y-1.5">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">รายละเอียดการดำเนินการ</p>
-                <div className="text-sm text-foreground/80 bg-muted/30 border rounded-md p-3 leading-relaxed whitespace-pre-line min-h-[60px]">{implementationDetail}</div>
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">รายละเอียดการดำเนินการ</p>
+              <div className="text-sm text-foreground/80 bg-muted/30 border rounded-md p-3 leading-relaxed whitespace-pre-line min-h-[80px]">
+                {implementationDetail || <span className="text-muted-foreground italic">ไม่มีข้อมูล</span>}
               </div>
-            )}
-            {files.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">เอกสารแนบ</p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">เอกสารแนบ</p>
+              {files.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {files.map((f) => (
                     <div key={f.path} className="flex items-center gap-2 bg-muted/50 border rounded-lg px-3 py-1.5 text-sm">
@@ -503,8 +527,10 @@ function EvaluatorIndicatorDialog({
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <p className="text-sm text-muted-foreground italic">ไม่มีเอกสารแนบ</p>
+              )}
+            </div>
           </div>
 
           {/* ขวา: คะแนนตนเอง (compact) + กรรมการให้คะแนน */}
@@ -719,6 +745,8 @@ export function IndicatorDialog({
         onSave={onSave}
         implementationDetail={implementationDetail}
         onImplementationDetailChange={onImplementationDetailChange}
+        committeeScore={committeeScore}
+        committeeComment={committeeComment}
         readOnly={readOnly}
         hasPrev={hasPrev}
         hasNext={hasNext}
