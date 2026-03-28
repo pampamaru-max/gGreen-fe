@@ -28,8 +28,15 @@ interface IndicatorDraft {
 interface Category {
   id: number;
   name: string;
-  scoreType?: "score" | "upgrade" | "yes_no";
+  scoreType?: string;
 }
+
+const getCategoryTypeLabel = (scoreType?: string): "ปกติ" | "อัพเกณฑ์" | "ต่ออายุ" => {
+  if (!scoreType) return "ปกติ";
+  if (scoreType.includes("_renew")) return "ต่ออายุ";
+  if (scoreType.includes("_upgrad") || scoreType === "upgrade" || scoreType === "yes_no") return "อัพเกณฑ์";
+  return "ปกติ";
+};
 
 interface Props {
   categories: Category[];
@@ -117,7 +124,7 @@ export default function AddTopicWithIndicatorsDialog({ categories, onSave, preSe
               <SelectContent>
                 {categories.map((cat) => (
                   <SelectItem key={cat.id} value={String(cat.id)}>
-                    {cat.name}
+                    {cat.name} - {getCategoryTypeLabel(cat.scoreType)}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -14,6 +14,13 @@ import { ScoreSummary } from "@/components/ScoreSummary";
 import { SelfEvalHeader } from "@/components/self-eval/SelfEvalHeader";
 import { ScoringLevelBadges } from "@/components/self-eval/ScoringLevelBadges";
 import { Category } from "@/data/evaluationData";
+
+// Category extended with scoreType / upgrade-renew settings from DB
+interface EvalCategory extends Category {
+  scoreType?: string;
+  upgradeMode?: string | null;
+  renewMode?: string | null;
+}
 import apiClient from "@/lib/axios";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -74,7 +81,7 @@ export default function ProjectRegistration() {
   // Evaluation form state
   const [evalLoading, setEvalLoading]       = useState(true);
   const [programName, setProgramName]       = useState("");
-  const [categories, setCategories]         = useState<Category[]>([]);
+  const [categories, setCategories]         = useState<EvalCategory[]>([]);
   const [scoringLevels, setScoringLevels]   = useState<ScoringLevel[]>([]);
   const [scores, setScores]                 = useState<Record<string, number>>({});
   const [uploadedFiles, setUploadedFiles]   = useState<Record<string, UploadedFile[]>>({});
@@ -102,10 +109,13 @@ export default function ProjectRegistration() {
         // 1. Form structure — GET /programs/:id/evaluation-form
         const { data: formData } = await apiClient.get(`programs/${programId}/evaluation-form`);
         const prog = formData?.program;
-        const cats: Category[] = (formData?.categories ?? []).map((c: any) => ({
+        const cats: EvalCategory[] = (formData?.categories ?? []).map((c: any) => ({
           id: c.id,
           name: c.name,
           maxScore: c.maxScore,
+          scoreType: c.scoreType ?? "score",
+          upgradeMode: c.upgradeMode ?? null,
+          renewMode: c.renewMode ?? null,
           topics: (c.topics ?? []).map((t: any) => ({
             id: t.id,
             name: t.name,
@@ -223,7 +233,7 @@ export default function ProjectRegistration() {
     try {
       // Save any unsaved scores first
       let currentEvalId = evaluationId;
-      for (const cat of categories) {
+      for (const cat of visibleCategories) {
         for (const topic of cat.topics) {
           for (const ind of topic.indicators) {
             const { data } = await apiClient.post("evaluation/score", {
@@ -257,9 +267,33 @@ export default function ProjectRegistration() {
     }
   };
 
+  // ── Visible categories — filtered by evaluationType + program settings ─────
+  const isNewType    = (t?: string) => !t || t === "score" || t === "yes_no" || t === "score_new" || t === "yes_no_new";
+  const isUpgradType = (t?: string) => t === "score_upgrad" || t === "yes_no_upgrad" || t === "upgrade";
+  const isRenewType  = (t?: string) => t === "score_renew" || t === "yes_no_renew";
+
+  const visibleCategories = useMemo(() => {
+    if (evaluationType === "upgrade") {
+      const upgradCat = categories.find((c) => isUpgradType(c.scoreType));
+      const mode = upgradCat?.upgradeMode ?? "full";
+      return mode === "partial"
+        ? categories.filter((c) => isUpgradType(c.scoreType))
+        : categories.filter((c) => isNewType(c.scoreType) || isUpgradType(c.scoreType));
+    }
+    if (evaluationType === "renew") {
+      const renewCat = categories.find((c) => isRenewType(c.scoreType));
+      const mode = renewCat?.renewMode ?? "full";
+      return mode === "partial"
+        ? categories.filter((c) => isRenewType(c.scoreType))
+        : categories.filter((c) => isNewType(c.scoreType) || isRenewType(c.scoreType));
+    }
+    // type=new (default): only normal categories
+    return categories.filter((c) => isNewType(c.scoreType));
+  }, [categories, evaluationType]);
+
   // ── Derived stats ──────────────────────────────────────────────────────────
   const summaryData = useMemo(() =>
-    categories.map((cat, idx) => {
+    visibleCategories.map((cat, idx) => {
       let totalScore = 0, totalMax = 0, totalCommittee = 0;
       cat.topics.forEach((t) => t.indicators.forEach((i) => {
         totalScore     += scores[i.id] ?? 0;
@@ -276,13 +310,13 @@ export default function ProjectRegistration() {
   [scores, categories, committeeScores]);
 
   const allScored = useMemo(() => {
-    if (categories.length === 0) return false;
-    return categories.every(cat =>
+    if (visibleCategories.length === 0) return false;
+    return visibleCategories.every(cat =>
       cat.topics.every(topic =>
         topic.indicators.every(ind => scores[ind.id] !== undefined)
       )
     );
-  }, [categories, scores]);
+  }, [visibleCategories, scores]);
 
   const grandTotal    = summaryData.reduce((s, c) => s + c.score, 0);
   const grandMax      = summaryData.reduce((s, c) => s + c.totalPossible, 0);
@@ -296,7 +330,7 @@ export default function ProjectRegistration() {
       indicator: Category["topics"][0]["indicators"][0];
       colorIndex: number;
     }> = [];
-    categories.forEach((cat, catIdx) => {
+    visibleCategories.forEach((cat, catIdx) => {
       cat.topics.forEach((topic) => {
         topic.indicators.forEach((indicator) => {
           items.push({ indicator, colorIndex: catIdx });
@@ -304,7 +338,7 @@ export default function ProjectRegistration() {
       });
     });
     return items;
-  }, [categories]);
+  }, [visibleCategories]);
 
   // สุ่มคะแนนทุกตัวชี้วัดแล้วบันทึก
   const handleFillRandom = async () => {
@@ -352,8 +386,8 @@ export default function ProjectRegistration() {
       color: getCategoryColor(colorIndex),
     })),
   [flatIndicators, scores]);
-  const totalTopics   = categories.reduce((s, c) => s + c.topics.length, 0);
-  const totalIndicators = categories.reduce((s, c) => s + c.topics.reduce((ts, t) => ts + t.indicators.length, 0), 0);
+  const totalTopics   = visibleCategories.reduce((s, c) => s + c.topics.length, 0);
+  const totalIndicators = visibleCategories.reduce((s, c) => s + c.topics.reduce((ts, t) => ts + t.indicators.length, 0), 0);
   const status = registration
     ? (statusMap[registration.status] ?? { label: registration.status, variant: "outline" as const })
     : { label: "ผ่านการคัดเลือก", variant: "default" as const };
@@ -490,8 +524,8 @@ export default function ProjectRegistration() {
               evaluationType={evaluationType}
             />
 
-            {/* Scoring levels */}
-            {scoringLevels.length > 0 && (
+            {/* Scoring levels — visible to evaluatee only when evaluation is complete */}
+            {scoringLevels.length > 0 && isEvalCompleted && (
               <ScoringLevelBadges levels={scoringLevels} grandMax={grandMax} currentScore={grandTotal} />
             )}
 
@@ -499,7 +533,7 @@ export default function ProjectRegistration() {
             {summaryData.length > 0 && <ScoreSummary data={summaryData} />}
 
             {/* Category cards */}
-            {categories.map((category, idx) => (
+            {visibleCategories.map((category, idx) => (
               <CategoryCard
                 key={category.id}
                 category={category}
@@ -517,7 +551,7 @@ export default function ProjectRegistration() {
             ))}
 
             {/* No categories */}
-            {categories.length === 0 && (
+            {visibleCategories.length === 0 && (
               <Card>
                 <CardContent className="py-16 flex flex-col items-center gap-2 text-center">
                   <ClipboardCheck className="h-10 w-10 text-muted-foreground/40" />
@@ -527,7 +561,7 @@ export default function ProjectRegistration() {
             )}
 
             {/* Submit / Success / Completed */}
-            {categories.length > 0 && (
+            {visibleCategories.length > 0 && (
               isEvalCompleted ? (
                 <div className="flex items-center gap-4 rounded-xl border border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-900/40 p-5">
                   <CheckCircle2 className="h-7 w-7 text-blue-600 dark:text-blue-400 shrink-0" />

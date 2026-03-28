@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import RichTextEditor from "@/components/RichTextEditor";
 import apiClient from "@/lib/axios";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -242,15 +243,15 @@ function EditIndicatorDialog({ indicator, onSave, maxAllowed, scoreType = "score
             )}
             <div className="space-y-1.5">
               <Label>คำอธิบาย</Label>
-              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="คำอธิบายตัวชี้วัด..." rows={3} />
+              <RichTextEditor value={description} onChange={setDescription} placeholder="คำอธิบายตัวชี้วัด..." minHeight="80px" />
             </div>
             <div className="space-y-1.5">
               <Label>รายละเอียดตัวชี้วัด</Label>
-              <Textarea value={detail} onChange={(e) => setDetail(e.target.value)} placeholder="รายละเอียดเพิ่มเติม..." rows={8} className="min-h-[180px]" />
+              <RichTextEditor value={detail} onChange={setDetail} placeholder="รายละเอียดเพิ่มเติม..." minHeight="180px" />
             </div>
             <div className="space-y-1.5">
               <Label>{isYesNo ? "หมายเหตุ" : "หมายเหตุเกณฑ์การให้คะแนน"}</Label>
-              <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="หมายเหตุเพิ่มเติม..." rows={6} className="min-h-[140px]" />
+              <RichTextEditor value={notes} onChange={setNotes} placeholder="หมายเหตุเพิ่มเติม..." minHeight="140px" />
             </div>
             <div className="space-y-1.5">
               <Label>หลักฐานอ้างอิง (ไฟล์แนบ)</Label>
@@ -641,7 +642,10 @@ const SettingsIndicators = () => {
 
       <div className="px-6 py-6 space-y-6">
         {programs.map((program, progIdx) => {
-          const programCategories = categories.filter(c => c.programId === program.id);
+          const typeOrder = (st: string) => (st.includes("_upgrad") || st === "upgrade") ? 1 : st.includes("_renew") ? 2 : 0;
+          const programCategories = categories
+            .filter(c => c.programId === program.id)
+            .sort((a, b) => typeOrder(a.scoreType as string) - typeOrder(b.scoreType as string) || a.sortOrder - b.sortOrder);
           if (programCategories.length === 0) return null;
 
           return (
@@ -674,7 +678,15 @@ const SettingsIndicators = () => {
                                 <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]/cat:rotate-90" />
                                 <p className="font-bold text-foreground text-left flex-1">{cat.name}</p>
                                 <span className="text-xs text-muted-foreground">
-                                  {catTopics.length} ประเด็น · {indicators.filter(i => catTopics.some(t => t.id === i.topicId)).length} ตัวชี้วัด
+                                  {(() => {
+                                    const st = cat.scoreType as string;
+                                    const isUpgrad = st.includes("_upgrad") || st === "upgrade";
+                                    const isRenew = st.includes("_renew");
+                                    if (isUpgrad) return <span className="text-purple-600 font-medium">อัพเกณฑ์</span>;
+                                    if (isRenew) return <span className="text-emerald-600 font-medium">ต่ออายุ</span>;
+                                    return <span className="text-blue-600 font-medium">ปกติ</span>;
+                                  })()}
+                                  {" · "}{catTopics.length} ประเด็น · {indicators.filter(i => catTopics.some(t => t.id === i.topicId)).length} ตัวชี้วัด
                                   {cat.scoreType !== "yes_no" && ` · คะแนนเต็ม ${cat.maxScore}`}
                                   {cat.scoreType === "yes_no" && <span className="ml-1 text-orange-600 font-medium">· ผ่าน/ไม่ผ่าน</span>}
                                 </span>
