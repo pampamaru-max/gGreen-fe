@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/USER/OneDrive/Desktop/746903-G-Green/Be/**)",
+      "Bash(npx prisma:*)"
+    ]
+  }
+}

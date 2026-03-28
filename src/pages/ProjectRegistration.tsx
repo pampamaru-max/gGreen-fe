@@ -80,6 +80,7 @@ export default function ProjectRegistration() {
   const [uploadedFiles, setUploadedFiles]   = useState<Record<string, UploadedFile[]>>({});
   const [implDetails, setImplDetails]       = useState<Record<string, string>>({});
   const [evaluationId, setEvaluationId]     = useState<string | null>(null);
+  const [evaluationType, setEvaluationType] = useState<string>("new");
   const [committeeScores, setCommitteeScores] = useState<Record<string, number>>({});
   const [committeeComments, setCommitteeComments] = useState<Record<string, string>>({});
   const [submitting, setSubmitting]         = useState(false);
@@ -95,6 +96,8 @@ export default function ProjectRegistration() {
       try {
         const searchParams = new URLSearchParams(window.location.search);
         const urlEvalId = searchParams.get("id");
+        const urlEvalType = searchParams.get("type") || "new"; // new | renew | upgrade
+        setEvaluationType(urlEvalType);
 
         // 1. Form structure — GET /programs/:id/evaluation-form
         const { data: formData } = await apiClient.get(`programs/${programId}/evaluation-form`);
@@ -148,6 +151,7 @@ export default function ProjectRegistration() {
           const { data: newEval } = await apiClient.post("evaluation", {
             programId,
             userId: user?.id,
+            evaluationType: urlEvalType,
           });
           if (newEval?.id) {
             setEvaluationId(newEval.id);
@@ -160,6 +164,7 @@ export default function ProjectRegistration() {
           if (evalData) {
             setEvaluationId(evalData.id);
             setEvaluationStatus(evalData.status);
+            if (evalData.evaluationType) setEvaluationType(evalData.evaluationType);
             const loadedScores: Record<string, number> = {};
             const loadedDetails: Record<string, string> = {};
             const loadedCommittee: Record<string, number> = {};
@@ -205,11 +210,11 @@ export default function ProjectRegistration() {
       score: scores[indicatorId] ?? 0,
       notes: implDetails[indicatorId] ?? "",
       fileUrls: uploadedFiles[indicatorId] ?? [],
-      ...(evaluationId ? { evaluationId } : {}),
+      ...(evaluationId ? { evaluationId } : { evaluationType }),
     });
     if (data?.evaluationId && !evaluationId) setEvaluationId(data.evaluationId);
     toast.success("บันทึกเรียบร้อยแล้ว");
-  }, [evaluationId, scores, implDetails, uploadedFiles, programId]);
+  }, [evaluationId, evaluationType, scores, implDetails, uploadedFiles, programId]);
 
   // POST /evaluation/:id/submit — final submit
   const handleSubmitAll = async () => {
@@ -482,6 +487,7 @@ export default function ProjectRegistration() {
               grandMax={grandMax}
               submitted={isEvalReadOnly}
               committeeTotal={grandCommitteeTotal}
+              evaluationType={evaluationType}
             />
 
             {/* Scoring levels */}

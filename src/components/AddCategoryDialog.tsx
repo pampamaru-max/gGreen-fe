@@ -12,7 +12,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 
-export type AddScoreType = "score" | "upgrade" | "yes_no";
+export type AddScoreType =
+  | "score_new" | "yes_no_new"
+  | "score_upgrad" | "yes_no_upgrad"
+  | "score_renew" | "yes_no_renew";
 
 interface AddCategoryData {
   name: string;
@@ -30,9 +33,12 @@ interface Props {
 }
 
 const LABELS: Record<AddScoreType, { title: string; badge: string; badgeClass: string }> = {
-  score:   { title: "เพิ่มหมวดใหม่",          badge: "คะแนน",        badgeClass: "border-blue-300 text-blue-600 bg-blue-50" },
-  upgrade: { title: "เพิ่มหมวดปรับเกณฑ์",     badge: "ปรับเกณฑ์",    badgeClass: "border-purple-300 text-purple-600 bg-purple-50" },
-  yes_no:  { title: "เพิ่มหมวดไม่คิดคะแนน",   badge: "ผ่าน/ไม่ผ่าน", badgeClass: "border-orange-300 text-orange-600 bg-orange-50" },
+  "score_new":    { title: "เพิ่มหมวดแบบคะแนน",               badge: "คะแนน",             badgeClass: "border-blue-300 text-blue-600 bg-blue-50" },
+  "yes_no_new":   { title: "เพิ่มหมวดแบบใช่/ไม่ใช่",           badge: "ใช่/ไม่ใช่",        badgeClass: "border-orange-300 text-orange-600 bg-orange-50" },
+  "score_upgrad": { title: "เพิ่มหมวดแบบคะแนน (อัพเกรด)",     badge: "ปรับเกณฑ์",         badgeClass: "border-purple-300 text-purple-600 bg-purple-50" },
+  "yes_no_upgrad":{ title: "เพิ่มหมวดแบบใช่/ไม่ใช่ (อัพเกรด)", badge: "ใช่/ไม่ใช่ (อัพ)",  badgeClass: "border-teal-300 text-teal-600 bg-teal-50" },
+  "score_renew":  { title: "เพิ่มหมวดแบบคะแนน (ต่ออายุ)",      badge: "ต่ออายุ",            badgeClass: "border-emerald-300 text-emerald-600 bg-emerald-50" },
+  "yes_no_renew": { title: "เพิ่มหมวดแบบใช่/ไม่ใช่ (ต่ออายุ)", badge: "ใช่/ไม่ใช่ (ต่ออายุ)", badgeClass: "border-amber-300 text-amber-600 bg-amber-50" },
 };
 
 export function AddCategoryDialog({ open, onOpenChange, scoreType, nextSortOrder, onAdd }: Props) {
@@ -48,7 +54,7 @@ export function AddCategoryDialog({ open, onOpenChange, scoreType, nextSortOrder
     }
   }, [open, nextSortOrder]);
 
-  const hasScore = scoreType !== "yes_no";
+  const hasScore = !scoreType.startsWith("yes_no");
   const isValid = name.trim() && Number(sortOrder) >= 0 && (!hasScore || Number(maxScore) > 0);
 
   const handleSubmit = () => {
@@ -77,30 +83,16 @@ export function AddCategoryDialog({ open, onOpenChange, scoreType, nextSortOrder
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
             <Label>ลำดับหมวด</Label>
-            <Input
-              type="number"
-              value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value)}
-              min={0}
-            />
+            <Input type="number" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} min={0} />
           </div>
           <div className="space-y-1.5">
             <Label>ชื่อหมวด</Label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="เช่น สภาพแวดล้อม"
-            />
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="เช่น สภาพแวดล้อม" />
           </div>
           {hasScore && (
             <div className="space-y-1.5">
               <Label>คะแนนเต็มหมวด</Label>
-              <Input
-                type="number"
-                value={maxScore}
-                onChange={(e) => setMaxScore(e.target.value)}
-                min={1}
-              />
+              <Input type="number" value={maxScore} onChange={(e) => setMaxScore(e.target.value)} min={1} />
             </div>
           )}
         </div>

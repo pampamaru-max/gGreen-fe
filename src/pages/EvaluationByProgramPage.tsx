@@ -4,11 +4,17 @@ import { Category } from "@/data/evaluationData";
 import type { UploadedFile, IndicatorNavItem } from "@/components/evaluation/CategoryCard";
 import { CategoryCard, IndicatorDialog, getCategoryColor } from "@/components/evaluation/CategoryCard";
 import { ScoreSummary } from "@/components/evaluation/ScoreSummary";
-import { ClipboardCheck, Loader2, ArrowLeft, RotateCcw, CheckCircle2, Clock, FileText, AlertCircle, XCircle } from "lucide-react";
+import { ClipboardCheck, Loader2, ArrowLeft, RotateCcw, CheckCircle2, Clock, FileText, AlertCircle, XCircle, FilePlus, RefreshCw, TrendingUp } from "lucide-react";
 import apiClient from "@/lib/axios";
 import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
+
+const EVAL_TYPE_CONFIG: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
+  new:     { label: "ประเมินใหม่",             icon: <FilePlus   className="h-3 w-3" />, className: "bg-blue-50 text-blue-700 border-blue-200"     },
+  renew:   { label: "ต่ออายุใบประกาศนียบัตร", icon: <RefreshCw  className="h-3 w-3" />, className: "bg-amber-50 text-amber-700 border-amber-200"   },
+  upgrade: { label: "ยกระดับคะแนน",           icon: <TrendingUp className="h-3 w-3" />, className: "bg-purple-50 text-purple-700 border-purple-200" },
+};
 
 const EvaluationByProgramPage = () => {
   const { programId } = useParams<{ programId: string }>();
@@ -29,6 +35,7 @@ const EvaluationByProgramPage = () => {
   const [loading, setLoading] = useState(true);
   const [evaluationId, setEvaluationId] = useState<string | null>(null);
   const [evaluationStatus, setEvaluationStatus] = useState<string | null>(null);
+  const [evaluationType, setEvaluationType] = useState<string | null>(null);
 
   // Check access
   useEffect(() => {
@@ -93,6 +100,7 @@ const EvaluationByProgramPage = () => {
         if (evalData) {
           setEvaluationId(evalData.id);
           setEvaluationStatus(evalData.status);
+          if (evalData.evaluationType) setEvaluationType(evalData.evaluationType);
           const scoresData = evalData.evaluationScores || [];
 
           const loaded: Record<string, number> = {};
@@ -337,8 +345,14 @@ const EvaluationByProgramPage = () => {
             <ClipboardCheck className="h-5 w-5 text-primary-foreground" />
           </div>
           <div className="flex-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-lg font-bold text-foreground">ประเมิน {programName}</h2>
+              {evaluationType && EVAL_TYPE_CONFIG[evaluationType] && (
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${EVAL_TYPE_CONFIG[evaluationType].className}`}>
+                  {EVAL_TYPE_CONFIG[evaluationType].icon}
+                  {EVAL_TYPE_CONFIG[evaluationType].label}
+                </span>
+              )}
               {currentStatus && (
                 <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${currentStatus.badge}`}>
                   {currentStatus.icon}
