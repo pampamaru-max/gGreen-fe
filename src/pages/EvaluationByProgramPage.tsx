@@ -72,6 +72,7 @@ const EvaluationByProgramPage = () => {
                   id: i.id,
                   name: i.name,
                   maxScore: i.maxScore,
+                  scoreType: c.scoreType || 'score',
                   description: i.description || "",
                   detail: i.detail || "",
                   notes: i.notes || "",
