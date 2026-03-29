@@ -294,7 +294,7 @@ function EvaluateeIndicatorDialog({
 
           {/* ขวา: คะแนนจากการประเมินตนเอง — แสดงครบทุกข้อ, interactive เมื่อไม่ readOnly */}
           <div className="overflow-y-auto scrollbar-thin px-6 py-5 space-y-5">
-            {indicator.scoreType === 'yes_no' ? (
+            {indicator.scoreType?.includes('yes_no') ? (
               /* ── Yes/No mode ── */
               <>
                 <div className="space-y-2">
@@ -316,9 +316,9 @@ function EvaluateeIndicatorDialog({
                   </div>
                 </div>
 
-                {committeeScore !== undefined && (
-                  <div className="rounded-lg border bg-muted/20 px-4 py-3 space-y-3">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">กรรมการประเมินความสอดคล้อง</p>
+                <div className="rounded-lg border bg-muted/20 px-4 py-3 space-y-3">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">กรรมการประเมินความสอดคล้อง</p>
+                  {committeeScore !== undefined ? (
                     <div className="grid grid-cols-2 gap-3">
                       {[{ val: 1, label: 'สอดคล้อง', sub: 'ผ่านเกณฑ์', icon: '✓', color: 'emerald' }, { val: 0, label: 'ไม่สอดคล้อง', sub: 'ไม่ผ่านเกณฑ์', icon: '✗', color: 'rose' }].map(({ val, label, sub, icon, color }) => {
                         const isSelected = committeeScore === val;
@@ -331,14 +331,16 @@ function EvaluateeIndicatorDialog({
                         );
                       })}
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">ความเห็นกรรมการ</p>
-                      <p className="text-sm text-foreground/70 bg-background border rounded-md px-3 py-2 min-h-[48px] whitespace-pre-line">
-                        {committeeComment || <span className="text-muted-foreground italic">ยังไม่มีความเห็น</span>}
-                      </p>
-                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">เฉพาะกรรมการหรือผู้ดูแลระบบเท่านั้นที่สามารถให้คะแนนได้</p>
+                  )}
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">ความเห็นกรรมการ</p>
+                    <p className="text-sm text-foreground/70 bg-background border rounded-md px-3 py-2 min-h-[48px] whitespace-pre-line">
+                      {committeeComment || <span className="text-muted-foreground italic">ยังไม่มีความเห็น</span>}
+                    </p>
                   </div>
-                )}
+                </div>
               </>
             ) : (
               /* ── Normal score mode ── */
@@ -904,6 +906,7 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
 
   const displayScores = scoreView === "committee" && committeeScores ? committeeScores : scores;
 
+  const isYesNoCat = category.scoreType?.includes('yes_no');
   const totalScore = category.topics.reduce(
     (sum, t) => sum + t.indicators.reduce((s, i) => s + (displayScores[i.id] || 0), 0),
     0
@@ -912,6 +915,11 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
     (sum, t) => sum + t.indicators.reduce((s, i) => s + i.maxScore, 0),
     0
   );
+  const totalIndicators = isYesNoCat ? category.topics.reduce((s, t) => s + t.indicators.length, 0) : 0;
+  const passCount = isYesNoCat ? category.topics.reduce(
+    (sum, t) => sum + t.indicators.reduce((s, i) => s + ((displayScores[i.id] ?? -1) === 1 ? 1 : 0), 0),
+    0
+  ) : 0;
 
   return (
     <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
@@ -928,13 +936,19 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-foreground">{category.name}</p>
           <p className="text-xs text-muted-foreground">
-            {category.topics.length} ประเด็น · {category.topics.reduce((s, t) => s + t.indicators.length, 0)} ตัวชี้วัด · คะแนนเต็ม {category.maxScore}
+            {category.topics.length} ประเด็น · {category.topics.reduce((s, t) => s + t.indicators.length, 0)} ตัวชี้วัด{isYesNoCat ? "" : ` · คะแนนเต็ม ${category.maxScore}`}
           </p>
         </div>
         <div className="text-right mr-2">
-          <p className="text-lg font-bold" style={{ color: `hsl(${color})` }}>
-            {totalScore}<span className="text-xs font-normal text-muted-foreground">/{totalMax}</span>
-          </p>
+          {isYesNoCat ? (
+            <p className="text-lg font-bold" style={{ color: `hsl(${color})` }}>
+              {passCount}<span className="text-xs font-normal text-muted-foreground">/{totalIndicators} ผ่าน</span>
+            </p>
+          ) : (
+            <p className="text-lg font-bold" style={{ color: `hsl(${color})` }}>
+              {totalScore}<span className="text-xs font-normal text-muted-foreground">/{totalMax}</span>
+            </p>
+          )}
         </div>
         {onDelete && (
           <button

@@ -294,17 +294,26 @@ export default function ProjectRegistration() {
   // ── Derived stats ──────────────────────────────────────────────────────────
   const summaryData = useMemo(() =>
     visibleCategories.map((cat, idx) => {
+      const isYesNo = cat.scoreType?.includes('yes_no');
       let totalScore = 0, totalMax = 0, totalCommittee = 0;
+      let passCount = 0, committeePassCount = 0, totalIndicators = 0;
       cat.topics.forEach((t) => t.indicators.forEach((i) => {
-        totalScore     += scores[i.id] ?? 0;
-        totalMax       += i.maxScore;
-        totalCommittee += committeeScores[i.id] ?? 0;
+        if (isYesNo) {
+          totalIndicators++;
+          if ((scores[i.id] ?? -1) === 1) passCount++;
+          if ((committeeScores[i.id] ?? -1) === 1) committeePassCount++;
+        } else {
+          totalScore     += scores[i.id] ?? 0;
+          totalMax       += i.maxScore;
+          totalCommittee += committeeScores[i.id] ?? 0;
+        }
       }));
       const hasCommittee = Object.keys(committeeScores).length > 0;
       return {
         id: cat.id, name: cat.name, score: totalScore,
         maxScore: cat.maxScore, totalPossible: totalMax, index: idx,
-        committeeScore: hasCommittee ? totalCommittee : undefined,
+        scoreType: cat.scoreType,
+        ...(isYesNo ? { passCount, totalIndicators, committeePassCount: hasCommittee ? committeePassCount : undefined } : { committeeScore: hasCommittee ? totalCommittee : undefined }),
       };
     }),
   [scores, categories, committeeScores]);

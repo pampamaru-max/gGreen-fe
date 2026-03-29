@@ -83,7 +83,7 @@ export default function AddTopicWithIndicatorsDialog({ categories, onSave, preSe
   };
 
   const selectedCat = categories.find(c => c.id === Number(catId));
-  const isYesNoCat = selectedCat?.scoreType === "yes_no";
+  const isYesNoCat = !!selectedCat?.scoreType && selectedCat.scoreType.includes("yes_no");
   const validIndicators = indicators.filter((ind) => ind.name.trim());
   const remaining = (!isYesNoCat && catId && categoryBudgets) ? (categoryBudgets[Number(catId)] ?? Infinity) : Infinity;
   const newTotal = isYesNoCat ? 0 : validIndicators.reduce((sum, i) => sum + i.maxScore, 0);
@@ -94,7 +94,8 @@ export default function AddTopicWithIndicatorsDialog({ categories, onSave, preSe
     if (!canSubmit) return;
     setSaving(true);
     try {
-      await onSave(Number(catId), topicName.trim(), validIndicators);
+      const drafts = isYesNoCat ? validIndicators.map(i => ({ ...i, maxScore: 0 })) : validIndicators;
+      await onSave(Number(catId), topicName.trim(), drafts);
       reset();
       setOpen(false);
     } finally {

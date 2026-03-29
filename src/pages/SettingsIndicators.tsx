@@ -32,13 +32,16 @@ interface DbProgram {
   sortOrder: number;
 }
 
+type DbScoreType = "score" | "upgrade" | "yes_no" | "score_new" | "yes_no_new" | "score_upgrad" | "yes_no_upgrad" | "score_renew" | "yes_no_renew";
+const isYesNoType = (st: string) => st.includes("yes_no");
+
 interface DbCategory {
   id: number;
   name: string;
   maxScore: number;
   sortOrder: number;
   programId: string | null;
-  scoreType: "score" | "upgrade" | "yes_no";
+  scoreType: DbScoreType;
 }
 
 interface DbTopic {
@@ -91,11 +94,11 @@ function EditTopicDialog({ topic, onSave }: { topic: DbTopic; onSave: (name: str
   );
 }
 
-function AddIndicatorDialog({ onAdd, maxAllowed, scoreType = "score" }: { onAdd: (name: string, maxScore: number) => void; maxAllowed: number; scoreType?: "score" | "upgrade" | "yes_no" }) {
+function AddIndicatorDialog({ onAdd, maxAllowed, scoreType = "score" }: { onAdd: (name: string, maxScore: number) => void; maxAllowed: number; scoreType?: DbScoreType }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [maxScore, setMaxScore] = useState(Math.min(4, maxAllowed));
-  const isYesNo = scoreType === "yes_no";
+  const isYesNo = isYesNoType(scoreType);
   const reset = () => { setName(""); setMaxScore(Math.min(4, maxAllowed)); };
   const isOverLimit = !isYesNo && (maxScore > maxAllowed || maxAllowed <= 0);
   return (
@@ -145,8 +148,8 @@ function AddIndicatorDialog({ onAdd, maxAllowed, scoreType = "score" }: { onAdd:
   );
 }
 
-function EditIndicatorDialog({ indicator, onSave, maxAllowed, scoreType = "score" }: { indicator: DbIndicator; onSave: (data: { name: string; maxScore: number; description: string; detail: string; notes: string; evidenceDescription: string; scoringCriteria: ScoringCriterion[] }) => void; maxAllowed: number; scoreType?: "score" | "upgrade" | "yes_no" }) {
-  const isYesNo = scoreType === "yes_no";
+function EditIndicatorDialog({ indicator, onSave, maxAllowed, scoreType = "score" }: { indicator: DbIndicator; onSave: (data: { name: string; maxScore: number; description: string; detail: string; notes: string; evidenceDescription: string; scoringCriteria: ScoringCriterion[] }) => void; maxAllowed: number; scoreType?: DbScoreType }) {
+  const isYesNo = isYesNoType(scoreType);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(indicator.name);
   const [maxScore, setMaxScore] = useState(indicator.maxScore);
@@ -168,8 +171,8 @@ function EditIndicatorDialog({ indicator, onSave, maxAllowed, scoreType = "score
     setEvidenceDescription(indicator.evidenceDescription || "");
     if (isYesNo) {
       const existing = indicator.scoringCriteria || [];
-      setPassLabel(existing.find(c => c.score === 1)?.label ?? "");
-      setFailLabel(existing.find(c => c.score === 0)?.label ?? "");
+      setPassLabel(existing.find(c => c.score === 1)?.label ?? "สอดคล้อง");
+      setFailLabel(existing.find(c => c.score === 0)?.label ?? "ไม่สอดคล้อง");
     } else {
       const existing = indicator.scoringCriteria || [];
       if (existing.length > 0) {
@@ -358,10 +361,10 @@ function EditIndicatorDialog({ indicator, onSave, maxAllowed, scoreType = "score
 
 /* ─── Sortable Indicator Row ─── */
 
-function SortableIndicatorRow({ ind, color, onEdit, onDelete, maxAllowed, scoreType = "score" }: { ind: DbIndicator; color: string; onEdit: (data: any) => void; onDelete: () => void; maxAllowed: number; scoreType?: "score" | "upgrade" | "yes_no" }) {
+function SortableIndicatorRow({ ind, color, onEdit, onDelete, maxAllowed, scoreType = "score" }: { ind: DbIndicator; color: string; onEdit: (data: any) => void; onDelete: () => void; maxAllowed: number; scoreType?: DbScoreType }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: ind.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
-  const isYesNo = scoreType === "yes_no";
+  const isYesNo = isYesNoType(scoreType);
 
   return (
     <div ref={setNodeRef} style={{ ...style, backgroundColor: `hsl(${color} / 0.03)` }} className="flex items-center gap-3 px-4 py-2.5 group/ind hover:bg-muted/10 border-b last:border-b-0">
@@ -454,7 +457,7 @@ const SettingsIndicators = () => {
     indicatorDrafts: { name: string; maxScore: number }[]
   ) => {
     const cat = categories.find(c => c.id === catId);
-    if (cat && cat.scoreType !== "yes_no") {
+    if (cat && !isYesNoType(cat.scoreType)) {
       const newTotal = indicatorDrafts.reduce((sum, i) => sum + i.maxScore, 0);
       const remaining = getCatRemainingBudget(catId);
       if (newTotal > remaining) {
@@ -521,7 +524,7 @@ const SettingsIndicators = () => {
     const topic = topics.find(t => t.id === topicId);
     if (topic) {
       const cat = categories.find(c => c.id === topic.categoryId);
-      if (cat && cat.scoreType !== "yes_no") {
+      if (cat && !isYesNoType(cat.scoreType)) {
         const remaining = getCatRemainingBudget(topic.categoryId);
         if (maxScore > remaining) {
           toast({
@@ -551,7 +554,7 @@ const SettingsIndicators = () => {
       const topic = topics.find(t => t.id === ind.topicId);
       if (topic) {
         const cat = categories.find(c => c.id === topic.categoryId);
-        if (cat && cat.scoreType !== "yes_no") {
+        if (cat && !isYesNoType(cat.scoreType)) {
           const remaining = getCatRemainingBudget(topic.categoryId, indId);
           if (data.maxScore > remaining) {
             toast({
@@ -649,7 +652,7 @@ const SettingsIndicators = () => {
           if (programCategories.length === 0) return null;
 
           return (
-            <Collapsible key={program.id} defaultOpen={progIdx === 0} className="group/prog">
+            <Collapsible key={program.id} defaultOpen={false} className="group/prog">
               <div className="rounded-xl border border-accent/30 bg-accent/10 overflow-hidden shadow-sm">
                 <CollapsibleTrigger asChild>
                   <button className="flex w-full items-center gap-3 px-5 py-4 hover:bg-accent/20 transition-colors">
@@ -668,7 +671,7 @@ const SettingsIndicators = () => {
                       const catTopics = topics.filter((t) => t.categoryId === cat.id);
 
                       return (
-                        <Collapsible key={cat.id} defaultOpen={catIdx === 0} className="group/cat">
+                        <Collapsible key={cat.id} defaultOpen={false} className="group/cat">
                           <div className="rounded-lg border bg-card overflow-hidden shadow-sm">
                             <CollapsibleTrigger asChild>
                               <button
@@ -687,15 +690,15 @@ const SettingsIndicators = () => {
                                     return <span className="text-blue-600 font-medium">ปกติ</span>;
                                   })()}
                                   {" · "}{catTopics.length} ประเด็น · {indicators.filter(i => catTopics.some(t => t.id === i.topicId)).length} ตัวชี้วัด
-                                  {cat.scoreType !== "yes_no" && ` · คะแนนเต็ม ${cat.maxScore}`}
-                                  {cat.scoreType === "yes_no" && <span className="ml-1 text-orange-600 font-medium">· ผ่าน/ไม่ผ่าน</span>}
+                                  {!isYesNoType(cat.scoreType) && ` · คะแนนเต็ม ${cat.maxScore}`}
+                                  {isYesNoType(cat.scoreType) && <span className="ml-1 text-orange-600 font-medium">· ผ่าน/ไม่ผ่าน</span>}
                                 </span>
                               </button>
                             </CollapsibleTrigger>
 
                             <CollapsibleContent>
                               {(() => {
-                                const isYesNoCat = cat.scoreType === "yes_no";
+                                const isYesNoCat = isYesNoType(cat.scoreType);
                                 const catUsedScore = isYesNoCat ? 0 : indicators
                                   .filter(i => catTopics.some(t => t.id === i.topicId))
                                   .reduce((sum, i) => sum + i.maxScore, 0);
@@ -703,7 +706,7 @@ const SettingsIndicators = () => {
                                 return catTopics.map((topic) => {
                                 const topicInds = indicators.filter((i) => i.topicId === topic.id).sort((a, b) => a.sortOrder - b.sortOrder);
                                 return (
-                                  <Collapsible key={topic.id} defaultOpen className="group/topic border-b last:border-b-0">
+                                  <Collapsible key={topic.id} defaultOpen={false} className="group/topic border-b last:border-b-0">
                                     <div
                                       className="flex items-center gap-2 px-4 py-2.5"
                                       style={{ backgroundColor: `hsl(${color} / 0.06)` }}

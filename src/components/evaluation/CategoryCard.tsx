@@ -294,7 +294,7 @@ function EvaluateeIndicatorDialog({
 
           {/* ขวา: คะแนนจากการประเมินตนเอง */}
           <div className="overflow-y-auto scrollbar-thin px-6 py-5 space-y-5">
-            {indicator.scoreType === 'yes_no' ? (
+            {indicator.scoreType?.includes('yes_no') ? (
               /* ── Yes/No mode ── */
               <>
                 <div className="space-y-2">
@@ -559,7 +559,7 @@ function EvaluatorIndicatorDialog({
 
           {/* ขวา: คะแนนตนเอง (compact) + กรรมการให้คะแนน */}
           <div className="overflow-y-auto scrollbar-thin px-6 py-5 space-y-5">
-            {indicator.scoreType === 'yes_no' ? (
+            {indicator.scoreType?.includes('yes_no') ? (
               /* ── Yes/No mode ── */
               <>
                 {/* Self yes/no — read-only display */}
@@ -855,6 +855,7 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
 
   const displayScores = scoreView === "committee" && committeeScores ? committeeScores : scores;
 
+  const isYesNoCat = category.scoreType?.includes('yes_no');
   const totalScore = category.topics.reduce(
     (sum, t) => sum + t.indicators.reduce((s, i) => s + (displayScores[i.id] || 0), 0),
     0
@@ -863,6 +864,11 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
     (sum, t) => sum + t.indicators.reduce((s, i) => s + i.maxScore, 0),
     0
   );
+  const totalIndicators = isYesNoCat ? category.topics.reduce((s, t) => s + t.indicators.length, 0) : 0;
+  const passCount = isYesNoCat ? category.topics.reduce(
+    (sum, t) => sum + t.indicators.reduce((s, i) => s + ((displayScores[i.id] ?? -1) === 1 ? 1 : 0), 0),
+    0
+  ) : 0;
 
   return (
     <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
@@ -879,13 +885,19 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-foreground">{category.name}</p>
           <p className="text-xs text-muted-foreground">
-            {category.topics.length} ประเด็น · {category.topics.reduce((s, t) => s + t.indicators.length, 0)} ตัวชี้วัด · คะแนนเต็ม {category.maxScore}
+            {category.topics.length} ประเด็น · {category.topics.reduce((s, t) => s + t.indicators.length, 0)} ตัวชี้วัด{isYesNoCat ? "" : ` · คะแนนเต็ม ${category.maxScore}`}
           </p>
         </div>
         <div className="text-right mr-2">
-          <p className="text-lg font-bold" style={{ color: `hsl(${color})` }}>
-            {totalScore}<span className="text-xs font-normal text-muted-foreground">/{totalMax}</span>
-          </p>
+          {isYesNoCat ? (
+            <p className="text-lg font-bold" style={{ color: `hsl(${color})` }}>
+              {passCount}<span className="text-xs font-normal text-muted-foreground">/{totalIndicators} ผ่าน</span>
+            </p>
+          ) : (
+            <p className="text-lg font-bold" style={{ color: `hsl(${color})` }}>
+              {totalScore}<span className="text-xs font-normal text-muted-foreground">/{totalMax}</span>
+            </p>
+          )}
         </div>
         {onDelete && (
           <button

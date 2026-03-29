@@ -16,6 +16,16 @@ const EVAL_TYPE_CONFIG: Record<string, { label: string; icon: React.ReactNode; c
   upgrade: { label: "ยกระดับคะแนน",           icon: <TrendingUp className="h-3 w-3" />, className: "bg-purple-50 text-purple-700 border-purple-200" },
 };
 
+interface EvalCategory extends Category {
+  scoreType?: string;
+  upgradeMode?: string | null;
+  renewMode?: string | null;
+}
+
+const isNewType    = (t?: string) => !t || t === "score" || t === "yes_no" || t === "score_new" || t === "yes_no_new";
+const isUpgradType = (t?: string) => t === "score_upgrad" || t === "yes_no_upgrad" || t === "upgrade";
+const isRenewType  = (t?: string) => t === "score_renew" || t === "yes_no_renew";
+
 const EvaluationByProgramPage = () => {
   const { programId } = useParams<{ programId: string }>();
   const navigate = useNavigate();
@@ -26,7 +36,7 @@ const EvaluationByProgramPage = () => {
 
   const [programName, setProgramName] = useState("");
   const scoreView = role !== "user" ? "committee" : "self";
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useState<EvalCategory[]>([]);
   const [scores, setScores] = useState<Record<string, number>>({});
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, UploadedFile[]>>({});
   const [implementationDetails, setImplementationDetails] = useState<Record<string, string>>({});
@@ -89,7 +99,7 @@ const EvaluationByProgramPage = () => {
                     : [],
                 })),
             }));
-          return { id: c.id, name: c.name, maxScore: c.maxScore, topics };
+          return { id: c.id, name: c.name, maxScore: c.maxScore, scoreType: c.scoreType ?? "score", upgradeMode: c.upgradeMode ?? null, renewMode: c.renewMode ?? null, topics };
         });
         setCategories(cats);
 
@@ -188,39 +198,67 @@ const EvaluationByProgramPage = () => {
     toast.success("บันทึกเรียบร้อยแล้ว");
   }, [evaluationId, evaluationStatus, role, scores, uploadedFiles, implementationDetails, committeeScores, committeeComments, programId, programName]);
 
-  const totalTopics = categories.reduce((s, c) => s + c.topics.length, 0);
-  const totalIndicators = categories.reduce(
+  const visibleCategories = useMemo(() => {
+    if (evaluationType === "upgrade") {
+      const upgradCat = categories.find((c) => isUpgradType(c.scoreType));
+      const mode = upgradCat?.upgradeMode ?? "full";
+      return mode === "partial"
+        ? categories.filter((c) => isUpgradType(c.scoreType))
+        : categories.filter((c) => isNewType(c.scoreType) || isUpgradType(c.scoreType));
+    }
+    if (evaluationType === "renew") {
+      const renewCat = categories.find((c) => isRenewType(c.scoreType));
+      const mode = renewCat?.renewMode ?? "full";
+      return mode === "partial"
+        ? categories.filter((c) => isRenewType(c.scoreType))
+        : categories.filter((c) => isNewType(c.scoreType) || isRenewType(c.scoreType));
+    }
+    return categories.filter((c) => isNewType(c.scoreType));
+  }, [categories, evaluationType]);
+
+  const totalTopics = visibleCategories.reduce((s, c) => s + c.topics.length, 0);
+  const totalIndicators = visibleCategories.reduce(
     (s, c) => s + c.topics.reduce((ts, t) => ts + t.indicators.length, 0), 0
   );
 
   const summaryData = useMemo(() => {
-    return categories.map((cat, idx) => {
-      let totalScore = 0;
-      let totalMax = 0;
+    return visibleCategories.map((cat, idx) => {
+      const isYesNo = cat.scoreType?.includes('yes_no');
+      let totalScore = 0, totalMax = 0, passCount = 0, totalIndicators = 0;
       cat.topics.forEach((topic) => {
         topic.indicators.forEach((ind) => {
-          totalScore += scores[ind.id] || 0;
-          totalMax += ind.maxScore;
+          if (isYesNo) {
+            totalIndicators++;
+            if ((scores[ind.id] ?? -1) === 1) passCount++;
+          } else {
+            totalScore += scores[ind.id] || 0;
+            totalMax += ind.maxScore;
+          }
         });
       });
-      return { id: cat.id, name: cat.name, score: totalScore, maxScore: cat.maxScore, totalPossible: totalMax, index: idx };
+      return { id: cat.id, name: cat.name, score: totalScore, maxScore: cat.maxScore, totalPossible: totalMax, index: idx, scoreType: cat.scoreType, ...(isYesNo ? { passCount, totalIndicators } : {}) };
     });
-  }, [scores, categories]);
+  }, [scores, visibleCategories]);
 
   const committeeSummaryData = useMemo(() => {
     if (role === "user") return undefined;
-    return categories.map((cat) => {
-      let totalScore = 0;
-      let totalMax = 0;
+    return visibleCategories.map((cat) => {
+      const isYesNo = cat.scoreType?.includes('yes_no');
+      let totalScore = 0, totalMax = 0, passCount = 0, totalIndicators = 0;
       cat.topics.forEach((topic) => {
         topic.indicators.forEach((ind) => {
-          totalScore += committeeScores[ind.id] ?? 0;
-          totalMax += ind.maxScore;
+          if (isYesNo) {
+            totalIndicators++;
+            if ((committeeScores[ind.id] ?? -1) === 1) passCount++;
+          } else {
+            totalScore += committeeScores[ind.id] ?? 0;
+            totalMax += ind.maxScore;
+          }
         });
       });
-      return { id: cat.id, name: cat.name, score: totalScore, maxScore: cat.maxScore, totalPossible: totalMax };
+      return { id: cat.id, name: cat.name, score: totalScore, maxScore: cat.maxScore, totalPossible: totalMax, scoreType: cat.scoreType, ...(isYesNo ? { passCount, totalIndicators } : {}) };
     });
-  }, [committeeScores, categories]);
+  }, [committeeScores, visibleCategories]);
 
   const grandSelfTotal = summaryData.reduce((s, c) => s + c.score, 0);
   const grandCommitteeTotal = committeeSummaryData?.reduce((s, c) => s + c.score, 0) ?? 0;
@@ -229,7 +267,7 @@ const EvaluationByProgramPage = () => {
   // ── Wizard ──────────────────────────────────────────────────────────────────
   const flatIndicators = useMemo(() => {
     const items: Array<{ indicator: Category["topics"][0]["indicators"][0]; colorIndex: number }> = [];
-    categories.forEach((cat, catIdx) => {
+    visibleCategories.forEach((cat, catIdx) => {
       cat.topics.forEach((topic) => {
         topic.indicators.forEach((indicator) => {
           items.push({ indicator, colorIndex: catIdx });
@@ -237,7 +275,7 @@ const EvaluationByProgramPage = () => {
       });
     });
     return items;
-  }, [categories]);
+  }, [visibleCategories]);
 
   const [wizardIndex, setWizardIndex] = useState<number | null>(null);
   const wizardItem = wizardIndex !== null ? flatIndicators[wizardIndex] : null;
@@ -314,7 +352,30 @@ const EvaluationByProgramPage = () => {
   const handleComplete = async () => {
     if (!evaluationId) return;
     await apiClient.post(`evaluation/${evaluationId}/complete`);
-    await apiClient.post(`evaluation/${evaluationId}/calculate`);
+
+    // yes/no programs: นับจำนวนที่ผ่าน แล้วเทียบกับ scoring-levels ของ program นั้น
+    const allCategories = visibleCategories;
+    const hasYesNo = allCategories.some(c => c.scoreType?.includes('yes_no'));
+    if (hasYesNo) {
+      const levelsRes = await apiClient.get<{ id: number; name: string; minScore: number; maxScore: number; programId: string | null }[]>("scoring-levels");
+      const programLevels = levelsRes.data.filter(l => l.programId === programId);
+      const totalIndicators = allCategories.reduce((s, c) => s + c.topics.reduce((ts, t) => ts + t.indicators.length, 0), 0);
+      const passCount = allCategories.reduce((s, c) =>
+        s + c.topics.reduce((ts, t) =>
+          ts + t.indicators.reduce((is, i) => is + ((committeeScores[i.id] ?? -1) === 1 ? 1 : 0), 0), 0), 0);
+      const passPct = totalIndicators > 0 ? Math.round((passCount / totalIndicators) * 100) : 0;
+      const matchedLevel = programLevels.find(l => passPct >= l.minScore && passPct <= l.maxScore);
+      await apiClient.post(`evaluation/${evaluationId}/calculate-yesno`, {
+        passCount,
+        totalIndicators,
+        passPct,
+        scoringLevelId: matchedLevel?.id ?? null,
+        scoringLevelName: matchedLevel?.name ?? null,
+      });
+    } else {
+      await apiClient.post(`evaluation/${evaluationId}/calculate`);
+    }
+
     toast.success("ยืนยันผลการประเมินเรียบร้อย");
     navigate(`/evaluation/${programId}/summary?evaluationId=${evaluationId}`);
   };
@@ -361,7 +422,7 @@ const EvaluationByProgramPage = () => {
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              {categories.length} หมวด · {totalTopics} ประเด็น · {totalIndicators} ตัวชี้วัด · คะแนนเต็ม {grandMax}
+              {visibleCategories.length} หมวด · {totalTopics} ประเด็น · {totalIndicators} ตัวชี้วัด · คะแนนเต็ม {grandMax}
             </p>
           </div>
           {role !== "user" ? (
@@ -430,7 +491,7 @@ const EvaluationByProgramPage = () => {
 
       <div className="px-6 py-6 space-y-6">
         <ScoreSummary data={summaryData} committeeData={committeeSummaryData} />
-        {categories.map((category, idx) => (
+        {visibleCategories.map((category, idx) => (
           <CategoryCard
             key={category.id}
             category={category}
