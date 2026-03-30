@@ -4,11 +4,16 @@ import {
   Building2, MapPin, Phone, Mail, User, ClipboardCheck,
   Loader2, CheckCircle2, CalendarDays, Hash, ArrowLeft,
   Clock, FileText, AlertCircle, XCircle, RotateCcw,
+  FilePlus, RefreshCw, TrendingUp,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CategoryCard, IndicatorDialog, getCategoryColor } from "@/components/CategoryCard";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChevronDown } from "lucide-react";
 import type { UploadedFile, IndicatorNavItem } from "@/components/CategoryCard";
 import { ScoreSummary } from "@/components/ScoreSummary";
 import { SelfEvalHeader } from "@/components/self-eval/SelfEvalHeader";
@@ -24,6 +29,12 @@ interface EvalCategory extends Category {
 import apiClient from "@/lib/axios";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+
+const EVAL_TYPE_CONFIG: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
+  new:     { label: "ประเมินใหม่",             icon: <FilePlus   className="h-3 w-3" />, className: "bg-blue-50 text-blue-700 border-blue-200"     },
+  renew:   { label: "ต่ออายุใบประกาศนียบัตร", icon: <RefreshCw  className="h-3 w-3" />, className: "bg-amber-50 text-amber-700 border-amber-200"   },
+  upgrade: { label: "ยกระดับคะแนน",           icon: <TrendingUp className="h-3 w-3" />, className: "bg-purple-50 text-purple-700 border-purple-200" },
+};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -94,6 +105,8 @@ export default function ProjectRegistration() {
   const [submitting, setSubmitting]         = useState(false);
   const [evaluationStatus, setEvaluationStatus] = useState<string | null>(null);
   const [wizardIndex, setWizardIndex]       = useState<number | null>(null);
+  // notification ของ indicator ที่กรรมการ comment/ให้คะแนนใหม่
+  const [newCommitteeIndicatorIds, setNewCommitteeIndicatorIds] = useState<Map<string, { prevScore: number | null; newScore: number | null }>>(new Map());
   const navigate = useNavigate();
   // ── Fetch evaluation form + existing answers ───────────────────────────────
   useEffect(() => {
@@ -199,6 +212,23 @@ export default function ProjectRegistration() {
             setCommitteeScores(loadedCommittee);
             setCommitteeComments(loadedCommitteeComments);
             setUploadedFiles(loadedFiles);
+
+            // โหลด notification จากกรรมการ
+            if (evalData.id) {
+              try {
+                const { data: notifs } = await apiClient.get(
+                  `evaluation/${evalData.id}/notifications?direction=committee_to_evaluatee`
+                );
+                const notifMap = new Map<string, { prevScore: number | null; newScore: number | null }>();
+                (notifs as { indicatorId: string; isRead: boolean; committeeScore: number | null; prevCommitteeScore: number | null }[])
+                  .filter((n) => !n.isRead)
+                  .forEach((n) => notifMap.set(n.indicatorId, {
+                    prevScore: n.prevCommitteeScore,
+                    newScore: n.committeeScore,
+                  }));
+                setNewCommitteeIndicatorIds(notifMap);
+              } catch { /* ไม่มี notification ยังไม่เป็นไร */ }
+            }
           }
         }
       } catch (err) {
@@ -362,16 +392,20 @@ export default function ProjectRegistration() {
   }, [visibleCategories]);
 
   // สุ่มคะแนนทุกตัวชี้วัดแล้วบันทึก
-  const handleFillRandom = async () => {
+  const handleFillMode = async (mode: "full" | "good" | "mid" | "bad" | "clear") => {
     if (!programId) return;
+    const pickScore = (maxScore: number, criteria: { score: number; label: string }[]) => {
+      const sorted = [...(criteria.length > 0 ? criteria.map(c => c.score) : Array.from({ length: maxScore + 1 }, (_, i) => i))].sort((a, b) => a - b);
+      const n = sorted.length;
+      if (mode === "full")  return sorted[n - 1];
+      if (mode === "good")  return sorted[Math.max(0, n - 1 - Math.floor(Math.random() * Math.ceil(n * 0.25)))];
+      if (mode === "mid")   { const mid = Math.floor(n / 2); return sorted[mid - 1 + Math.floor(Math.random() * 3) - 1 < 0 ? mid : mid - 1 + Math.floor(Math.random() * 3)]; }
+      if (mode === "bad")   return sorted[Math.floor(Math.random() * Math.max(1, Math.ceil(n * 0.35)))];
+      return 0;
+    };
     const newScores: Record<string, number> = {};
     for (const { indicator } of flatIndicators) {
-      const criteria = indicator.scoringCriteria;
-      if (criteria && criteria.length > 0) {
-        newScores[indicator.id] = criteria[Math.floor(Math.random() * criteria.length)].score;
-      } else {
-        newScores[indicator.id] = Math.floor(Math.random() * (indicator.maxScore + 1));
-      }
+      newScores[indicator.id] = mode === "clear" ? 0 : pickScore(indicator.maxScore, indicator.scoringCriteria ?? []);
     }
     setScores((prev) => ({ ...prev, ...newScores }));
     let currentEvalId = evaluationId;
@@ -388,13 +422,26 @@ export default function ProjectRegistration() {
         setEvaluationId(currentEvalId);
       }
     }
-    toast.success(`สุ่มคะแนนครบ ${flatIndicators.length} ตัวชี้วัดแล้ว`);
+    const labels: Record<string, string> = { full: "เต็ม", good: "ดีแต่ไม่เต็ม", mid: "กลางๆ", bad: "แย่ๆ", clear: "ล้างคะแนน" };
+    toast.success(mode === "clear" ? "ล้างคะแนนแล้ว" : `สุ่มคะแนน${labels[mode]}ครบ ${flatIndicators.length} ตัวชี้วัดแล้ว`);
   };
 
   const handleOpenWizard = useCallback((indicator: Category["topics"][0]["indicators"][0]) => {
     const idx = flatIndicators.findIndex((item) => item.indicator.id === indicator.id);
     if (idx !== -1) setWizardIndex(idx);
-  }, [flatIndicators]);
+    // mark notification as read
+    if (evaluationId && newCommitteeIndicatorIds.has(indicator.id)) {
+      apiClient.post(`evaluation/${evaluationId}/notifications/read`, {
+        direction: "committee_to_evaluatee",
+        indicatorIds: [indicator.id],
+      }).catch(() => {});
+      setNewCommitteeIndicatorIds((prev) => {
+        const next = new Map(prev);
+        next.delete(indicator.id);
+        return next;
+      });
+    }
+  }, [flatIndicators, evaluationId, newCommitteeIndicatorIds]);
 
   const wizardItem = wizardIndex !== null ? flatIndicators[wizardIndex] : null;
 
@@ -440,33 +487,24 @@ export default function ProjectRegistration() {
   return (
     <div className="min-h-full bg-background">
 
-      {/* ════ TOP — ข้อมูลผู้สมัคร ════ */}
-      <div className="border-b bg-card/50 px-4 sm:px-6 py-5 space-y-4">
-
-        {/* Back button + random fill */}
-        <div className="flex items-center justify-between">
-          <Button variant="ghost" size="sm" className="gap-1.5 -ml-2 text-muted-foreground" onClick={() => navigate("/register")}>
-            <ArrowLeft className="h-4 w-4" />
-            กลับ
+      {/* ════ TOP ════ */}
+      <div className="border-b bg-card/50 px-4 sm:px-6 py-4">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/register")} className="shrink-0">
+            <ArrowLeft className="h-5 w-5" />
           </Button>
-          {!isEvalReadOnly && !evalLoading && categories.length > 0 && (
-            <Button variant="outline" size="sm" onClick={handleFillRandom} className="gap-1.5 text-purple-600 border-purple-300 hover:bg-purple-50 text-xs">
-              🎲 สุ่มคะแนน
-            </Button>
-          )}
-        </div>
-
-        {/* หัว: ชื่อองค์กร + สถานะ */}
-        <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/10 shrink-0">
-            <Building2 className="h-5 w-5 text-accent" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary shrink-0">
+            <ClipboardCheck className="h-5 w-5 text-primary-foreground" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-lg font-bold text-foreground">
-                {registration?.organizationName ?? user?.name ?? "-"}
-              </h2>
-              <Badge variant={status.variant}>{status.label}</Badge>
+              <h2 className="text-lg font-bold text-foreground">ประเมิน {programName}</h2>
+              {evaluationType && EVAL_TYPE_CONFIG[evaluationType] && (
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${EVAL_TYPE_CONFIG[evaluationType].className}`}>
+                  {EVAL_TYPE_CONFIG[evaluationType].icon}
+                  {EVAL_TYPE_CONFIG[evaluationType].label}
+                </span>
+              )}
               {currentEvalStatus && (
                 <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${currentEvalStatus.badge}`}>
                   {currentEvalStatus.icon}
@@ -474,43 +512,44 @@ export default function ProjectRegistration() {
                 </span>
               )}
             </div>
-            <p className="text-sm text-muted-foreground">{registration?.organizationType ?? ""}</p>
+            <p className="text-xs text-muted-foreground">
+              {visibleCategories.length} หมวด · {totalTopics} ประเด็น · {totalIndicators} ตัวชี้วัด · คะแนนเต็ม {grandMax}
+            </p>
           </div>
-        </div>
-
-        {/* รายละเอียด */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-sm">
-          <InfoTile icon={<ClipboardCheck className="h-4 w-4 text-primary" />} label="โครงการ">
-            <span className="font-semibold text-foreground">{registration?.programName ?? programId}</span>
-          </InfoTile>
-          <InfoTile icon={<MapPin className="h-4 w-4 text-muted-foreground" />} label="ที่อยู่">
-            <span>{registration?.address ?? ""}</span>
-            <span className="text-muted-foreground">
-              {registration?.provinceName ?? registration?.province ?? user?.province ?? ""}
-            </span>
-          </InfoTile>
-          <InfoTile icon={<User className="h-4 w-4 text-muted-foreground" />} label="ผู้ติดต่อ">
-            <span className="font-medium">{registration?.contactName ?? user?.name ?? "-"}</span>
-            {registration?.contactPhone && (
-              <span className="flex items-center gap-1 text-muted-foreground text-xs">
-                <Phone className="h-3 w-3" />{registration.contactPhone}
-              </span>
-            )}
-            <span className="flex items-center gap-1 text-muted-foreground text-xs">
-              <Mail className="h-3 w-3" />{registration?.contactEmail ?? user?.email ?? "-"}
-            </span>
-          </InfoTile>
-          <InfoTile icon={<CalendarDays className="h-4 w-4 text-muted-foreground" />} label="วันที่เข้าร่วม">
-            <span>
-              {new Date(registration?.createdAt ?? user?.createdAt ?? Date.now())
-                .toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric" })}
-            </span>
-            {registration && (
-              <span className="flex items-center gap-1 text-muted-foreground text-xs">
-                <Hash className="h-3 w-3" />เลขที่ {registration.id.slice(0, 8).toUpperCase()}
-              </span>
-            )}
-          </InfoTile>
+          <div className="text-right shrink-0">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">ประเมินตนเอง</p>
+            <p className="text-xl font-bold text-primary">
+              {grandTotal}<span className="text-sm font-normal text-muted-foreground">/{grandMax}</span>
+            </p>
+          </div>
+          {grandCommitteeTotal !== undefined && (
+            <>
+              <div className="w-px h-8 bg-border shrink-0" />
+              <div className="text-right shrink-0">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">กรรมการ</p>
+                <p className="text-xl font-bold text-muted-foreground">
+                  {grandCommitteeTotal}<span className="text-sm font-normal text-muted-foreground">/{grandMax}</span>
+                </p>
+              </div>
+            </>
+          )}
+          {!isEvalReadOnly && !evalLoading && categories.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1 text-purple-600 border-purple-300 hover:bg-purple-50 text-xs shrink-0">
+                  🎲 สุ่ม <ChevronDown className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem onClick={() => handleFillMode("full")}>⭐ สุ่มคะแนนเต็ม</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleFillMode("good")}>😊 สุ่มคะแนนดีแต่ไม่เต็ม</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleFillMode("mid")}>😐 สุ่มคะแนนกลางๆ</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleFillMode("bad")}>😕 สุ่มคะแนนแย่ๆ</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => handleFillMode("clear")} className="text-destructive">🗑 ล้างคะแนน</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
 
@@ -532,19 +571,6 @@ export default function ProjectRegistration() {
           </div>
         ) : (
           <>
-            {/* Form header */}
-            <SelfEvalHeader
-              programName={programName}
-              categoryCount={categories.length}
-              topicCount={totalTopics}
-              indicatorCount={totalIndicators}
-              grandTotal={grandTotal}
-              grandMax={grandMax}
-              submitted={isEvalReadOnly}
-              committeeTotal={grandCommitteeTotal}
-              evaluationType={evaluationType}
-            />
-
             {/* Scoring levels — visible to evaluatee only when evaluation is complete */}
             {scoringLevels.length > 0 && isEvalCompleted && (
               <ScoringLevelBadges levels={scoringLevels} grandMax={grandMax} currentScore={grandTotal} />
@@ -568,6 +594,7 @@ export default function ProjectRegistration() {
                 onImplementationDetailChange={handleDetailChange}
                 userRole="user"
                 onIndicatorClick={handleOpenWizard}
+                newIndicatorNotifs={newCommitteeIndicatorIds}
               />
             ))}
 

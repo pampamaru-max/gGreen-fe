@@ -12,7 +12,9 @@
       "Bash(grep -r \"scoreType\\\\|yes_no\\\\|indicator\" /c/Users/USER/OneDrive/Desktop/746903-G-Green/Code/src --include=*.tsx --include=*.ts -l)",
       "Bash(xargs grep:*)",
       "Bash(grep -r evaluation-form /c/Users/USER/OneDrive/Desktop/746903-G-Green/Code/src --include=*.tsx --include=*.ts)",
-      "Bash(find /c/Users/USER/OneDrive/Desktop/746903-G-Green/Code -type d -name *routes* -o -type d -name *api* -o -type d -name *controller*)"
+      "Bash(find /c/Users/USER/OneDrive/Desktop/746903-G-Green/Code -type d -name *routes* -o -type d -name *api* -o -type d -name *controller*)",
+      "Bash(find /c/Users/USER/OneDrive/Desktop/746903-G-Green/Code -type f \\\\\\(-name *.ts -o -name *.tsx \\\\\\) -path */api/*)",
+      "Bash(grep -l \"evaluation\\\\|score\" /c/Users/USER/OneDrive/Desktop/746903-G-Green/Code/supabase/migrations/*.sql)"
     ]
   }
 }

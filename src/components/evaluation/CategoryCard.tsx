@@ -65,6 +65,7 @@ interface Props {
   userRole?: string | null;
   scoreView?: "self" | "committee";
   onIndicatorClick?: (indicator: Category["topics"][0]["indicators"][0]) => void;
+  newIndicatorNotifs?: Map<string, { prevScore: number | null; newScore: number | null; isYesNo?: boolean }>;
 }
 
 // ── Shared utility ────────────────────────────────────────────────────────────
@@ -848,7 +849,7 @@ export function IndicatorDialog({
   );
 }
 
-export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDelete, uploadedFiles, onFilesChange, onSave, implementationDetails, onImplementationDetailChange, committeeScores, onCommitteeScoreChange, committeeComments, onCommitteeCommentChange, userRole, scoreView, onIndicatorClick }: Props) {
+export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDelete, uploadedFiles, onFilesChange, onSave, implementationDetails, onImplementationDetailChange, committeeScores, onCommitteeScoreChange, committeeComments, onCommitteeCommentChange, userRole, scoreView, onIndicatorClick, newIndicatorNotifs }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndicator, setSelectedIndicator] = useState<Category["topics"][0]["indicators"][0] | null>(null);
   const color = categoryColors[colorIndex % categoryColors.length];
@@ -856,6 +857,10 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
   const displayScores = scoreView === "committee" && committeeScores ? committeeScores : scores;
 
   const isYesNoCat = category.scoreType?.includes('yes_no');
+
+  const hasNewInCategory = newIndicatorNotifs
+    ? category.topics.some((t) => t.indicators.some((i) => newIndicatorNotifs.has(i.id)))
+    : false;
   const totalScore = category.topics.reduce(
     (sum, t) => sum + t.indicators.reduce((s, i) => s + (displayScores[i.id] || 0), 0),
     0
@@ -883,7 +888,14 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
           <ChevronRight className="h-4 w-4" style={{ color: `hsl(${color})` }} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-foreground">{category.name}</p>
+          <div className="flex items-center gap-2">
+            <p className="font-semibold text-foreground">{category.name}</p>
+            {hasNewInCategory && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-white leading-none">
+                ใหม่
+              </span>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground">
             {category.topics.length} ประเด็น · {category.topics.reduce((s, t) => s + t.indicators.length, 0)} ตัวชี้วัด{isYesNoCat ? "" : ` · คะแนนเต็ม ${category.maxScore}`}
           </p>
@@ -932,6 +944,13 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
                   const cScore = committeeScores?.[indicator.id];
                   const fileCount = (uploadedFiles[indicator.id] || []).length;
                   const isCommitteeMode = scoreView === "committee";
+                  const notif = newIndicatorNotifs?.get(indicator.id);
+                  const isYesNo = indicator.scoreType?.includes('yes_no');
+                  const formatScore = (v: number | null) => {
+                    if (v === null || v === undefined) return '–';
+                    if (isYesNo) return v === 1 ? 'ผ่าน' : 'ไม่ผ่าน';
+                    return String(v);
+                  };
                   return (
                     <button
                       key={indicator.id}
@@ -946,6 +965,11 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
                     >
                       <span className="h-1 w-1 rounded-full bg-muted-foreground/40 shrink-0" />
                       <span className="flex-1 text-sm text-foreground truncate">{indicator.name}</span>
+                      {notif && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-white leading-none shrink-0 whitespace-nowrap">
+                          {formatScore(notif.prevScore)}→{formatScore(notif.newScore)}
+                        </span>
+                      )}
                       {fileCount > 0 && (
                         <span className="flex items-center gap-1 text-xs text-muted-foreground">
                           <FileText className="h-3.5 w-3.5" />
