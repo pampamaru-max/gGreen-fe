@@ -4,7 +4,10 @@ import { Category } from "@/data/evaluationData";
 import type { UploadedFile, IndicatorNavItem } from "@/components/evaluation/CategoryCard";
 import { CategoryCard, IndicatorDialog, getCategoryColor } from "@/components/evaluation/CategoryCard";
 import { ScoreSummary } from "@/components/evaluation/ScoreSummary";
-import { ClipboardCheck, Loader2, ArrowLeft, RotateCcw, CheckCircle2, Clock, FileText, AlertCircle, XCircle, FilePlus, RefreshCw, TrendingUp } from "lucide-react";
+import { ClipboardCheck, Loader2, ArrowLeft, RotateCcw, CheckCircle2, Clock, FileText, AlertCircle, XCircle, FilePlus, RefreshCw, TrendingUp, ChevronDown } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import apiClient from "@/lib/axios";
 import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -46,6 +49,8 @@ const EvaluationByProgramPage = () => {
   const [evaluationId, setEvaluationId] = useState<string | null>(null);
   const [evaluationStatus, setEvaluationStatus] = useState<string | null>(null);
   const [evaluationType, setEvaluationType] = useState<string | null>(null);
+  // notification IDs ของ indicator ที่ผู้ถูกประเมินแก้ไขใหม่ (เฉพาะฝั่งกรรมการ)
+  const [newEvaluateeIndicatorIds, setNewEvaluateeIndicatorIds] = useState<Map<string, { prevScore: number | null; newScore: number | null }>>(new Map());
 
   // Check access
   useEffect(() => {
@@ -132,6 +137,23 @@ const EvaluationByProgramPage = () => {
           setCommitteeScores(loadedCommittee);
           setCommitteeComments(loadedComments);
           setUploadedFiles(loadedFiles);
+
+          // โหลด notification จากผู้ถูกประเมิน (สำหรับกรรมการ)
+          if (role !== "user" && evalData.id) {
+            try {
+              const { data: notifs } = await apiClient.get(
+                `evaluation/${evalData.id}/notifications?direction=evaluatee_to_committee`
+              );
+              const notifMap = new Map<string, { prevScore: number | null; newScore: number | null }>();
+              (notifs as { indicatorId: string; isRead: boolean; evaluateeScore: number | null; prevEvaluateeScore: number | null }[])
+                .filter((n) => !n.isRead)
+                .forEach((n) => notifMap.set(n.indicatorId, {
+                  prevScore: n.prevEvaluateeScore,
+                  newScore: n.evaluateeScore,
+                }));
+              setNewEvaluateeIndicatorIds(notifMap);
+            } catch { /* ไม่มี notification */ }
+          }
         }
       }
       } catch (err) {
@@ -283,7 +305,19 @@ const EvaluationByProgramPage = () => {
   const handleOpenWizard = useCallback((indicator: Category["topics"][0]["indicators"][0]) => {
     const idx = flatIndicators.findIndex((item) => item.indicator.id === indicator.id);
     if (idx !== -1) setWizardIndex(idx);
-  }, [flatIndicators]);
+    // mark evaluatee notification as read when committee opens this indicator
+    if (role !== "user" && evaluationId && newEvaluateeIndicatorIds.has(indicator.id)) {
+      apiClient.post(`evaluation/${evaluationId}/notifications/read`, {
+        direction: "evaluatee_to_committee",
+        indicatorIds: [indicator.id],
+      }).catch(() => {});
+      setNewEvaluateeIndicatorIds((prev) => {
+        const next = new Map(prev);
+        next.delete(indicator.id);
+        return next;
+      });
+    }
+  }, [flatIndicators, role, evaluationId, newEvaluateeIndicatorIds]);
 
   const navItems: IndicatorNavItem[] = useMemo(() =>
     flatIndicators.map(({ indicator, colorIndex }) => ({
@@ -317,15 +351,19 @@ const EvaluationByProgramPage = () => {
     return flatIndicators.every(({ indicator }) => committeeScores[indicator.id] !== undefined);
   }, [flatIndicators, committeeScores, role]);
 
-  const handleFillRandom = async () => {
+  const handleFillMode = async (mode: "full" | "good" | "mid" | "bad" | "clear") => {
+    const pickScore = (maxScore: number, criteria: { score: number; label: string }[]) => {
+      const sorted = [...(criteria.length > 0 ? criteria.map(c => c.score) : Array.from({ length: maxScore + 1 }, (_, i) => i))].sort((a, b) => a - b);
+      const n = sorted.length;
+      if (mode === "full")  return sorted[n - 1];
+      if (mode === "good")  return sorted[Math.max(0, n - 1 - Math.floor(Math.random() * Math.ceil(n * 0.25)))];
+      if (mode === "mid")   { const mid = Math.floor(n / 2); return sorted[Math.min(n - 1, Math.max(0, mid - 1 + Math.floor(Math.random() * 3)))]; }
+      if (mode === "bad")   return sorted[Math.floor(Math.random() * Math.max(1, Math.ceil(n * 0.35)))];
+      return 0;
+    };
     const newScores: Record<string, number> = {};
     for (const { indicator } of flatIndicators) {
-      const criteria = indicator.scoringCriteria;
-      if (criteria && criteria.length > 0) {
-        newScores[indicator.id] = criteria[Math.floor(Math.random() * criteria.length)].score;
-      } else {
-        newScores[indicator.id] = Math.floor(Math.random() * (indicator.maxScore + 1));
-      }
+      newScores[indicator.id] = mode === "clear" ? 0 : pickScore(indicator.maxScore, indicator.scoringCriteria ?? []);
     }
     setCommitteeScores((prev) => ({ ...prev, ...newScores }));
 
@@ -346,7 +384,8 @@ const EvaluationByProgramPage = () => {
         })
       )
     );
-    toast.success(`กรอกสุ่มครบ ${flatIndicators.length} ข้อแล้ว`);
+    const labels: Record<string, string> = { full: "เต็ม", good: "ดีแต่ไม่เต็ม", mid: "กลางๆ", bad: "แย่ๆ", clear: "" };
+    toast.success(mode === "clear" ? "ล้างคะแนนแล้ว" : `สุ่มคะแนน${labels[mode]}ครบ ${flatIndicators.length} ข้อแล้ว`);
   };
 
   const handleComplete = async () => {
@@ -450,9 +489,21 @@ const EvaluationByProgramPage = () => {
             </div>
           )}
           {role !== "user" && import.meta.env.DEV && !isCompleted && (
-            <Button variant="outline" size="sm" onClick={handleFillRandom} className="gap-1.5 text-purple-600 border-purple-300 hover:bg-purple-50 text-xs">
-              🎲 สุ่ม
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1 text-purple-600 border-purple-300 hover:bg-purple-50 text-xs">
+                  🎲 สุ่ม <ChevronDown className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem onClick={() => handleFillMode("full")}>⭐ สุ่มคะแนนเต็ม</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleFillMode("good")}>😊 สุ่มคะแนนดีแต่ไม่เต็ม</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleFillMode("mid")}>😐 สุ่มคะแนนกลางๆ</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleFillMode("bad")}>😕 สุ่มคะแนนแย่ๆ</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => handleFillMode("clear")} className="text-destructive">🗑 ล้างคะแนน</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
           {isCompleted ? (
             <Button
@@ -510,6 +561,7 @@ const EvaluationByProgramPage = () => {
             userRole={role}
             scoreView={scoreView}
             onIndicatorClick={handleOpenWizard}
+            newIndicatorNotifs={role !== "user" ? newEvaluateeIndicatorIds : undefined}
           />
         ))}
       </div>
