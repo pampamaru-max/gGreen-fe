@@ -364,6 +364,9 @@ export default function EvaluateeHome() {
                     <TableHead className="text-center min-w-[140px] text-slate-400 font-bold uppercase text-[10px] tracking-[0.1em]">
                       โครงการ
                     </TableHead>
+                    <TableHead className="text-center min-w-[80px] text-slate-400 font-bold uppercase text-[10px] tracking-[0.1em]">
+                      ปี
+                    </TableHead>
                     <TableHead className="text-center min-w-[140px] text-slate-400 font-bold uppercase text-[10px] tracking-[0.1em]">
                       สถานะการประเมินตนเอง
                     </TableHead>
@@ -399,6 +402,9 @@ export default function EvaluateeHome() {
                         </TableCell>
                         <TableCell className="text-center font-medium">
                           {item.program_name}
+                        </TableCell>
+                        <TableCell className="text-center font-medium">
+                          {item.year ? item.year + 543 : "-"}
                         </TableCell>
                         <TableCell className="text-center">
                           {getStatusBadge(item.evaluation_status)}
