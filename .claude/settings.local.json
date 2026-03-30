@@ -11,7 +11,8 @@
       "Bash(find /c/Users/USER/OneDrive/Desktop/746903-G-Green/Code/src -type f \\\\\\(-name *.tsx -o -name *.ts \\\\\\))",
       "Bash(grep -r \"scoreType\\\\|yes_no\\\\|indicator\" /c/Users/USER/OneDrive/Desktop/746903-G-Green/Code/src --include=*.tsx --include=*.ts -l)",
       "Bash(xargs grep:*)",
-      "Bash(grep -r evaluation-form /c/Users/USER/OneDrive/Desktop/746903-G-Green/Code/src --include=*.tsx --include=*.ts)"
+      "Bash(grep -r evaluation-form /c/Users/USER/OneDrive/Desktop/746903-G-Green/Code/src --include=*.tsx --include=*.ts)",
+      "Bash(find /c/Users/USER/OneDrive/Desktop/746903-G-Green/Code -type d -name *routes* -o -type d -name *api* -o -type d -name *controller*)"
     ]
   }
 }
