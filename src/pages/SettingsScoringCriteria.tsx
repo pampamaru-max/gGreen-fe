@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
-import { Award, Trophy, Medal, Plus, Trash2, Loader2, Save, Pencil, GripVertical, ChevronRight } from "lucide-react";
+import { Award, Trophy, Medal, Plus, Trash2, Loader2, Save, Pencil, GripVertical, ChevronRight, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
@@ -37,6 +38,7 @@ interface DbProgram {
   name: string;
   icon: string;
   sortOrder: number;
+  scoringType?: 'score' | 'yes_no';
 }
 
 const ICON_OPTIONS = [
@@ -257,12 +259,60 @@ const ScoreBar = ({ levels }: { levels: ScoringLevel[] }) => (
   </div>
 );
 
+const YesNoScoringView = () => (
+  <div className="space-y-4">
+    <p className="text-sm text-muted-foreground">โครงการนี้ใช้เกณฑ์แบบสอดคล้อง/ไม่สอดคล้อง ไม่ต้องกำหนดช่วงคะแนน</p>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="flex items-center gap-4 rounded-xl border border-emerald-100 bg-emerald-50/50 p-6">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+          <CheckCircle2 className="h-6 w-6" />
+        </div>
+        <div>
+          <h4 className="text-lg font-bold text-emerald-700 leading-none">สอดคล้อง</h4>
+          <p className="text-sm text-emerald-600/80 mt-1">ผ่านเกณฑ์การประเมิน</p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-4 rounded-xl border border-rose-100 bg-rose-50/50 p-6">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+          <XCircle className="h-6 w-6" />
+        </div>
+        <div>
+          <h4 className="text-lg font-bold text-rose-700 leading-none">ไม่สอดคล้อง</h4>
+          <p className="text-sm text-rose-600/80 mt-1">ไม่ผ่านเกณฑ์การประเมิน</p>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 const SettingsScoringCriteria = () => {
   const { toast } = useToast();
   const [levels, setLevels] = useState<ScoringLevel[]>([]);
   const [programs, setPrograms] = useState<DbProgram[]>([]);
   const [loading, setLoading] = useState(true);
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
+
+  const handleProgramTypeChange = async (programId: string, type: 'score' | 'yes_no') => {
+    // Note: If backend supports update, call it. For now, local update.
+    setPrograms(prev => prev.map(p => p.id === programId ? { ...p, scoringType: type } : p));
+    
+    // Optional: Persist to backend if API exists
+    try {
+      await apiClient.patch(`programs/${programId}`, { scoringType: type });
+      toast({
+        title: "บันทึกสำเร็จ",
+        description: `เปลี่ยนรูปแบบเกณฑ์การประเมินเป็น ${type === 'score' ? 'เกณฑ์คะแนน' : 'สอดคล้อง / ไม่สอดคล้อง'} เรียบร้อยแล้ว`,
+      });
+    } catch (error: any) {
+      console.error("Failed to update program scoring type:", error);
+      toast({
+        title: "เกิดข้อผิดพลาดในการบันทึก",
+        description: error.response?.data?.message || error.message,
+        variant: "destructive",
+      });
+    }
+  };
 
   const fetchAll = async () => {
     try {
@@ -386,19 +436,6 @@ const SettingsScoringCriteria = () => {
 
   return (
     <div className="min-h-full bg-background">
-      {/* Header */}
-      <div className="border-b bg-card/50 px-6 py-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-            <Award className="h-5 w-5 text-primary-foreground" />
-          </div>
-          <div className="flex-1">
-            <h2 className="text-lg font-bold text-foreground">เกณฑ์คะแนน</h2>
-            <p className="text-xs text-muted-foreground">กำหนดช่วงคะแนนและระดับผลการประเมินแยกตามโครงการ</p>
-          </div>
-        </div>
-      </div>
-
       <div className="px-6 py-6 space-y-6">
         {programs.length === 0 && (
           <p className="text-sm text-muted-foreground text-center py-8">ยังไม่มีโครงการ กรุณาเพิ่มโครงการก่อน</p>
@@ -410,51 +447,76 @@ const SettingsScoringCriteria = () => {
             .sort((a, b) => a.sortOrder - b.sortOrder);
 
           return (
-            <Collapsible key={program.id} className="group/prog" defaultOpen>
-              <div className="rounded-xl border border-accent/30 bg-accent/10 overflow-hidden shadow-sm">
+            <Collapsible key={program.id} className="group/prog" defaultOpen={program.name === 'Green Hotel'}>
+              <div className="rounded-xl border border-emerald-100/50 bg-emerald-50/30 overflow-hidden shadow-sm">
                 <CollapsibleTrigger asChild>
-                  <button className="flex w-full items-center gap-3 px-5 py-4 hover:bg-accent/20 transition-colors">
-                    <ChevronRight className="h-5 w-5 text-accent-foreground/70 transition-transform group-data-[state=open]/prog:rotate-90" />
-                    <p className="font-bold text-foreground text-left flex-1 text-base">{program.name}</p>
-                    <span className="text-xs text-muted-foreground">
-                      {programLevels.length} ระดับ
+                  <button className="flex w-full items-center gap-3 px-5 py-4 hover:bg-emerald-50/60 transition-colors">
+                    <ChevronRight className="h-5 w-5 text-emerald-600/70 transition-transform group-data-[state=open]/prog:rotate-90" />
+                    <p className="font-bold text-slate-800 text-left flex-1 text-base">{program.name}</p>
+                    <span className="text-xs text-slate-500">
+                      {program.scoringType === 'yes_no' ? 'สอดคล้อง/ไม่สอดคล้อง' : `${programLevels.length} ระดับ`}
                     </span>
                   </button>
                 </CollapsibleTrigger>
 
                 <CollapsibleContent>
-                  <div className="border-t px-4 py-4 space-y-4 bg-white/50">
-                    {/* Score bar for this program */}
-                    <ScoreBar levels={programLevels} />
-
-                    {/* Level cards */}
-                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(program.id, e)}>
-                      <SortableContext items={programLevels.map((l) => l.id)} strategy={verticalListSortingStrategy}>
-                        <div className="space-y-3">
-                          {programLevels.map((level) => (
-                            <SortableLevelCard key={level.id} level={level} onEdit={handleEdit} onDelete={handleDelete} />
-                          ))}
+                  <div className="border-t px-5 py-5 space-y-6 bg-white/50">
+                    {/* Evaluation Type Selection */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-bold text-foreground">รูปแบบเกณฑ์การประเมิน</Label>
+                      <RadioGroup
+                        defaultValue={program.scoringType || 'score'}
+                        onValueChange={(v) => handleProgramTypeChange(program.id, v as 'score' | 'yes_no')}
+                        className="flex items-center gap-6"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="score" id={`score-${program.id}`} />
+                          <Label htmlFor={`score-${program.id}`} className="text-sm font-medium cursor-pointer">เกณฑ์คะแนน (ช่วง %)</Label>
                         </div>
-                      </SortableContext>
-                    </DndContext>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="yes_no" id={`yes_no-${program.id}`} />
+                          <Label htmlFor={`yes_no-${program.id}`} className="text-sm font-medium cursor-pointer">สอดคล้อง / ไม่สอดคล้อง</Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
 
-                    {programLevels.length === 0 && (
-                      <div className="text-center py-6 text-muted-foreground">
-                        <Award className="mx-auto h-8 w-8 mb-2 opacity-30" />
-                        <p className="text-sm">ยังไม่มีเกณฑ์คะแนนในโครงการนี้</p>
-                      </div>
+                    {program.scoringType === 'yes_no' ? (
+                      <YesNoScoringView />
+                    ) : (
+                      <>
+                        {/* Score bar for this program */}
+                        <ScoreBar levels={programLevels} />
+
+                        {/* Level cards */}
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(program.id, e)}>
+                          <SortableContext items={programLevels.map((l) => l.id)} strategy={verticalListSortingStrategy}>
+                            <div className="space-y-3">
+                              {programLevels.map((level) => (
+                                <SortableLevelCard key={level.id} level={level} onEdit={handleEdit} onDelete={handleDelete} />
+                              ))}
+                            </div>
+                          </SortableContext>
+                        </DndContext>
+
+                        {programLevels.length === 0 && (
+                          <div className="text-center py-6 text-muted-foreground">
+                            <Award className="mx-auto h-8 w-8 mb-2 opacity-30" />
+                            <p className="text-sm">ยังไม่มีเกณฑ์คะแนนในโครงการนี้</p>
+                          </div>
+                        )}
+
+                        {/* Add button */}
+                        <LevelFormDialog
+                          title="เพิ่มระดับใหม่"
+                          onSubmit={(data) => handleAdd(data, program.id)}
+                          trigger={
+                            <Button variant="outline" size="sm" className="gap-1.5 mt-2">
+                              <Plus className="h-4 w-4" /> เพิ่มระดับ
+                            </Button>
+                          }
+                        />
+                      </>
                     )}
-
-                    {/* Add button */}
-                    <LevelFormDialog
-                      title="เพิ่มระดับใหม่"
-                      onSubmit={(data) => handleAdd(data, program.id)}
-                      trigger={
-                        <Button variant="outline" size="sm" className="gap-1.5 mt-2">
-                          <Plus className="h-4 w-4" /> เพิ่มระดับ
-                        </Button>
-                      }
-                    />
                   </div>
                 </CollapsibleContent>
               </div>
