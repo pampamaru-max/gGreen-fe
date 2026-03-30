@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/USER/OneDrive/Desktop/746903-G-Green/Be/**)",
+      "Bash(npx prisma:*)",
+      "Bash(grep -r \"green-hotel\\\\|evaluationId\\\\|GreenHotel\" c:/Users/USER/OneDrive/Desktop/746903-G-Green/Code/src --include=*.tsx --include=*.ts -l)",
+      "Bash(curl -s -X POST \"http://localhost:5000/api/evaluation/6ffd5f31-fc6a-4cb7-8624-69cc84e4b563/calculate\" -H \"Content-Type: application/json\")",
+      "Bash(python -m json.tool)",
+      "Bash(curl -s -X POST http://localhost:5000/api/evaluation/6ffd5f31-fc6a-4cb7-8624-69cc84e4b563/calculate)",
+      "Bash(curl -s -X POST \"http://localhost:8080/api/evaluation/6ffd5f31-fc6a-4cb7-8624-69cc84e4b563/calculate\" -H \"Content-Type: application/json\")",
+      "Bash(find /c/Users/USER/OneDrive/Desktop/746903-G-Green/Code/src -type f \\\\\\(-name *.tsx -o -name *.ts \\\\\\))",
+      "Bash(grep -r \"scoreType\\\\|yes_no\\\\|indicator\" /c/Users/USER/OneDrive/Desktop/746903-G-Green/Code/src --include=*.tsx --include=*.ts -l)",
+      "Bash(xargs grep:*)",
+      "Bash(grep -r evaluation-form /c/Users/USER/OneDrive/Desktop/746903-G-Green/Code/src --include=*.tsx --include=*.ts)",
+      "Bash(find /c/Users/USER/OneDrive/Desktop/746903-G-Green/Code -type d -name *routes* -o -type d -name *api* -o -type d -name *controller*)"
+    ]
+  }
+}

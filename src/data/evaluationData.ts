@@ -7,6 +7,7 @@ export interface Indicator {
   id: string;
   name: string;
   maxScore: number;
+  scoreType?: 'score' | 'yes_no' | 'upgrade';
   description?: string;
   detail?: string;
   notes?: string;

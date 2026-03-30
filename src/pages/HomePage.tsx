@@ -111,8 +111,8 @@ export default function HomePage() {
                   <Users className="h-6 w-6 text-accent" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <span className="text-sm font-semibold text-foreground">รายชื่อผู้เข้าร่วมโครงการ</span>
-                  <p className="text-xs text-muted-foreground">รายงานข้อมูลผู้เข้าร่วมโครงการ G-Green</p>
+                  <span className="text-sm font-semibold text-foreground">รายชื่อผู้ประกอบการที่ผ่านเข้าร่วมโครงการ</span>
+                  <p className="text-xs text-muted-foreground">รายงานข้อมูลผู้ประกอบการที่ผ่านการคัดเลือก</p>
                 </div>
                 <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-accent transition-colors shrink-0" />
               </CardContent>

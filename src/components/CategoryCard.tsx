@@ -278,10 +278,10 @@ function EvaluateeIndicatorDialog({
               )}
               {!readOnly && (
                 <>
-                  <input ref={fileInputRef} type="file" accept=".pdf,.png,.jpg,.jpeg" multiple className="hidden" onChange={handleFileUpload} />
+                  <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tiff" multiple className="hidden" onChange={handleFileUpload} />
                   <div onClick={() => fileInputRef.current?.click()} className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/20 py-6 cursor-pointer hover:bg-muted/40 hover:border-muted-foreground/40 transition-colors">
                     <ListChecks className="h-6 w-6 text-muted-foreground/40 mb-1.5" />
-                    <p className="text-xs text-muted-foreground text-center">รองรับไฟล์ PDF, PNG, JPG</p>
+                    <p className="text-xs text-muted-foreground text-center">รองรับ PDF, Word, Excel, PowerPoint และรูปภาพ</p>
                     <p className="text-xs text-muted-foreground/70 text-center mb-2">ลากไฟล์มาวางหรือคลิกเพื่ออัปโหลด</p>
                     <button disabled={uploading} className="flex items-center gap-1.5 text-xs font-medium px-4 py-1.5 rounded-md border bg-background text-foreground hover:bg-muted transition-colors">
                       <Plus className="h-3 w-3" />{uploading ? "กำลังอัปโหลด..." : "เลือกไฟล์"}
@@ -294,110 +294,163 @@ function EvaluateeIndicatorDialog({
 
           {/* ขวา: คะแนนจากการประเมินตนเอง — แสดงครบทุกข้อ, interactive เมื่อไม่ readOnly */}
           <div className="overflow-y-auto scrollbar-thin px-6 py-5 space-y-5">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">คะแนนจากการประเมินตนเอง</p>
-                <div>
-                  <span className="text-xl font-bold" style={{ color: score > 0 ? `hsl(${getScoreColor(score)})` : "hsl(var(--muted-foreground))" }}>{score}</span>
-                  <span className="text-sm text-muted-foreground">/{indicator.maxScore}</span>
+            {indicator.scoreType?.includes('yes_no') ? (
+              /* ── Yes/No mode ── */
+              <>
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">ประเมินความสอดคล้อง</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[{ val: 1, label: 'สอดคล้อง', sub: 'ผ่านเกณฑ์', icon: '✓', color: 'emerald' }, { val: 0, label: 'ไม่สอดคล้อง', sub: 'ไม่ผ่านเกณฑ์', icon: '✗', color: 'rose' }].map(({ val, label, sub, icon, color }) => {
+                      const isSelected = score === val;
+                      const Tag = readOnly ? 'div' : 'button';
+                      return (
+                        <Tag key={val}
+                          {...(!readOnly && { onClick: () => onScoreChange(isSelected ? -1 : val) })}
+                          className={`flex flex-col items-center justify-center gap-1 rounded-xl border-2 py-4 text-center transition-all ${readOnly ? 'cursor-default' : 'cursor-pointer hover:shadow-sm'} ${isSelected ? (color === 'emerald' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-rose-500 bg-rose-50 text-rose-700') : 'border-border bg-muted/20 text-muted-foreground opacity-50'}`}>
+                          <span className="text-2xl font-bold">{icon}</span>
+                          <span className="text-sm font-semibold">{label}</span>
+                          <span className="text-xs">{sub}</span>
+                        </Tag>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-              {criteria.length > 0 ? (
-                <div className="space-y-1.5">
-                  {criteria.map((c: ScoringCriterion) => (
-                    readOnly ? (
-                      <div
-                        key={c.score}
-                        className="flex items-start gap-3 w-full rounded-lg px-3 py-2.5 text-sm select-none cursor-default"
-                        style={
-                          c.score === score
-                            ? { backgroundColor: `hsl(${getScoreColor(c.score)} / 0.12)`, border: `1.5px solid hsl(${getScoreColor(c.score)} / 0.4)` }
-                            : { backgroundColor: "hsl(var(--muted)/0.4)", border: "1.5px solid hsl(var(--border))", opacity: 0.5 }
-                        }
-                      >
-                        <span className="shrink-0 flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold mt-0.5"
-                          style={c.score === score ? { backgroundColor: `hsl(${getScoreColor(c.score)})`, color: "white" } : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }}>
-                          {c.score}
-                        </span>
-                        <span className="leading-snug pt-1" style={{ color: c.score === score ? `hsl(${getScoreColor(c.score)})` : "hsl(var(--muted-foreground))" }}>{c.label}</span>
-                      </div>
-                    ) : (
-                      <button
-                        key={c.score}
-                        onClick={() => onScoreChange(c.score === score ? 0 : c.score)}
-                        className="flex items-start gap-3 w-full text-left rounded-lg px-3 py-2.5 transition-all text-sm"
-                        style={
-                          c.score === score
-                            ? { backgroundColor: `hsl(${getScoreColor(c.score)} / 0.12)`, border: `1.5px solid hsl(${getScoreColor(c.score)} / 0.4)` }
-                            : { backgroundColor: "transparent", border: "1.5px solid hsl(var(--border))" }
-                        }
-                      >
-                        <span className="shrink-0 flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold mt-0.5"
-                          style={c.score === score ? { backgroundColor: `hsl(${getScoreColor(c.score)})`, color: "white" } : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }}>
-                          {c.score}
-                        </span>
-                        <span className="leading-snug pt-1" style={{ color: c.score === score ? `hsl(${getScoreColor(c.score)})` : "hsl(var(--foreground))" }}>{c.label}</span>
-                      </button>
-                    )
-                  ))}
-                </div>
-              ) : (
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {Array.from({ length: indicator.maxScore + 1 }, (_, i) => i).map((opt) => (
-                    readOnly ? (
-                      <div key={opt}
-                        className="flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold cursor-default select-none"
-                        style={
-                          opt === score
-                            ? { backgroundColor: `hsl(${getScoreColor(opt)})`, color: "white" }
-                            : { backgroundColor: "hsl(var(--muted)/0.4)", color: "hsl(var(--muted-foreground))", border: "1.5px solid hsl(var(--border))", opacity: 0.5 }
-                        }>
-                        {opt}
-                      </div>
-                    ) : (
-                      <button key={opt} onClick={() => onScoreChange(opt === score ? 0 : opt)}
-                        className="flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold transition-all"
-                        style={
-                          opt === score
-                            ? { backgroundColor: `hsl(${getScoreColor(opt)})`, color: "white" }
-                            : { backgroundColor: "transparent", color: "hsl(var(--muted-foreground))", border: "1.5px solid hsl(var(--border))" }
-                        }>
-                        {opt}
-                      </button>
-                    )
-                  ))}
-                </div>
-              )}
-            </div>
-            {/* คะแนนจากกรรมการ (read-only) */}
-            <div className="rounded-lg border bg-muted/20 px-4 py-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">กรรมการให้คะแนน</p>
-                <div>
-                  {committeeScore !== undefined ? (
-                    <span className="text-xl font-bold"
-                      style={{ color: committeeScore > 0 ? `hsl(${getScoreColor(committeeScore)})` : "hsl(var(--muted-foreground))" }}>
-                      {committeeScore}
-                    </span>
-                  ) : (
-                    <span className="text-sm font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">รอ</span>
-                  )}
-                  <span className="text-sm text-muted-foreground">/{indicator.maxScore}</span>
-                </div>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">ความเห็นกรรมการ</p>
-                <p className="text-sm text-foreground/70 bg-background border rounded-md px-3 py-2 min-h-[48px] whitespace-pre-line">
-                  {committeeComment || <span className="text-muted-foreground italic">ยังไม่มีความเห็น</span>}
-                </p>
-              </div>
-            </div>
 
-            {indicator.notes && (
-              <div className="space-y-1.5">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">หมายเหตุเกณฑ์การให้คะแนน</p>
-                <div className="text-sm font-medium text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-md p-3 leading-relaxed whitespace-pre-line">{indicator.notes}</div>
-              </div>
+                <div className="rounded-lg border bg-muted/20 px-4 py-3 space-y-3">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">กรรมการประเมินความสอดคล้อง</p>
+                  {committeeScore !== undefined ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      {[{ val: 1, label: 'สอดคล้อง', sub: 'ผ่านเกณฑ์', icon: '✓', color: 'emerald' }, { val: 0, label: 'ไม่สอดคล้อง', sub: 'ไม่ผ่านเกณฑ์', icon: '✗', color: 'rose' }].map(({ val, label, sub, icon, color }) => {
+                        const isSelected = committeeScore === val;
+                        return (
+                          <div key={val} className={`flex flex-col items-center justify-center gap-1 rounded-xl border-2 py-4 text-center cursor-default ${isSelected ? (color === 'emerald' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-rose-500 bg-rose-50 text-rose-700') : 'border-border bg-muted/20 text-muted-foreground opacity-40'}`}>
+                            <span className="text-2xl font-bold">{icon}</span>
+                            <span className="text-sm font-semibold">{label}</span>
+                            <span className="text-xs">{sub}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">เฉพาะกรรมการหรือผู้ดูแลระบบเท่านั้นที่สามารถให้คะแนนได้</p>
+                  )}
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">ความเห็นกรรมการ</p>
+                    <p className="text-sm text-foreground/70 bg-background border rounded-md px-3 py-2 min-h-[48px] whitespace-pre-line">
+                      {committeeComment || <span className="text-muted-foreground italic">ยังไม่มีความเห็น</span>}
+                    </p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              /* ── Normal score mode ── */
+              <>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">คะแนนจากการประเมินตนเอง</p>
+                    <div>
+                      <span className="text-xl font-bold" style={{ color: score > 0 ? `hsl(${getScoreColor(score)})` : "hsl(var(--muted-foreground))" }}>{score}</span>
+                      <span className="text-sm text-muted-foreground">/{indicator.maxScore}</span>
+                    </div>
+                  </div>
+                  {criteria.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {criteria.map((c: ScoringCriterion) => (
+                        readOnly ? (
+                          <div
+                            key={c.score}
+                            className="flex items-start gap-3 w-full rounded-lg px-3 py-2.5 text-sm select-none cursor-default"
+                            style={
+                              c.score === score
+                                ? { backgroundColor: `hsl(${getScoreColor(c.score)} / 0.12)`, border: `1.5px solid hsl(${getScoreColor(c.score)} / 0.4)` }
+                                : { backgroundColor: "hsl(var(--muted)/0.4)", border: "1.5px solid hsl(var(--border))", opacity: 0.5 }
+                            }
+                          >
+                            <span className="shrink-0 flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold mt-0.5"
+                              style={c.score === score ? { backgroundColor: `hsl(${getScoreColor(c.score)})`, color: "white" } : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }}>
+                              {c.score}
+                            </span>
+                            <span className="leading-snug pt-1" style={{ color: c.score === score ? `hsl(${getScoreColor(c.score)})` : "hsl(var(--muted-foreground))" }}>{c.label}</span>
+                          </div>
+                        ) : (
+                          <button
+                            key={c.score}
+                            onClick={() => onScoreChange(c.score === score ? 0 : c.score)}
+                            className="flex items-start gap-3 w-full text-left rounded-lg px-3 py-2.5 transition-all text-sm"
+                            style={
+                              c.score === score
+                                ? { backgroundColor: `hsl(${getScoreColor(c.score)} / 0.12)`, border: `1.5px solid hsl(${getScoreColor(c.score)} / 0.4)` }
+                                : { backgroundColor: "transparent", border: "1.5px solid hsl(var(--border))" }
+                            }
+                          >
+                            <span className="shrink-0 flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold mt-0.5"
+                              style={c.score === score ? { backgroundColor: `hsl(${getScoreColor(c.score)})`, color: "white" } : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }}>
+                              {c.score}
+                            </span>
+                            <span className="leading-snug pt-1" style={{ color: c.score === score ? `hsl(${getScoreColor(c.score)})` : "hsl(var(--foreground))" }}>{c.label}</span>
+                          </button>
+                        )
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {Array.from({ length: indicator.maxScore + 1 }, (_, i) => i).map((opt) => (
+                        readOnly ? (
+                          <div key={opt}
+                            className="flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold cursor-default select-none"
+                            style={
+                              opt === score
+                                ? { backgroundColor: `hsl(${getScoreColor(opt)})`, color: "white" }
+                                : { backgroundColor: "hsl(var(--muted)/0.4)", color: "hsl(var(--muted-foreground))", border: "1.5px solid hsl(var(--border))", opacity: 0.5 }
+                            }>
+                            {opt}
+                          </div>
+                        ) : (
+                          <button key={opt} onClick={() => onScoreChange(opt === score ? 0 : opt)}
+                            className="flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold transition-all"
+                            style={
+                              opt === score
+                                ? { backgroundColor: `hsl(${getScoreColor(opt)})`, color: "white" }
+                                : { backgroundColor: "transparent", color: "hsl(var(--muted-foreground))", border: "1.5px solid hsl(var(--border))" }
+                            }>
+                            {opt}
+                          </button>
+                        )
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {/* คะแนนจากกรรมการ (read-only) */}
+                <div className="rounded-lg border bg-muted/20 px-4 py-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">กรรมการให้คะแนน</p>
+                    <div>
+                      {committeeScore !== undefined ? (
+                        <span className="text-xl font-bold"
+                          style={{ color: committeeScore > 0 ? `hsl(${getScoreColor(committeeScore)})` : "hsl(var(--muted-foreground))" }}>
+                          {committeeScore}
+                        </span>
+                      ) : (
+                        <span className="text-sm font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">รอ</span>
+                      )}
+                      <span className="text-sm text-muted-foreground">/{indicator.maxScore}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">ความเห็นกรรมการ</p>
+                    <p className="text-sm text-foreground/70 bg-background border rounded-md px-3 py-2 min-h-[48px] whitespace-pre-line">
+                      {committeeComment || <span className="text-muted-foreground italic">ยังไม่มีความเห็น</span>}
+                    </p>
+                  </div>
+                </div>
+
+                {indicator.notes && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">หมายเหตุเกณฑ์การให้คะแนน</p>
+                    <div className="text-sm font-medium text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-md p-3 leading-relaxed whitespace-pre-line">{indicator.notes}</div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -512,15 +565,15 @@ function EvaluatorIndicatorDialog({
                 <div className="text-sm text-foreground/70 bg-muted/30 border rounded-md p-3 leading-relaxed whitespace-pre-line">{indicator.evidenceDescription}</div>
               </div>
             )}
-            {implementationDetail && (
-              <div className="space-y-1.5">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">รายละเอียดการดำเนินการ</p>
-                <div className="text-sm text-foreground/80 bg-muted/30 border rounded-md p-3 leading-relaxed whitespace-pre-line min-h-[60px]">{implementationDetail}</div>
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">รายละเอียดการดำเนินการ</p>
+              <div className="text-sm text-foreground/80 bg-muted/30 border rounded-md p-3 leading-relaxed whitespace-pre-line min-h-[80px]">
+                {implementationDetail || <span className="text-muted-foreground italic">ไม่มีข้อมูล</span>}
               </div>
-            )}
-            {files.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">เอกสารแนบ</p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">เอกสารแนบ</p>
+              {files.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {files.map((f) => (
                     <div key={f.path} className="flex items-center gap-2 bg-muted/50 border rounded-lg px-3 py-1.5 text-sm">
@@ -530,125 +583,180 @@ function EvaluatorIndicatorDialog({
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <p className="text-sm text-muted-foreground italic">ไม่มีเอกสารแนบ</p>
+              )}
+            </div>
           </div>
 
           {/* ขวา: คะแนนตนเอง (compact) + กรรมการให้คะแนน */}
           <div className="overflow-y-auto scrollbar-thin px-6 py-5 space-y-5">
-            {/* คะแนนจากการประเมินตนเอง — compact เฉพาะข้อที่เลือก */}
-            <div className="rounded-lg border bg-muted/20 px-4 py-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">คะแนนจากการประเมินตนเอง</p>
-                <span className="text-sm font-bold px-2 py-0.5 rounded-md"
-                  style={{ backgroundColor: score > 0 ? `hsl(${getScoreColor(score)} / 0.12)` : "hsl(var(--muted))", color: score > 0 ? `hsl(${getScoreColor(score)})` : "hsl(var(--muted-foreground))" }}>
-                  {score}/{indicator.maxScore}
-                </span>
-              </div>
-              {criteria.length > 0 ? (
-                (() => {
-                  const selected = criteria.find((c: ScoringCriterion) => c.score === score);
-                  return selected ? (
-                    <div className="flex items-start gap-2.5 rounded-md px-3 py-2 text-sm select-none"
-                      style={{ backgroundColor: `hsl(${getScoreColor(selected.score)} / 0.08)`, border: `1px solid hsl(${getScoreColor(selected.score)} / 0.25)` }}>
-                      <span className="shrink-0 flex h-6 w-6 items-center justify-center rounded text-xs font-bold mt-0.5"
-                        style={{ backgroundColor: `hsl(${getScoreColor(selected.score)})`, color: "white" }}>
-                        {selected.score}
-                      </span>
-                      <span className="leading-snug text-foreground/80">{selected.label}</span>
-                    </div>
-                  ) : <p className="text-xs text-muted-foreground italic">ยังไม่ได้ประเมิน</p>;
-                })()
-              ) : (
-                <div className="flex items-center gap-1.5 select-none">
-                  {Array.from({ length: indicator.maxScore + 1 }, (_, i) => i).map((opt) => (
-                    <div key={opt} className="flex h-8 w-8 items-center justify-center rounded-md text-sm font-semibold"
-                      style={opt === score ? { backgroundColor: `hsl(${getScoreColor(opt)})`, color: "white" } : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }}>
-                      {opt}
-                    </div>
-                  ))}
+            {indicator.scoreType === 'yes_no' ? (
+              /* ── Yes/No mode ── */
+              <>
+                {/* Self yes/no — read-only display */}
+                <div className="rounded-lg border bg-muted/20 px-4 py-3 space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">ผู้ถูกประเมินตนเอง</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[{ val: 1, label: 'สอดคล้อง', sub: 'ผ่านเกณฑ์', icon: '✓', color: 'emerald' }, { val: 0, label: 'ไม่สอดคล้อง', sub: 'ไม่ผ่านเกณฑ์', icon: '✗', color: 'rose' }].map(({ val, label, sub, icon, color }) => {
+                      const isSelected = score === val;
+                      return (
+                        <div key={val} className={`flex flex-col items-center justify-center gap-1 rounded-xl border-2 py-3 text-center cursor-default ${isSelected ? (color === 'emerald' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-rose-500 bg-rose-50 text-rose-700') : 'border-border bg-muted/20 text-muted-foreground opacity-40'}`}>
+                          <span className="text-xl font-bold">{icon}</span>
+                          <span className="text-sm font-semibold">{label}</span>
+                          <span className="text-xs">{sub}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              )}
-            </div>
 
-            {/* กรรมการให้คะแนน + ความเห็นกรรมการ — ซ่อนเมื่อ viewOnly (ดูฝั่งผู้ถูกประเมิน) */}
-            {!viewOnly && <>
-            <div className="space-y-2" style={{ pointerEvents: readOnly ? "none" : undefined, opacity: readOnly ? 0.7 : undefined }}>
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">ให้คะแนน</p>
-                <div>
-                  {committeeScore !== undefined ? (
-                    <span className="text-xl font-bold"
-                      style={{ color: committeeScore > 0 ? `hsl(${getScoreColor(committeeScore)})` : "hsl(var(--muted-foreground))" }}>
-                      {committeeScore}
+                {/* Committee yes/no — editable when !viewOnly */}
+                {!viewOnly && (
+                  <>
+                    <div className="space-y-2" style={{ pointerEvents: readOnly ? "none" : undefined, opacity: readOnly ? 0.7 : undefined }}>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">กรรมการประเมินความสอดคล้อง</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        {[{ val: 1, label: 'สอดคล้อง', sub: 'ผ่านเกณฑ์', icon: '✓', color: 'emerald' }, { val: 0, label: 'ไม่สอดคล้อง', sub: 'ไม่ผ่านเกณฑ์', icon: '✗', color: 'rose' }].map(({ val, label, sub, icon, color }) => {
+                          const isSelected = committeeScore === val;
+                          return (
+                            <button key={val}
+                              onClick={() => onCommitteeScoreChange?.(isSelected ? -1 : val)}
+                              className={`flex flex-col items-center justify-center gap-1 rounded-xl border-2 py-4 text-center cursor-pointer hover:shadow-sm transition-all ${isSelected ? (color === 'emerald' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-rose-500 bg-rose-50 text-rose-700') : 'border-border bg-muted/20 text-muted-foreground'}`}>
+                              <span className="text-2xl font-bold">{icon}</span>
+                              <span className="text-sm font-semibold">{label}</span>
+                              <span className="text-xs">{sub}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div className="space-y-1.5" style={{ pointerEvents: readOnly ? "none" : undefined, opacity: readOnly ? 0.7 : undefined }}>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">ความเห็นกรรมการ</p>
+                      <textarea value={committeeComment || ""} onChange={(e) => onCommitteeCommentChange?.(e.target.value)} placeholder="ระบุความเห็นของกรรมการ..."
+                        className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" />
+                    </div>
+                  </>
+                )}
+              </>
+            ) : (
+              /* ── Normal score mode ── */
+              <>
+                {/* คะแนนจากการประเมินตนเอง — compact เฉพาะข้อที่เลือก */}
+                <div className="rounded-lg border bg-muted/20 px-4 py-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">คะแนนจากการประเมินตนเอง</p>
+                    <span className="text-sm font-bold px-2 py-0.5 rounded-md"
+                      style={{ backgroundColor: score > 0 ? `hsl(${getScoreColor(score)} / 0.12)` : "hsl(var(--muted))", color: score > 0 ? `hsl(${getScoreColor(score)})` : "hsl(var(--muted-foreground))" }}>
+                      {score}/{indicator.maxScore}
                     </span>
+                  </div>
+                  {criteria.length > 0 ? (
+                    (() => {
+                      const selected = criteria.find((c: ScoringCriterion) => c.score === score);
+                      return selected ? (
+                        <div className="flex items-start gap-2.5 rounded-md px-3 py-2 text-sm select-none"
+                          style={{ backgroundColor: `hsl(${getScoreColor(selected.score)} / 0.08)`, border: `1px solid hsl(${getScoreColor(selected.score)} / 0.25)` }}>
+                          <span className="shrink-0 flex h-6 w-6 items-center justify-center rounded text-xs font-bold mt-0.5"
+                            style={{ backgroundColor: `hsl(${getScoreColor(selected.score)})`, color: "white" }}>
+                            {selected.score}
+                          </span>
+                          <span className="leading-snug text-foreground/80">{selected.label}</span>
+                        </div>
+                      ) : <p className="text-xs text-muted-foreground italic">ยังไม่ได้ประเมิน</p>;
+                    })()
                   ) : (
-                    <span className="text-sm font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">รอ</span>
+                    <div className="flex items-center gap-1.5 select-none">
+                      {Array.from({ length: indicator.maxScore + 1 }, (_, i) => i).map((opt) => (
+                        <div key={opt} className="flex h-8 w-8 items-center justify-center rounded-md text-sm font-semibold"
+                          style={opt === score ? { backgroundColor: `hsl(${getScoreColor(opt)})`, color: "white" } : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }}>
+                          {opt}
+                        </div>
+                      ))}
+                    </div>
                   )}
-                  <span className="text-sm text-muted-foreground">/{indicator.maxScore}</span>
                 </div>
-              </div>
-              {criteria.length > 0 ? (
-                <div className="space-y-1.5">
-                  {criteria.map((c: ScoringCriterion) => {
-                    const effectiveScore = committeeScore ?? -1;
-                    const isSelected = c.score === effectiveScore;
-                    return (
-                      <button key={`committee-${c.score}`}
-                        onClick={() => onCommitteeScoreChange?.(isSelected ? 0 : c.score)}
-                        className="flex items-start gap-3 w-full text-left rounded-lg px-3 py-2.5 transition-all text-sm"
-                        style={isSelected
-                          ? { backgroundColor: `hsl(${getScoreColor(c.score)} / 0.12)`, border: `1.5px solid hsl(${getScoreColor(c.score)} / 0.4)` }
-                          : { backgroundColor: "transparent", border: "1.5px solid hsl(var(--border))" }}>
-                        <span className="shrink-0 flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold mt-0.5"
-                          style={isSelected ? { backgroundColor: `hsl(${getScoreColor(c.score)})`, color: "white" } : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }}>
-                          {c.score}
-                        </span>
-                        <span className="leading-snug pt-1"
-                          style={{ color: isSelected ? `hsl(${getScoreColor(c.score)})` : "hsl(var(--foreground))" }}>
-                          {c.label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {Array.from({ length: indicator.maxScore + 1 }, (_, i) => i).map((opt) => {
-                    const effectiveScore = committeeScore ?? -1;
-                    const isSelected = opt === effectiveScore;
-                    return (
-                      <button key={`committee-btn-${opt}`}
-                        onClick={() => onCommitteeScoreChange?.(isSelected ? 0 : opt)}
-                        className="flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold transition-all"
-                        style={isSelected
-                          ? { backgroundColor: `hsl(${getScoreColor(opt)})`, color: "white" }
-                          : { backgroundColor: "transparent", color: "hsl(var(--muted-foreground))", border: "1.5px solid hsl(var(--border))" }}>
-                        {opt}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
 
-            {/* ความเห็นกรรมการ */}
-            <div className="space-y-1.5" style={{ pointerEvents: readOnly ? "none" : undefined, opacity: readOnly ? 0.7 : undefined }}>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">ความเห็นกรรมการ</p>
-              <textarea
-                value={committeeComment || ""}
-                onChange={(e) => onCommitteeCommentChange?.(e.target.value)}
-                placeholder="ระบุความเห็นของกรรมการ..."
-                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              />
-            </div>
-            </>}
+                {/* กรรมการให้คะแนน + ความเห็นกรรมการ — ซ่อนเมื่อ viewOnly (ดูฝั่งผู้ถูกประเมิน) */}
+                {!viewOnly && <>
+                <div className="space-y-2" style={{ pointerEvents: readOnly ? "none" : undefined, opacity: readOnly ? 0.7 : undefined }}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">ให้คะแนน</p>
+                    <div>
+                      {committeeScore !== undefined ? (
+                        <span className="text-xl font-bold"
+                          style={{ color: committeeScore > 0 ? `hsl(${getScoreColor(committeeScore)})` : "hsl(var(--muted-foreground))" }}>
+                          {committeeScore}
+                        </span>
+                      ) : (
+                        <span className="text-sm font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">รอ</span>
+                      )}
+                      <span className="text-sm text-muted-foreground">/{indicator.maxScore}</span>
+                    </div>
+                  </div>
+                  {criteria.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {criteria.map((c: ScoringCriterion) => {
+                        const effectiveScore = committeeScore ?? -1;
+                        const isSelected = c.score === effectiveScore;
+                        return (
+                          <button key={`committee-${c.score}`}
+                            onClick={() => onCommitteeScoreChange?.(isSelected ? 0 : c.score)}
+                            className="flex items-start gap-3 w-full text-left rounded-lg px-3 py-2.5 transition-all text-sm"
+                            style={isSelected
+                              ? { backgroundColor: `hsl(${getScoreColor(c.score)} / 0.12)`, border: `1.5px solid hsl(${getScoreColor(c.score)} / 0.4)` }
+                              : { backgroundColor: "transparent", border: "1.5px solid hsl(var(--border))" }}>
+                            <span className="shrink-0 flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold mt-0.5"
+                              style={isSelected ? { backgroundColor: `hsl(${getScoreColor(c.score)})`, color: "white" } : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }}>
+                              {c.score}
+                            </span>
+                            <span className="leading-snug pt-1"
+                              style={{ color: isSelected ? `hsl(${getScoreColor(c.score)})` : "hsl(var(--foreground))" }}>
+                              {c.label}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {Array.from({ length: indicator.maxScore + 1 }, (_, i) => i).map((opt) => {
+                        const effectiveScore = committeeScore ?? -1;
+                        const isSelected = opt === effectiveScore;
+                        return (
+                          <button key={`committee-btn-${opt}`}
+                            onClick={() => onCommitteeScoreChange?.(isSelected ? 0 : opt)}
+                            className="flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold transition-all"
+                            style={isSelected
+                              ? { backgroundColor: `hsl(${getScoreColor(opt)})`, color: "white" }
+                              : { backgroundColor: "transparent", color: "hsl(var(--muted-foreground))", border: "1.5px solid hsl(var(--border))" }}>
+                            {opt}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
 
-            {indicator.notes && (
-              <div className="space-y-1.5">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">หมายเหตุเกณฑ์การให้คะแนน</p>
-                <div className="text-sm font-medium text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-md p-3 leading-relaxed whitespace-pre-line">{indicator.notes}</div>
-              </div>
+                {/* ความเห็นกรรมการ */}
+                <div className="space-y-1.5" style={{ pointerEvents: readOnly ? "none" : undefined, opacity: readOnly ? 0.7 : undefined }}>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">ความเห็นกรรมการ</p>
+                  <textarea
+                    value={committeeComment || ""}
+                    onChange={(e) => onCommitteeCommentChange?.(e.target.value)}
+                    placeholder="ระบุความเห็นของกรรมการ..."
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  />
+                </div>
+                </>}
+
+                {indicator.notes && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">หมายเหตุเกณฑ์การให้คะแนน</p>
+                    <div className="text-sm font-medium text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-md p-3 leading-relaxed whitespace-pre-line">{indicator.notes}</div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -798,6 +906,7 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
 
   const displayScores = scoreView === "committee" && committeeScores ? committeeScores : scores;
 
+  const isYesNoCat = category.scoreType?.includes('yes_no');
   const totalScore = category.topics.reduce(
     (sum, t) => sum + t.indicators.reduce((s, i) => s + (displayScores[i.id] || 0), 0),
     0
@@ -806,6 +915,11 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
     (sum, t) => sum + t.indicators.reduce((s, i) => s + i.maxScore, 0),
     0
   );
+  const totalIndicators = isYesNoCat ? category.topics.reduce((s, t) => s + t.indicators.length, 0) : 0;
+  const passCount = isYesNoCat ? category.topics.reduce(
+    (sum, t) => sum + t.indicators.reduce((s, i) => s + ((displayScores[i.id] ?? -1) === 1 ? 1 : 0), 0),
+    0
+  ) : 0;
 
   return (
     <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
@@ -822,13 +936,19 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-foreground">{category.name}</p>
           <p className="text-xs text-muted-foreground">
-            {category.topics.length} ประเด็น · {category.topics.reduce((s, t) => s + t.indicators.length, 0)} ตัวชี้วัด · คะแนนเต็ม {category.maxScore}
+            {category.topics.length} ประเด็น · {category.topics.reduce((s, t) => s + t.indicators.length, 0)} ตัวชี้วัด{isYesNoCat ? "" : ` · คะแนนเต็ม ${category.maxScore}`}
           </p>
         </div>
         <div className="text-right mr-2">
-          <p className="text-lg font-bold" style={{ color: `hsl(${color})` }}>
-            {totalScore}<span className="text-xs font-normal text-muted-foreground">/{totalMax}</span>
-          </p>
+          {isYesNoCat ? (
+            <p className="text-lg font-bold" style={{ color: `hsl(${color})` }}>
+              {passCount}<span className="text-xs font-normal text-muted-foreground">/{totalIndicators} ผ่าน</span>
+            </p>
+          ) : (
+            <p className="text-lg font-bold" style={{ color: `hsl(${color})` }}>
+              {totalScore}<span className="text-xs font-normal text-muted-foreground">/{totalMax}</span>
+            </p>
+          )}
         </div>
         {onDelete && (
           <button

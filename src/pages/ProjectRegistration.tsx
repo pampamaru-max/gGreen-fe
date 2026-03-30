@@ -14,6 +14,13 @@ import { ScoreSummary } from "@/components/ScoreSummary";
 import { SelfEvalHeader } from "@/components/self-eval/SelfEvalHeader";
 import { ScoringLevelBadges } from "@/components/self-eval/ScoringLevelBadges";
 import { Category } from "@/data/evaluationData";
+
+// Category extended with scoreType / upgrade-renew settings from DB
+interface EvalCategory extends Category {
+  scoreType?: string;
+  upgradeMode?: string | null;
+  renewMode?: string | null;
+}
 import apiClient from "@/lib/axios";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -74,12 +81,13 @@ export default function ProjectRegistration() {
   // Evaluation form state
   const [evalLoading, setEvalLoading]       = useState(true);
   const [programName, setProgramName]       = useState("");
-  const [categories, setCategories]         = useState<Category[]>([]);
+  const [categories, setCategories]         = useState<EvalCategory[]>([]);
   const [scoringLevels, setScoringLevels]   = useState<ScoringLevel[]>([]);
   const [scores, setScores]                 = useState<Record<string, number>>({});
   const [uploadedFiles, setUploadedFiles]   = useState<Record<string, UploadedFile[]>>({});
   const [implDetails, setImplDetails]       = useState<Record<string, string>>({});
   const [evaluationId, setEvaluationId]     = useState<string | null>(null);
+  const [evaluationType, setEvaluationType] = useState<string>("new");
   const [committeeScores, setCommitteeScores] = useState<Record<string, number>>({});
   const [committeeComments, setCommitteeComments] = useState<Record<string, string>>({});
   const [submitting, setSubmitting]         = useState(false);
@@ -95,14 +103,19 @@ export default function ProjectRegistration() {
       try {
         const searchParams = new URLSearchParams(window.location.search);
         const urlEvalId = searchParams.get("id");
+        const urlEvalType = searchParams.get("type") || "new"; // new | renew | upgrade
+        setEvaluationType(urlEvalType);
 
         // 1. Form structure — GET /programs/:id/evaluation-form
         const { data: formData } = await apiClient.get(`programs/${programId}/evaluation-form`);
         const prog = formData?.program;
-        const cats: Category[] = (formData?.categories ?? []).map((c: any) => ({
+        const cats: EvalCategory[] = (formData?.categories ?? []).map((c: any) => ({
           id: c.id,
           name: c.name,
           maxScore: c.maxScore,
+          scoreType: c.scoreType ?? "score",
+          upgradeMode: c.upgradeMode ?? null,
+          renewMode: c.renewMode ?? null,
           topics: (c.topics ?? []).map((t: any) => ({
             id: t.id,
             name: t.name,
@@ -110,6 +123,7 @@ export default function ProjectRegistration() {
               id: i.id,
               name: i.name,
               maxScore: i.maxScore,
+              scoreType: c.scoreType || 'score',
               description: i.description ?? "",
               detail: i.detail ?? "",
               notes: i.notes ?? "",
@@ -147,6 +161,7 @@ export default function ProjectRegistration() {
           const { data: newEval } = await apiClient.post("evaluation", {
             programId,
             userId: user?.id,
+            evaluationType: urlEvalType,
           });
           if (newEval?.id) {
             setEvaluationId(newEval.id);
@@ -159,10 +174,12 @@ export default function ProjectRegistration() {
           if (evalData) {
             setEvaluationId(evalData.id);
             setEvaluationStatus(evalData.status);
+            if (evalData.evaluationType) setEvaluationType(evalData.evaluationType);
             const loadedScores: Record<string, number> = {};
             const loadedDetails: Record<string, string> = {};
             const loadedCommittee: Record<string, number> = {};
             const loadedCommitteeComments: Record<string, string> = {};
+            const loadedFiles: Record<string, any[]> = {};
             (evalData.evaluationScores ?? []).forEach((s: any) => {
               loadedScores[s.indicatorId] = Number(s.score);
               if (s.notes) loadedDetails[s.indicatorId] = s.notes;
@@ -170,11 +187,13 @@ export default function ProjectRegistration() {
                 loadedCommittee[s.indicatorId] = Number(s.committeeScore);
               }
               if (s.evidenceUrl) loadedCommitteeComments[s.indicatorId] = s.evidenceUrl;
+              if (Array.isArray(s.fileUrls) && s.fileUrls.length > 0) loadedFiles[s.indicatorId] = s.fileUrls;
             });
             setScores(loadedScores);
             setImplDetails(loadedDetails);
             setCommitteeScores(loadedCommittee);
             setCommitteeComments(loadedCommitteeComments);
+            setUploadedFiles(loadedFiles);
           }
         }
       } catch (err) {
@@ -200,11 +219,12 @@ export default function ProjectRegistration() {
       indicatorId,
       score: scores[indicatorId] ?? 0,
       notes: implDetails[indicatorId] ?? "",
-      ...(evaluationId ? { evaluationId } : {}),
+      fileUrls: uploadedFiles[indicatorId] ?? [],
+      ...(evaluationId ? { evaluationId } : { evaluationType }),
     });
     if (data?.evaluationId && !evaluationId) setEvaluationId(data.evaluationId);
     toast.success("บันทึกเรียบร้อยแล้ว");
-  }, [evaluationId, scores, implDetails, programId]);
+  }, [evaluationId, evaluationType, scores, implDetails, uploadedFiles, programId]);
 
   // POST /evaluation/:id/submit — final submit
   const handleSubmitAll = async () => {
@@ -213,7 +233,7 @@ export default function ProjectRegistration() {
     try {
       // Save any unsaved scores first
       let currentEvalId = evaluationId;
-      for (const cat of categories) {
+      for (const cat of visibleCategories) {
         for (const topic of cat.topics) {
           for (const ind of topic.indicators) {
             const { data } = await apiClient.post("evaluation/score", {
@@ -247,32 +267,65 @@ export default function ProjectRegistration() {
     }
   };
 
+  // ── Visible categories — filtered by evaluationType + program settings ─────
+  const isNewType    = (t?: string) => !t || t === "score" || t === "yes_no" || t === "score_new" || t === "yes_no_new";
+  const isUpgradType = (t?: string) => t === "score_upgrad" || t === "yes_no_upgrad" || t === "upgrade";
+  const isRenewType  = (t?: string) => t === "score_renew" || t === "yes_no_renew";
+
+  const visibleCategories = useMemo(() => {
+    if (evaluationType === "upgrade") {
+      const upgradCat = categories.find((c) => isUpgradType(c.scoreType));
+      const mode = upgradCat?.upgradeMode ?? "full";
+      return mode === "partial"
+        ? categories.filter((c) => isUpgradType(c.scoreType))
+        : categories.filter((c) => isNewType(c.scoreType) || isUpgradType(c.scoreType));
+    }
+    if (evaluationType === "renew") {
+      const renewCat = categories.find((c) => isRenewType(c.scoreType));
+      const mode = renewCat?.renewMode ?? "full";
+      return mode === "partial"
+        ? categories.filter((c) => isRenewType(c.scoreType))
+        : categories.filter((c) => isNewType(c.scoreType) || isRenewType(c.scoreType));
+    }
+    // type=new (default): only normal categories
+    return categories.filter((c) => isNewType(c.scoreType));
+  }, [categories, evaluationType]);
+
   // ── Derived stats ──────────────────────────────────────────────────────────
   const summaryData = useMemo(() =>
-    categories.map((cat, idx) => {
+    visibleCategories.map((cat, idx) => {
+      const isYesNo = cat.scoreType?.includes('yes_no');
       let totalScore = 0, totalMax = 0, totalCommittee = 0;
+      let passCount = 0, committeePassCount = 0, totalIndicators = 0;
       cat.topics.forEach((t) => t.indicators.forEach((i) => {
-        totalScore     += scores[i.id] ?? 0;
-        totalMax       += i.maxScore;
-        totalCommittee += committeeScores[i.id] ?? 0;
+        if (isYesNo) {
+          totalIndicators++;
+          if ((scores[i.id] ?? -1) === 1) passCount++;
+          if ((committeeScores[i.id] ?? -1) === 1) committeePassCount++;
+        } else {
+          totalScore     += scores[i.id] ?? 0;
+          totalMax       += i.maxScore;
+          totalCommittee += committeeScores[i.id] ?? 0;
+        }
       }));
       const hasCommittee = Object.keys(committeeScores).length > 0;
       return {
         id: cat.id, name: cat.name, score: totalScore,
         maxScore: cat.maxScore, totalPossible: totalMax, index: idx,
-        committeeScore: hasCommittee ? totalCommittee : undefined,
+        scoreType: cat.scoreType,
+        ...(isYesNo ? { passCount, totalIndicators, committeePassCount: hasCommittee ? committeePassCount : undefined } : { committeeScore: hasCommittee ? totalCommittee : undefined }),
       };
     }),
   [scores, categories, committeeScores]);
 
   const allScored = useMemo(() => {
-    if (categories.length === 0) return false;
-    return categories.every(cat =>
+    if (visibleCategories.length === 0) return false;
+    return visibleCategories.every(cat =>
       cat.topics.every(topic =>
         topic.indicators.every(ind => scores[ind.id] !== undefined)
       )
     );
-  }, [categories, scores]);
+  }, [visibleCategories, scores]);
 
   const grandTotal    = summaryData.reduce((s, c) => s + c.score, 0);
   const grandMax      = summaryData.reduce((s, c) => s + c.totalPossible, 0);
@@ -286,7 +339,7 @@ export default function ProjectRegistration() {
       indicator: Category["topics"][0]["indicators"][0];
       colorIndex: number;
     }> = [];
-    categories.forEach((cat, catIdx) => {
+    visibleCategories.forEach((cat, catIdx) => {
       cat.topics.forEach((topic) => {
         topic.indicators.forEach((indicator) => {
           items.push({ indicator, colorIndex: catIdx });
@@ -294,7 +347,7 @@ export default function ProjectRegistration() {
       });
     });
     return items;
-  }, [categories]);
+  }, [visibleCategories]);
 
   // สุ่มคะแนนทุกตัวชี้วัดแล้วบันทึก
   const handleFillRandom = async () => {
@@ -342,8 +395,8 @@ export default function ProjectRegistration() {
       color: getCategoryColor(colorIndex),
     })),
   [flatIndicators, scores]);
-  const totalTopics   = categories.reduce((s, c) => s + c.topics.length, 0);
-  const totalIndicators = categories.reduce((s, c) => s + c.topics.reduce((ts, t) => ts + t.indicators.length, 0), 0);
+  const totalTopics   = visibleCategories.reduce((s, c) => s + c.topics.length, 0);
+  const totalIndicators = visibleCategories.reduce((s, c) => s + c.topics.reduce((ts, t) => ts + t.indicators.length, 0), 0);
   const status = registration
     ? (statusMap[registration.status] ?? { label: registration.status, variant: "outline" as const })
     : { label: "ผ่านการคัดเลือก", variant: "default" as const };
@@ -477,10 +530,11 @@ export default function ProjectRegistration() {
               grandMax={grandMax}
               submitted={isEvalReadOnly}
               committeeTotal={grandCommitteeTotal}
+              evaluationType={evaluationType}
             />
 
-            {/* Scoring levels */}
-            {scoringLevels.length > 0 && (
+            {/* Scoring levels — visible to evaluatee only when evaluation is complete */}
+            {scoringLevels.length > 0 && isEvalCompleted && (
               <ScoringLevelBadges levels={scoringLevels} grandMax={grandMax} currentScore={grandTotal} />
             )}
 
@@ -488,7 +542,7 @@ export default function ProjectRegistration() {
             {summaryData.length > 0 && <ScoreSummary data={summaryData} />}
 
             {/* Category cards */}
-            {categories.map((category, idx) => (
+            {visibleCategories.map((category, idx) => (
               <CategoryCard
                 key={category.id}
                 category={category}
@@ -506,7 +560,7 @@ export default function ProjectRegistration() {
             ))}
 
             {/* No categories */}
-            {categories.length === 0 && (
+            {visibleCategories.length === 0 && (
               <Card>
                 <CardContent className="py-16 flex flex-col items-center gap-2 text-center">
                   <ClipboardCheck className="h-10 w-10 text-muted-foreground/40" />
@@ -516,7 +570,7 @@ export default function ProjectRegistration() {
             )}
 
             {/* Submit / Success / Completed */}
-            {categories.length > 0 && (
+            {visibleCategories.length > 0 && (
               isEvalCompleted ? (
                 <div className="flex items-center gap-4 rounded-xl border border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-900/40 p-5">
                   <CheckCircle2 className="h-7 w-7 text-blue-600 dark:text-blue-400 shrink-0" />

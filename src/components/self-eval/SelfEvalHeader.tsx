@@ -1,4 +1,4 @@
-import { ClipboardCheck, CheckCircle2 } from "lucide-react";
+import { ClipboardCheck, CheckCircle2, FilePlus, RefreshCw, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface Props {
@@ -10,7 +10,14 @@ interface Props {
   grandMax: number;
   submitted: boolean;
   committeeTotal?: number;
+  evaluationType?: string;
 }
+
+const EVAL_TYPE_CONFIG: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
+  new:     { label: "ประเมินใหม่",                  icon: <FilePlus   className="h-3 w-3" />, className: "bg-blue-50 text-blue-700 border-blue-200"   },
+  renew:   { label: "ต่ออายุใบประกาศนียบัตร",       icon: <RefreshCw  className="h-3 w-3" />, className: "bg-amber-50 text-amber-700 border-amber-200" },
+  upgrade: { label: "ยกระดับคะแนน",                icon: <TrendingUp className="h-3 w-3" />, className: "bg-purple-50 text-purple-700 border-purple-200" },
+};
 
 export function SelfEvalHeader({
   programName,
@@ -21,9 +28,11 @@ export function SelfEvalHeader({
   grandMax,
   submitted,
   committeeTotal,
+  evaluationType,
 }: Props) {
   const pct = grandMax > 0 ? Math.round((grandTotal / grandMax) * 100) : 0;
   const committeePct = committeeTotal !== undefined && grandMax > 0 ? Math.round((committeeTotal / grandMax) * 100) : null;
+  const typeConfig = evaluationType ? EVAL_TYPE_CONFIG[evaluationType] : null;
 
   return (
     <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -34,8 +43,14 @@ export function SelfEvalHeader({
         <div>
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="text-base font-bold text-foreground">
-              แบบประเมิน{programName ? ` — ${programName}` : ""}
+              ประเมิน{programName ? ` ${programName}` : ""}
             </h3>
+            {typeConfig && (
+              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${typeConfig.className}`}>
+                {typeConfig.icon}
+                {typeConfig.label}
+              </span>
+            )}
             {submitted && (
               <Badge variant="default" className="gap-1 bg-green-600 hover:bg-green-700">
                 <CheckCircle2 className="h-3 w-3" />

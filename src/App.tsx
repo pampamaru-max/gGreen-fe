@@ -26,6 +26,7 @@ import ReportParticipants from "@/pages/ReportParticipants";
 import ReportAllGreen from "@/pages/ReportAllGreen";
 import RegistrationManagement from "@/pages/RegistrationManagement";
 import SettingsUsers from "@/pages/SettingsUsers";
+import SettingsProjectDuration from "@/pages/SettingsProjectDuration";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -61,6 +62,7 @@ const App = () => (
               <Route path="/settings/certificate" element={<SettingsCertificate />} />
               <Route path="/settings/documents" element={<SettingsDocuments />} />
               <Route path="/settings/users" element={<SettingsUsers />} />
+              <Route path="/settings/project-duration" element={<SettingsProjectDuration />} />
               <Route path="/registration-management" element={<RegistrationManagement />} />
             </Route>
 
