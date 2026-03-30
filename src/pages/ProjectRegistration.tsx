@@ -99,6 +99,7 @@ export default function ProjectRegistration() {
   const [implDetails, setImplDetails]       = useState<Record<string, string>>({});
   const [evaluationId, setEvaluationId]     = useState<string | null>(null);
   const [evaluationType, setEvaluationType] = useState<string>("new");
+  const [year, setYear]                     = useState<number>(new Date().getFullYear());
   const [committeeScores, setCommitteeScores] = useState<Record<string, number>>({});
   const [committeeComments, setCommitteeComments] = useState<Record<string, string>>({});
   const [submitting, setSubmitting]         = useState(false);
@@ -117,7 +118,10 @@ export default function ProjectRegistration() {
         const searchParams = new URLSearchParams(window.location.search);
         const urlEvalId = searchParams.get("id");
         const urlEvalType = searchParams.get("type") || "new"; // new | renew | upgrade
+        const urlYear = searchParams.get("year");
         setEvaluationType(urlEvalType);
+        const selectedYear = urlYear ? parseInt(urlYear) : new Date().getFullYear();
+        setYear(selectedYear);
 
         // 1. Form structure — GET /programs/:id/evaluation-form
         const { data: formData } = await apiClient.get(`programs/${programId}/evaluation-form`);
@@ -175,6 +179,7 @@ export default function ProjectRegistration() {
             programId,
             userId: user?.id,
             evaluationType: urlEvalType,
+            year: selectedYear,
           });
           if (newEval?.id) {
             setEvaluationId(newEval.id);
@@ -250,7 +255,7 @@ export default function ProjectRegistration() {
       score: scores[indicatorId] ?? 0,
       notes: implDetails[indicatorId] ?? "",
       fileUrls: uploadedFiles[indicatorId] ?? [],
-      ...(evaluationId ? { evaluationId } : { evaluationType }),
+      ...(evaluationId ? { evaluationId } : { evaluationType, year }),
     });
     if (data?.evaluationId && !evaluationId) setEvaluationId(data.evaluationId);
     toast.success("บันทึกเรียบร้อยแล้ว");
@@ -271,7 +276,7 @@ export default function ProjectRegistration() {
               indicatorId: ind.id,
               score: scores[ind.id] ?? 0,
               notes: implDetails[ind.id] ?? "",
-              ...(currentEvalId ? { evaluationId: currentEvalId } : {}),
+              ...(currentEvalId ? { evaluationId: currentEvalId } : { evaluationType, year }),
             });
             if (data?.evaluationId && !currentEvalId) {
               currentEvalId = data.evaluationId;
@@ -339,12 +344,19 @@ export default function ProjectRegistration() {
         }
       }));
       const hasCommittee = Object.keys(committeeScores).length > 0;
-      return {
+      const res: any = {
         id: cat.id, name: cat.name, score: totalScore,
         maxScore: cat.maxScore, totalPossible: totalMax, index: idx,
         scoreType: cat.scoreType,
-        ...(isYesNo ? { passCount, totalIndicators, committeePassCount: hasCommittee ? committeePassCount : undefined } : { committeeScore: hasCommittee ? totalCommittee : undefined }),
       };
+      if (isYesNo) {
+        res.passCount = passCount;
+        res.totalIndicators = totalIndicators;
+        res.committeePassCount = hasCommittee ? committeePassCount : undefined;
+      } else {
+        res.committeeScore = hasCommittee ? totalCommittee : undefined;
+      }
+      return res;
     }),
   [scores, categories, committeeScores]);
 
@@ -359,9 +371,9 @@ export default function ProjectRegistration() {
 
   const grandTotal    = summaryData.reduce((s, c) => s + c.score, 0);
   const grandMax      = summaryData.reduce((s, c) => s + c.totalPossible, 0);
-  const grandCommitteeTotal = summaryData.every(s => s.committeeScore === undefined)
+  const grandCommitteeTotal = summaryData.every((s: any) => s.committeeScore === undefined)
     ? undefined
-    : summaryData.reduce((s, c) => s + (c.committeeScore || 0), 0);
+    : summaryData.reduce((s, c: any) => s + (c.committeeScore || 0), 0);
 
   // ── Wizard flat list ───────────────────────────────────────────────────────
   const flatIndicators = useMemo(() => {
@@ -403,7 +415,7 @@ export default function ProjectRegistration() {
         indicatorId: indicator.id,
         score: newScores[indicator.id],
         notes: implDetails[indicator.id] ?? "",
-        ...(currentEvalId ? { evaluationId: currentEvalId } : {}),
+        ...(currentEvalId ? { evaluationId: currentEvalId } : { evaluationType, year }),
       });
       if (data?.evaluationId && !currentEvalId) {
         currentEvalId = data.evaluationId;

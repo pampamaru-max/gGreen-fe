@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FilePlus, RefreshCw, TrendingUp, Loader2 } from "lucide-react";
+import { FilePlus, RefreshCw, TrendingUp, Loader2, Calendar, ArrowLeft } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import apiClient from "@/lib/axios";
+import { Button } from "@/components/ui/button";
 
 interface Eligibility {
   canNew: boolean;
@@ -41,9 +42,14 @@ export default function EvaluationTypeDialog({
   const navigate = useNavigate();
   const [eligibility, setEligibility] = useState<Eligibility | null>(null);
   const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState<"type" | "year">("type");
 
   useEffect(() => {
-    if (!open || !programId) return;
+    if (!open) {
+      setStep("type");
+      return;
+    }
+    if (!programId) return;
     setLoading(true);
     apiClient
       .get(`evaluation/eligibility?programId=${programId}`)
@@ -91,24 +97,48 @@ export default function EvaluationTypeDialog({
   ];
 
   const handleSelect = (key: TypeOption["key"]) => {
-    onClose();
-    navigate(`/register/evaluate?type=${key}`);
+    if (key === "new") {
+      setStep("year");
+    } else {
+      onClose();
+      navigate(`/register/evaluate?type=${key}`);
+    }
   };
+
+  const handleYearSelect = (year: number) => {
+    onClose();
+    navigate(`/register/evaluate?type=new&year=${year}`);
+  };
+
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 10 }, (_, i) => currentYear - i);
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-lg font-bold">
-            เลือกประเภทการประเมิน
-          </DialogTitle>
+          <div className="flex items-center gap-2">
+            {step === "year" && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-full"
+                onClick={() => setStep("type")}
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            )}
+            <DialogTitle className="text-lg font-bold">
+              {step === "type" ? "เลือกประเภทการประเมิน" : "เลือกปีที่ต้องการประเมิน"}
+            </DialogTitle>
+          </div>
         </DialogHeader>
 
         {loading ? (
           <div className="flex items-center justify-center py-10">
             <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
           </div>
-        ) : (
+        ) : step === "type" ? (
           <div className="flex flex-col gap-3 py-2">
             {options.map((opt) => (
               <button
@@ -144,6 +174,31 @@ export default function EvaluationTypeDialog({
                 </div>
               </button>
             ))}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3 py-2">
+            <p className="text-sm text-slate-500 mb-2">
+              กรุณาเลือกปีงบประมาณที่ต้องการเริ่มประเมินใหม่
+            </p>
+            <div className="grid grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-1">
+              {years.map((y) => (
+                <button
+                  key={y}
+                  onClick={() => handleYearSelect(y)}
+                  className="flex flex-col items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 p-4 text-center hover:bg-blue-100 transition-all cursor-pointer group"
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white group-hover:scale-110 transition-transform shadow-sm">
+                    <Calendar className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-800">ปี {y + 543}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">
+                      {y === currentYear ? "ปีปัจจุบัน" : "ปี ค.ศ. " + y}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </DialogContent>
