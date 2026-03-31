@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Award, Trophy, Medal, Plus, Trash2, Loader2, Save, Pencil, GripVertical, ChevronRight, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -436,6 +436,18 @@ const SettingsScoringCriteria = () => {
 
   return (
     <div className="min-h-full bg-background">
+      <div className="border-b bg-card/50 px-6 py-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
+            <Award className="h-5 w-5 text-primary-foreground" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-lg font-bold text-foreground">เกณฑ์คะแนน</h2>
+            <p className="text-xs text-muted-foreground">กำหนดระดับคะแนนและรูปแบบการประเมินในแต่ละโครงการ</p>
+          </div>
+        </div>
+      </div>
+
       <div className="px-6 py-6 space-y-6">
         {programs.length === 0 && (
           <p className="text-sm text-muted-foreground text-center py-8">ยังไม่มีโครงการ กรุณาเพิ่มโครงการก่อน</p>
@@ -447,7 +459,7 @@ const SettingsScoringCriteria = () => {
             .sort((a, b) => a.sortOrder - b.sortOrder);
 
           return (
-            <Collapsible key={program.id} className="group/prog" defaultOpen={program.name === 'Green Hotel'}>
+            <Collapsible key={program.id} className="group/prog" defaultOpen={false}>
               <div className="rounded-xl border border-emerald-100/50 bg-emerald-50/30 overflow-hidden shadow-sm">
                 <CollapsibleTrigger asChild>
                   <button className="flex w-full items-center gap-3 px-5 py-4 hover:bg-emerald-50/60 transition-colors">

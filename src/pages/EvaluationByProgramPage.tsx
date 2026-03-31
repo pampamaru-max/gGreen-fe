@@ -467,191 +467,184 @@ const EvaluationByProgramPage = () => {
 
   return (
     <div className="min-h-full bg-background">
-      <div className="border-b bg-card/50 px-6 py-4">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/evaluation")} className="shrink-0">
-            <ArrowLeft className="h-5 w-5" />
+      <div className="border-b bg-card/50 px-4 sm:px-6 py-3">
+        {/* Row 1: back + icon + [spacer] + scores + actions */}
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/evaluation")} className="shrink-0 h-8 w-8">
+            <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-            <ClipboardCheck className="h-5 w-5 text-primary-foreground" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shrink-0">
+            <ClipboardCheck className="h-4 w-4 text-primary-foreground" />
           </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-lg font-bold text-foreground">ประเมิน {programName}</h2>
-              {evaluationType && EVAL_TYPE_CONFIG[evaluationType] && (
-                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${EVAL_TYPE_CONFIG[evaluationType].className}`}>
-                  {EVAL_TYPE_CONFIG[evaluationType].icon}
-                  {EVAL_TYPE_CONFIG[evaluationType].label}
-                </span>
-              )}
-              {currentStatus && (
-                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${currentStatus.badge}`}>
-                  {currentStatus.icon}
-                  {currentStatus.label}
-                </span>
-              )}
-              {year && (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border border-border bg-muted/60 text-muted-foreground">
-                  พ.ศ. {year + 543}
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {visibleCategories.length} หมวด · {totalTopics} ประเด็น · {totalIndicators} ตัวชี้วัด{isYesNoProgram ? "" : ` · คะแนนเต็ม ${grandMax}`}
-            </p>
-          </div>
-          {role !== "user" ? (
-            <div className="flex items-center gap-3 shrink-0">
-              <div className="text-right">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">ประเมินตนเอง</p>
-                <p className="text-xl font-bold text-muted-foreground">
-                  {displaySelfTotal}{displayUnit && <span className="text-xs font-normal ml-0.5">{displayUnit}</span>}
-                  <span className="text-sm font-normal text-muted-foreground">/{displayMax}</span>
-                </p>
-              </div>
-              <div className="w-px h-8 bg-border" />
-              {/* Live level badge for committee score */}
-              {displayMax > 0 && (programScoringType === 'yes_no' ? (
-                (() => {
-                  const allPass = displayCommitteeTotal === displayMax;
+          <div className="flex-1 min-w-0" />
+          {/* Scores + badge + actions */}
+          <div className="flex items-center gap-2 shrink-0">
+            {role !== "user" ? (
+              <>
+                <div className="text-right">
+                  <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">ตนเอง</p>
+                  <p className="text-base font-bold text-muted-foreground leading-tight">
+                    {displaySelfTotal}{displayUnit && <span className="text-[10px] font-normal ml-0.5">{displayUnit}</span>}
+                    <span className="text-xs font-normal text-muted-foreground">/{displayMax}</span>
+                  </p>
+                </div>
+                <div className="w-px h-7 bg-border" />
+                {displayMax > 0 && (programScoringType === 'yes_no' ? (
+                  (() => {
+                    const allPass = displayCommitteeTotal === displayMax;
+                    return (
+                      <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-semibold ${allPass ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-rose-400 bg-rose-50 text-rose-700"}`}>
+                        {allPass ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> : <XCircle className="h-3.5 w-3.5 shrink-0" />}
+                        <div className="leading-tight">
+                          <p className="font-semibold">{allPass ? "สอดคล้อง" : "ไม่สอดคล้อง"}</p>
+                          <p className="opacity-70">{displayCommitteePct}%</p>
+                        </div>
+                      </div>
+                    );
+                  })()
+                ) : scoringLevels.length > 0 && (() => {
+                  const lvl = [...scoringLevels].reverse().find(l => displayCommitteePct >= l.minScore && displayCommitteePct <= l.maxScore);
+                  if (!lvl) return null;
+                  const iconMap = { Trophy, Medal, Award, Star } as Record<string, ({ className }: { className?: string }) => JSX.Element>;
+                  const IconComp = iconMap[lvl.icon] ?? Trophy;
                   return (
-                    <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border shrink-0 ${allPass ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-rose-400 bg-rose-50 text-rose-700"}`}>
-                      {allPass ? <CheckCircle2 className="h-5 w-5 shrink-0" /> : <XCircle className="h-5 w-5 shrink-0" />}
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs shrink-0"
+                      style={{ borderColor: `${lvl.color}60`, backgroundColor: `${lvl.color}10`, color: lvl.color }}>
+                      <IconComp className="h-3.5 w-3.5 shrink-0" />
                       <div className="leading-tight">
-                        <p className="text-sm font-semibold">{allPass ? "สอดคล้อง" : "ไม่สอดคล้อง"}</p>
-                        <p className="text-xs opacity-70">{displayCommitteePct}%</p>
+                        <p className="font-semibold">{lvl.name}</p>
+                        <p className="opacity-70">{lvl.minScore}–{lvl.maxScore}%</p>
                       </div>
                     </div>
                   );
-                })()
-              ) : scoringLevels.length > 0 && (() => {
-                const lvl = [...scoringLevels].reverse().find(l => displayCommitteePct >= l.minScore && displayCommitteePct <= l.maxScore);
-                if (!lvl) return null;
-                const iconMap = { Trophy, Medal, Award, Star } as Record<string, ({ className }: { className?: string }) => JSX.Element>;
-                const IconComp = iconMap[lvl.icon] ?? Trophy;
-                return (
-                  <div
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl border shrink-0"
-                    style={{ borderColor: `${lvl.color}60`, backgroundColor: `${lvl.color}10`, color: lvl.color }}
-                  >
-                    <IconComp className="h-5 w-5 shrink-0" />
-                    <div className="leading-tight">
-                      <p className="text-sm font-semibold">{lvl.name}</p>
-                      <p className="text-xs opacity-70">{lvl.minScore}–{lvl.maxScore}%</p>
-                    </div>
-                  </div>
-                );
-              })())}
+                })())}
+                <div className="text-right">
+                  <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">กรรมการ</p>
+                  <p className="text-base font-bold text-primary leading-tight">
+                    {displayCommitteeTotal}{displayUnit && <span className="text-[10px] font-normal ml-0.5">{displayUnit}</span>}
+                    <span className="text-xs font-normal text-muted-foreground">/{displayMax}</span>
+                  </p>
+                  {displayMax > 0 && <p className="text-[9px] text-muted-foreground">{displayCommitteePct}%</p>}
+                </div>
+              </>
+            ) : (
               <div className="text-right">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">กรรมการ</p>
-                <p className="text-xl font-bold text-primary">
-                  {displayCommitteeTotal}{displayUnit && <span className="text-xs font-normal ml-0.5">{displayUnit}</span>}
-                  <span className="text-sm font-normal text-muted-foreground">/{displayMax}</span>
+                <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">คะแนนรวม</p>
+                <p className="text-base font-bold text-primary leading-tight">
+                  {displaySelfTotal}{displayUnit && <span className="text-[10px] font-normal ml-0.5">{displayUnit}</span>}
+                  <span className="text-xs font-normal text-muted-foreground">/{displayMax}</span>
                 </p>
-                {displayMax > 0 && (
-                  <p className="text-[10px] text-muted-foreground">{displayCommitteePct}%</p>
-                )}
               </div>
-            </div>
-          ) : (
-            <div className="text-right">
-              <p className="text-xs text-muted-foreground">คะแนนรวม</p>
-              <p className="text-2xl font-bold text-primary">
-                {displaySelfTotal}{displayUnit && <span className="text-xs font-normal ml-0.5">{displayUnit}</span>}
-                <span className="text-sm font-normal text-muted-foreground">/{displayMax}</span>
-              </p>
-            </div>
-          )}
-          {role !== "user" && import.meta.env.DEV && !isCompleted && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1 text-purple-600 border-purple-300 hover:bg-purple-50 text-xs">
-                  🎲 สุ่ม <ChevronDown className="h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuItem onClick={() => handleFillMode("full")}>⭐ สุ่มคะแนนเต็ม</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleFillMode("good")}>😊 สุ่มคะแนนดีแต่ไม่เต็ม</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleFillMode("mid")}>😐 สุ่มคะแนนกลางๆ</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleFillMode("bad")}>😕 สุ่มคะแนนแย่ๆ</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => handleFillMode("clear")} className="text-destructive">🗑 ล้างคะแนน</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-          {isCompleted ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate(`/evaluation/${programId}/summary?evaluationId=${evaluationId || ""}`)}
-              className="ml-2 gap-1.5 text-green-700 border-green-300 bg-green-50 hover:bg-green-100"
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              ดูสรุปผลการประเมิน
-            </Button>
-          ) : (
-            role !== "user" && isSubmitted && (
-              <div className="flex items-center gap-2 ml-2">
-                <Button variant="outline" size="sm" onClick={handleReturn} className="gap-1.5 text-amber-600 border-amber-300 hover:bg-amber-50">
-                  <RotateCcw className="h-4 w-4" />
-                  ส่งกลับ
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handleComplete}
-                  disabled={!allCommitteeScored}
-                  title={!allCommitteeScored ? `ยังมีตัวชี้วัดที่ยังไม่ได้ประเมิน ${flatIndicators.filter(({ indicator }) => { const v = committeeScores[indicator.id]; return v === undefined || (indicator.scoreType?.includes('yes_no') && v === -1); }).length} ข้อ` : ""}
-                  className="gap-1.5 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
-                >
-                  <CheckCircle2 className="h-4 w-4" />
-                  ยืนยันผลการประเมิน
-                  {!allCommitteeScored && (
-                    <span className="ml-1 rounded-full bg-white/20 px-1.5 py-0.5 text-[10px] font-bold">
-                      {flatIndicators.filter(({ indicator }) => { const v = committeeScores[indicator.id]; return v === undefined || (indicator.scoreType?.includes('yes_no') && v === -1); }).length} ข้อ
-                    </span>
-                  )}
-                </Button>
+            )}
+            {role !== "user" && import.meta.env.DEV && !isCompleted && (
+              <div className="hidden sm:flex">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1 text-purple-600 border-purple-300 hover:bg-purple-50 text-xs h-8 px-2 shrink-0">
+                      🎲 <ChevronDown className="h-3 w-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-44">
+                    <DropdownMenuItem onClick={() => handleFillMode("full")}>⭐ สุ่มคะแนนเต็ม</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleFillMode("good")}>😊 สุ่มคะแนนดีแต่ไม่เต็ม</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleFillMode("mid")}>😐 สุ่มคะแนนกลางๆ</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleFillMode("bad")}>😕 สุ่มคะแนนแย่ๆ</DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => handleFillMode("clear")} className="text-destructive">🗑 ล้างคะแนน</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
-            )
+            )}
+            {isCompleted ? (
+              <Button variant="outline" size="sm"
+                onClick={() => navigate(`/evaluation/${programId}/summary?evaluationId=${evaluationId || ""}`)}
+                className="gap-1 text-green-700 border-green-300 bg-green-50 hover:bg-green-100 h-8 px-2 text-xs shrink-0">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">ดูสรุป</span>
+              </Button>
+            ) : (
+              role !== "user" && isSubmitted && (
+                <div className="flex items-center gap-1.5">
+                  <Button variant="outline" size="sm" onClick={handleReturn} className="gap-1 text-amber-600 border-amber-300 hover:bg-amber-50 h-8 px-2 text-xs shrink-0">
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">ส่งกลับ</span>
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleComplete}
+                    disabled={!allCommitteeScored}
+                    title={!allCommitteeScored ? `ยังมีตัวชี้วัดที่ยังไม่ได้ประเมิน ${flatIndicators.filter(({ indicator }) => { const v = committeeScores[indicator.id]; return v === undefined || (indicator.scoreType?.includes('yes_no') && v === -1); }).length} ข้อ` : ""}
+                    className="gap-1 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 h-8 px-2 text-xs shrink-0"
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">ยืนยันผล</span>
+                    {!allCommitteeScored && (
+                      <span className="rounded-full bg-white/20 px-1 text-[10px] font-bold">
+                        {flatIndicators.filter(({ indicator }) => { const v = committeeScores[indicator.id]; return v === undefined || (indicator.scoreType?.includes('yes_no') && v === -1); }).length}
+                      </span>
+                    )}
+                  </Button>
+                </div>
+              )
+            )}
+          </div>
+        </div>
+        {/* Row 2: program name + badges + subinfo */}
+        <div className="flex items-center gap-1.5 flex-wrap mt-1.5 ml-[40px]">
+          <h2 className="text-sm font-bold text-foreground w-full truncate">{programName}</h2>
+          {evaluationType && EVAL_TYPE_CONFIG[evaluationType] && (
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${EVAL_TYPE_CONFIG[evaluationType].className}`}>
+              {EVAL_TYPE_CONFIG[evaluationType].icon}
+              {EVAL_TYPE_CONFIG[evaluationType].label}
+            </span>
           )}
+          {currentStatus && (
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${currentStatus.badge}`}>
+              {currentStatus.icon}
+              {currentStatus.label}
+            </span>
+          )}
+          {year && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border border-border bg-muted/60 text-muted-foreground">
+              พ.ศ. {year + 543}
+            </span>
+          )}
+          <span className="text-[11px] text-muted-foreground">
+            {visibleCategories.length} หมวด · {totalTopics} ประเด็น · {totalIndicators} ตัวชี้วัด{isYesNoProgram ? "" : ` · คะแนนเต็ม ${grandMax}`}
+          </span>
         </div>
       </div>
 
       {/* Scoring level strip */}
       {role !== "user" && (scoringLevels.length > 0 || programScoringType === 'yes_no') && (
-        <div className="px-6 py-2 border-b bg-card/30 flex items-center gap-3">
-          {programScoringType === 'yes_no' ? (
-            (() => {
-              const allPass = displayMax > 0 && displayCommitteeTotal === displayMax;
-              return (
-                <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-semibold ${allPass ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-rose-400 bg-rose-50 text-rose-700"}`}>
-                  {allPass
-                    ? <><CheckCircle2 className="h-4 w-4" /> สอดคล้อง</>
-                    : <><XCircle className="h-4 w-4" /> ไม่สอดคล้อง</>}
-                </div>
-              );
-            })()
-          ) : (
-            <ScoringLevelBadges levels={scoringLevels} grandMax={displayMax} currentScore={displayCommitteeTotal} />
-          )}
+        <div className="px-4 sm:px-6 py-2 border-b bg-card/30 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <div className="flex-1 min-w-0">
+            {programScoringType === 'yes_no' ? (
+              (() => {
+                const allPass = displayMax > 0 && displayCommitteeTotal === displayMax;
+                return (
+                  <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-semibold ${allPass ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-rose-400 bg-rose-50 text-rose-700"}`}>
+                    {allPass ? <><CheckCircle2 className="h-4 w-4" /> สอดคล้อง</> : <><XCircle className="h-4 w-4" /> ไม่สอดคล้อง</>}
+                  </div>
+                );
+              })()
+            ) : (
+              <ScoringLevelBadges levels={scoringLevels} grandMax={displayMax} currentScore={displayCommitteeTotal} />
+            )}
+          </div>
           {displayMax > 0 && (
-            <div className="ml-auto shrink-0 text-right">
+            <div className="shrink-0 text-right">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
                 {programScoringType === 'yes_no' ? "วิธีคำนวณ (สอดคล้อง)" : isYesNoProgram ? "วิธีคำนวณ (ผ่าน/ไม่ผ่าน)" : "วิธีคำนวณ (คะแนน)"}
               </p>
               <p className="text-sm font-mono font-semibold text-foreground">
-                {displayCommitteeTotal}/{displayMax}
-                {(programScoringType === 'yes_no' || isYesNoProgram) ? " ข้อ" : ""} = {displayCommitteePct}%
+                {displayCommitteeTotal}/{displayMax}{(programScoringType === 'yes_no' || isYesNoProgram) ? " ข้อ" : ""} = {displayCommitteePct}%
               </p>
-              {programScoringType === 'yes_no' && (
-                <p className="text-[10px] font-bold text-red-600">*ต้องสอดคล้องครบทุกข้อ</p>
-              )}
+              {programScoringType === 'yes_no' && <p className="text-[10px] font-bold text-red-600">*ต้องสอดคล้องครบทุกข้อ</p>}
               {programScoringType !== 'yes_no' && !isYesNoProgram && grandMax > 0 && (
                 <>
                   <p className="text-[10px] text-muted-foreground">คะแนนดิบ {grandCommitteeTotal} ÷ {grandMax}</p>
-                  <p className="text-[10px] font-bold text-red-600">
-                    {grandMax === 100 ? "*คำนวนแบบคะแนนเต็มหมวด" : "*คำนวนแบบคะแนนไม่เต็มหมวด"}
-                  </p>
+                  <p className="text-[10px] font-bold text-red-600">{grandMax === 100 ? "*คำนวนแบบคะแนนเต็มหมวด" : "*คำนวนแบบคะแนนไม่เต็มหมวด"}</p>
                 </>
               )}
             </div>
