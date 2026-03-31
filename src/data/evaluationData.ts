@@ -25,6 +25,7 @@ export interface Category {
   id: number;
   name: string;
   maxScore: number;
+  scoreType?: string;
   topics: Topic[];
 }
 
