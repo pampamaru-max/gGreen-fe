@@ -56,6 +56,14 @@ const EvaluationByProgramPage = () => {
   const [year, setYear] = useState<number | null>(null);
   // notification IDs ของ indicator ที่ผู้ถูกประเมินแก้ไขใหม่ (เฉพาะฝั่งกรรมการ)
   const [newEvaluateeIndicatorIds, setNewEvaluateeIndicatorIds] = useState<Map<string, { prevScore: number | null; newScore: number | null }>>(new Map());
+  const [expandedCategoryId, setExpandedCategoryId] = useState<string | number | null>(null);
+
+  const handleCategoryClick = useCallback((categoryId: string | number) => {
+    setExpandedCategoryId(categoryId);
+    setTimeout(() => {
+      document.getElementById(`cat-${categoryId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  }, []);
 
   // Check access
   useEffect(() => {
@@ -661,7 +669,7 @@ const EvaluationByProgramPage = () => {
       )}
 
       <div className="px-6 py-6 space-y-6">
-        <ScoreSummary data={summaryData} committeeData={committeeSummaryData} />
+        <ScoreSummary data={summaryData} committeeData={committeeSummaryData} onCategoryClick={handleCategoryClick} />
         {visibleCategories.map((category, idx) => (
           <CategoryCard
             key={category.id}
@@ -682,6 +690,7 @@ const EvaluationByProgramPage = () => {
             scoreView={scoreView}
             onIndicatorClick={handleOpenWizard}
             newIndicatorNotifs={role !== "user" ? newEvaluateeIndicatorIds : undefined}
+            forceOpen={expandedCategoryId === category.id}
           />
         ))}
       </div>

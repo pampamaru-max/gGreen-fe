@@ -13,9 +13,10 @@ interface SummaryItem {
 interface Props {
   data: SummaryItem[];
   committeeData?: SummaryItem[];
+  onCategoryClick?: (categoryId: string | number) => void;
 }
 
-export function ScoreSummary({ data, committeeData }: Props) {
+export function ScoreSummary({ data, committeeData, onCategoryClick }: Props) {
   const isCommittee = !!committeeData;
 
   return (
@@ -32,7 +33,7 @@ export function ScoreSummary({ data, committeeData }: Props) {
           const committeePass = committee?.passCount;
           const committeePct = committeePass !== undefined && total > 0 ? Math.round((committeePass / total) * 100) : 0;
           return (
-            <div key={item.id} className="relative overflow-hidden rounded-xl border bg-card p-4 transition-shadow hover:shadow-md">
+            <div key={item.id} onClick={() => onCategoryClick?.(item.id)} className={`relative overflow-hidden rounded-xl border bg-card p-4 transition-shadow hover:shadow-md ${onCategoryClick ? "cursor-pointer" : ""}`}>
               <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: `hsl(${color})` }} />
               <p className="text-xs font-medium text-muted-foreground mb-0.5">หมวดที่ {idx + 1}</p>
               <p className="text-sm font-semibold text-foreground leading-tight mb-3 line-clamp-2">{item.name}</p>
@@ -71,7 +72,7 @@ export function ScoreSummary({ data, committeeData }: Props) {
           ? Math.round((committee.score / item.totalPossible) * 100)
           : 0;
         return (
-          <div key={item.id} className="relative overflow-hidden rounded-xl border bg-card p-4 transition-shadow hover:shadow-md">
+          <div key={item.id} onClick={() => onCategoryClick?.(item.id)} className={`relative overflow-hidden rounded-xl border bg-card p-4 transition-shadow hover:shadow-md ${onCategoryClick ? "cursor-pointer" : ""}`}>
             <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: `hsl(${color})` }} />
             <p className="text-xs font-medium text-muted-foreground mb-0.5">หมวดที่ {idx + 1}</p>
             <p className="text-sm font-semibold text-foreground leading-tight mb-3 line-clamp-2">{item.name}</p>
