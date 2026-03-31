@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Category, ScoringCriterion } from "@/data/evaluationData";
 import { ChevronDown, ChevronRight, ChevronLeft, Trash2, FileText, X, Eye, ListChecks, Plus, Info, Save, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -67,6 +67,7 @@ interface Props {
   onIndicatorClick?: (indicator: Category["topics"][0]["indicators"][0]) => void;
   // notification ของ indicator ที่มีการเปลี่ยนแปลงใหม่ยังไม่ได้อ่าน
   newIndicatorNotifs?: Map<string, { prevScore: number | null; newScore: number | null; isYesNo?: boolean }>;
+  forceOpen?: boolean;
 }
 
 // ── Shared utility ────────────────────────────────────────────────────────────
@@ -901,8 +902,12 @@ export function IndicatorDialog({
 }
 
 
-export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDelete, uploadedFiles, onFilesChange, onSave, implementationDetails, onImplementationDetailChange, committeeScores, onCommitteeScoreChange, committeeComments, onCommitteeCommentChange, userRole, scoreView, onIndicatorClick, newIndicatorNotifs }: Props) {
+export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDelete, uploadedFiles, onFilesChange, onSave, implementationDetails, onImplementationDetailChange, committeeScores, onCommitteeScoreChange, committeeComments, onCommitteeCommentChange, userRole, scoreView, onIndicatorClick, newIndicatorNotifs, forceOpen }: Props) {
   const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    if (forceOpen) setIsOpen(true);
+  }, [forceOpen]);
   const [selectedIndicator, setSelectedIndicator] = useState<Category["topics"][0]["indicators"][0] | null>(null);
   const color = categoryColors[colorIndex % categoryColors.length];
 
@@ -928,7 +933,7 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
   ) : 0;
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
+    <div id={`cat-${category.id}`} className="rounded-xl border bg-card overflow-hidden shadow-sm">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-muted/50"

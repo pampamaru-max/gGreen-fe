@@ -109,7 +109,15 @@ export default function ProjectRegistration() {
   const [wizardIndex, setWizardIndex]       = useState<number | null>(null);
   // notification ของ indicator ที่กรรมการ comment/ให้คะแนนใหม่
   const [newCommitteeIndicatorIds, setNewCommitteeIndicatorIds] = useState<Map<string, { prevScore: number | null; newScore: number | null }>>(new Map());
+  const [expandedCategoryId, setExpandedCategoryId] = useState<string | number | null>(null);
   const navigate = useNavigate();
+
+  const handleCategoryClick = useCallback((categoryId: string | number) => {
+    setExpandedCategoryId(categoryId);
+    setTimeout(() => {
+      document.getElementById(`cat-${categoryId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  }, []);
   // ── Fetch evaluation form + existing answers ───────────────────────────────
   useEffect(() => {
     if (!programId) return;
@@ -661,7 +669,7 @@ export default function ProjectRegistration() {
         ) : (
           <>
             {/* Score summary grid */}
-            {summaryData.length > 0 && <ScoreSummary data={summaryData} />}
+            {summaryData.length > 0 && <ScoreSummary data={summaryData} onCategoryClick={handleCategoryClick} />}
 
             {/* Category cards */}
             {visibleCategories.map((category, idx) => (
@@ -679,6 +687,7 @@ export default function ProjectRegistration() {
                 userRole="user"
                 onIndicatorClick={handleOpenWizard}
                 newIndicatorNotifs={newCommitteeIndicatorIds}
+                forceOpen={expandedCategoryId === category.id}
               />
             ))}
 
