@@ -1,6 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FilePlus, RefreshCw, TrendingUp, Loader2, Calendar, ArrowLeft } from "lucide-react";
+import {
+  FilePlus,
+  RefreshCw,
+  TrendingUp,
+  Loader2,
+  Calendar,
+  ArrowLeft,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -9,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import apiClient from "@/lib/axios";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 interface Eligibility {
   canNew: boolean;
@@ -43,10 +51,21 @@ export default function EvaluationTypeDialog({
   const [eligibility, setEligibility] = useState<Eligibility | null>(null);
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<"type" | "year">("type");
+  const currentYear = new Date().getFullYear();
+  const years = useMemo(()=>{
+    const list = [];
+    const backRange = 10;
+    for (let i = 0 ; i <= backRange ; i++){
+      list.push(currentYear - i);
+    }
+    return list;
+  },[currentYear])
+  const [selectedYear, setSelectedYear] = useState<number>(currentYear);
 
   useEffect(() => {
     if (!open) {
       setStep("type");
+      setSelectedYear(currentYear);
       return;
     }
     if (!programId) return;
@@ -55,15 +74,17 @@ export default function EvaluationTypeDialog({
       .get(`evaluation/eligibility?programId=${programId}`)
       .then(({ data }) => {
         // ถ้า API ยังไม่มี route นี้หรือ return null → ถือว่าผู้ใช้ใหม่
-        if (!data || typeof data.canNew !== 'boolean') {
+        if (!data || typeof data.canNew !== "boolean") {
           setEligibility({ canNew: true, canRenew: false, canUpgrade: false });
         } else {
           setEligibility(data);
         }
       })
-      .catch(() => setEligibility({ canNew: true, canRenew: false, canUpgrade: false }))
+      .catch(() =>
+        setEligibility({ canNew: true, canRenew: false, canUpgrade: false }),
+      )
       .finally(() => setLoading(false));
-  }, [open, programId]);
+  }, [open, programId, currentYear]);
 
   const options: TypeOption[] = [
     {
@@ -105,14 +126,6 @@ export default function EvaluationTypeDialog({
     }
   };
 
-  const handleYearSelect = (year: number) => {
-    onClose();
-    navigate(`/register/evaluate?type=new&year=${year}`);
-  };
-
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 10 }, (_, i) => currentYear - i);
-
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="sm:max-w-md">
@@ -129,7 +142,9 @@ export default function EvaluationTypeDialog({
               </Button>
             )}
             <DialogTitle className="text-lg font-bold">
-              {step === "type" ? "เลือกประเภทการประเมิน" : "เลือกปีที่ต้องการประเมิน"}
+              {step === "type"
+                ? "เลือกประเภทการประเมิน"
+                : "เลือกปีที่ต้องการประเมิน"}
             </DialogTitle>
           </div>
         </DialogHeader>
@@ -181,23 +196,28 @@ export default function EvaluationTypeDialog({
               กรุณาเลือกปีงบประมาณที่ต้องการเริ่มประเมินใหม่
             </p>
             <div className="grid grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-1">
-              {years.map((y) => (
-                <button
-                  key={y}
-                  onClick={() => handleYearSelect(y)}
-                  className="flex flex-col items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 p-4 text-center hover:bg-blue-100 transition-all cursor-pointer group"
-                >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white group-hover:scale-110 transition-transform shadow-sm">
-                    <Calendar className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-800">ปี {y + 543}</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">
-                      {y === currentYear ? "ปีปัจจุบัน" : "ปี ค.ศ. " + y}
-                    </p>
-                  </div>
-                </button>
-              ))}
+              <Select onValueChange={(val) => setSelectedYear(Number(val))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="เลือกปี" />
+                </SelectTrigger>
+                <SelectContent>
+                  {years.map((y) => (
+                    <SelectItem key={y} value={String(y)} className="text-base">
+                      ปี {y + 543} {y === currentYear ? "(ปีปัจจุบัน)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Button
+                disabled={!selectedYear}
+                onClick={()=>{
+                  onClose();
+                  navigate('/register/evaluate?type=new&year=${selectedYear}');
+                }}
+              >
+                ยืนยัน
+              </Button>
             </div>
           </div>
         )}

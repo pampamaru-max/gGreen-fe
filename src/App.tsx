@@ -14,6 +14,7 @@ import EvaluationSummaryPage from "@/pages/EvaluationSummaryPage";
 import ProjectOperations from "@/pages/ProjectOperations";
 import ProjectRegistration from "@/pages/ProjectRegistration";
 import EvaluateeHome from "@/pages/EvaluateeHome";
+import PrintCertificate from "@/pages/PrintCertificate";
 import SettingsPrograms from "@/pages/SettingsPrograms";
 import SettingsCategories from "@/pages/SettingsCategories";
 import SettingsIndicators from "@/pages/SettingsIndicators";
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/reports/participants" element={<ReportParticipants />} />
             <Route path="/reports/all-green" element={<ReportAllGreen />} />
+            <Route path="/certificate/print/:id" element={<PrintCertificate />} />
 
             {/* Protected routes - with sidebar */}
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
