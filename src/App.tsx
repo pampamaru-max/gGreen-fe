@@ -15,6 +15,7 @@ import EvaluationSummaryPage from "@/pages/EvaluationSummaryPage";
 import ProjectOperations from "@/pages/ProjectOperations";
 import ProjectRegistration from "@/pages/ProjectRegistration";
 import EvaluateeHome from "@/pages/EvaluateeHome";
+import PrintCertificate from "@/pages/PrintCertificate";
 import SettingsPrograms from "@/pages/SettingsPrograms";
 import SettingsCategories from "@/pages/SettingsCategories";
 import SettingsIndicators from "@/pages/SettingsIndicators";
@@ -27,6 +28,7 @@ import ReportParticipants from "@/pages/ReportParticipants";
 import ReportAllGreen from "@/pages/ReportAllGreen";
 import RegistrationManagement from "@/pages/RegistrationManagement";
 import SettingsUsers from "@/pages/SettingsUsers";
+import SettingsProjectDuration from "@/pages/SettingsProjectDuration";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,6 +49,7 @@ const App = () => (
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/reports/participants" element={<ReportParticipants />} />
             <Route path="/reports/all-green" element={<ReportAllGreen />} />
+            <Route path="/certificate/print/:id" element={<PrintCertificate />} />
 
             {/* Protected routes - with sidebar */}
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
@@ -63,6 +66,7 @@ const App = () => (
               <Route path="/settings/certificate" element={<SettingsCertificate />} />
               <Route path="/settings/documents" element={<SettingsDocuments />} />
               <Route path="/settings/users" element={<SettingsUsers />} />
+              <Route path="/settings/project-duration" element={<SettingsProjectDuration />} />
               <Route path="/registration-management" element={<RegistrationManagement />} />
             </Route>
 

@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, FileUp, ExternalLink } from "lucide-react";
+import { Plus, Pencil, Trash2, FileUp, ExternalLink, FileText } from "lucide-react";
 
 interface Program { id: string; name: string; }
 interface DocTemplate {
@@ -147,11 +147,20 @@ export default function SettingsDocuments() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">จัดการเอกสารการสมัคร</h1>
+    <div className="min-h-full bg-background">
+      <div className="border-b bg-card/50 px-6 py-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
+            <FileText className="h-5 w-5 text-primary-foreground" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-lg font-bold text-foreground">เอกสารการสมัคร</h2>
+            <p className="text-xs text-muted-foreground">จัดการเอกสารที่ต้องใช้ในการสมัครแต่ละโครงการ</p>
+          </div>
+        </div>
       </div>
 
+      <div className="px-6 py-6 space-y-6">
       <div className="flex items-center gap-4">
         <Label>โครงการ</Label>
         <Select value={selectedProgram} onValueChange={setSelectedProgram}>
@@ -268,6 +277,7 @@ export default function SettingsDocuments() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }
