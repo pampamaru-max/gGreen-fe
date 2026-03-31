@@ -984,12 +984,12 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
                           </span>
                           <span className="text-muted-foreground/40">→</span>
                           {/* คะแนนกรรมการ */}
-                          {cScore !== undefined ? (
+                          {cScore !== undefined && cScore !== -1 ? (
                             <span
                               className="text-sm font-bold tabular-nums min-w-[3rem] text-right"
-                              style={{ color: `hsl(${color})` }}
+                              style={{ color: isYesNo ? (cScore === 1 ? "hsl(142 60% 40%)" : "hsl(0 72% 51%)") : `hsl(${color})` }}
                             >
-                              {cScore}/{indicator.maxScore}
+                              {isYesNo ? (cScore === 1 ? "ผ่าน" : "ไม่ผ่าน") : `${cScore}/${indicator.maxScore}`}
                             </span>
                           ) : (
                             <span className="text-xs font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 min-w-[3rem] text-center">

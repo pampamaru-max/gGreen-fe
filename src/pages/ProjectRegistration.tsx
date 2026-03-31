@@ -5,6 +5,7 @@ import {
   Loader2, CheckCircle2, CalendarDays, Hash, ArrowLeft,
   Clock, FileText, AlertCircle, XCircle, RotateCcw,
   FilePlus, RefreshCw, TrendingUp,
+  Trophy, Medal, Award, Star,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -375,6 +376,16 @@ export default function ProjectRegistration() {
     ? undefined
     : summaryData.reduce((s, c: any) => s + (c.committeeScore || 0), 0);
 
+  // yes/no totals — used when grandMax === 0
+  const grandPassCount  = summaryData.reduce((s, c: any) => s + (c.passCount ?? 0), 0);
+  const grandPassTotal  = summaryData.reduce((s, c: any) => s + (c.totalIndicators ?? 0), 0);
+  const isYesNoProgram  = grandMax === 0 && grandPassTotal > 0;
+  // unified values for display
+  const displayTotal    = isYesNoProgram ? grandPassCount  : grandTotal;
+  const displayMax      = isYesNoProgram ? grandPassTotal  : grandMax;
+  const displayPct      = displayMax > 0 ? Math.round((displayTotal / displayMax) * 100) : 0;
+  const displayUnit     = isYesNoProgram ? "ผ่าน" : "";
+
   // ── Wizard flat list ───────────────────────────────────────────────────────
   const flatIndicators = useMemo(() => {
     const items: Array<{
@@ -511,16 +522,44 @@ export default function ProjectRegistration() {
                   {currentEvalStatus.label}
                 </span>
               )}
+              {year && (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border border-border bg-muted/60 text-muted-foreground">
+                  พ.ศ. {year + 543}
+                </span>
+              )}
             </div>
             <p className="text-xs text-muted-foreground">
               {visibleCategories.length} หมวด · {totalTopics} ประเด็น · {totalIndicators} ตัวชี้วัด · คะแนนเต็ม {grandMax}
             </p>
           </div>
+          {/* Live level badge */}
+          {scoringLevels.length > 0 && displayMax > 0 && (() => {
+            const lvl = [...scoringLevels].reverse().find(l => displayPct >= l.minScore && displayPct <= l.maxScore);
+            if (!lvl) return null;
+            const iconMap = { Trophy, Medal, Award, Star } as Record<string, ({ className }: { className?: string }) => JSX.Element>;
+            const IconComp = iconMap[lvl.icon] ?? Trophy;
+            return (
+              <div
+                className="flex items-center gap-2 px-3 py-2 rounded-xl border shrink-0"
+                style={{ borderColor: `${lvl.color}60`, backgroundColor: `${lvl.color}10`, color: lvl.color }}
+              >
+                <IconComp className="h-5 w-5 shrink-0" />
+                <div className="leading-tight">
+                  <p className="text-sm font-semibold">{lvl.name}</p>
+                  <p className="text-xs opacity-70">{lvl.minScore}–{lvl.maxScore}%</p>
+                </div>
+              </div>
+            );
+          })()}
           <div className="text-right shrink-0">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">ประเมินตนเอง</p>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">คะแนนรวม</p>
             <p className="text-xl font-bold text-primary">
-              {grandTotal}<span className="text-sm font-normal text-muted-foreground">/{grandMax}</span>
+              {displayTotal}{displayUnit && <span className="text-xs font-normal ml-0.5">{displayUnit}</span>}
+              <span className="text-sm font-normal text-muted-foreground">/{displayMax}</span>
             </p>
+            {displayMax > 0 && (
+              <p className="text-[10px] text-muted-foreground">{displayPct}%</p>
+            )}
           </div>
           {grandCommitteeTotal !== undefined && (
             <>
@@ -553,6 +592,13 @@ export default function ProjectRegistration() {
         </div>
       </div>
 
+      {/* ════ SCORING LEVEL STRIP ════ */}
+      {scoringLevels.length > 0 && !evalLoading && (
+        <div className="px-4 sm:px-6 py-2 border-b bg-card/30">
+          <ScoringLevelBadges levels={scoringLevels} grandMax={displayMax} currentScore={displayTotal} />
+        </div>
+      )}
+
       {/* ════ EVALUATION STATUS BANNER ════ */}
       {currentEvalStatus?.banner && (
         <div className={`flex items-center gap-2 px-4 sm:px-6 py-2.5 border-b text-sm font-medium ${currentEvalStatus.banner}`}>
@@ -571,11 +617,6 @@ export default function ProjectRegistration() {
           </div>
         ) : (
           <>
-            {/* Scoring levels — visible to evaluatee only when evaluation is complete */}
-            {scoringLevels.length > 0 && isEvalCompleted && (
-              <ScoringLevelBadges levels={scoringLevels} grandMax={grandMax} currentScore={grandTotal} />
-            )}
-
             {/* Score summary grid */}
             {summaryData.length > 0 && <ScoreSummary data={summaryData} />}
 
