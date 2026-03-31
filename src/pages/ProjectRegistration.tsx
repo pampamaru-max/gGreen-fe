@@ -93,6 +93,7 @@ export default function ProjectRegistration() {
   // Evaluation form state
   const [evalLoading, setEvalLoading]       = useState(true);
   const [programName, setProgramName]       = useState("");
+  const [programScoringType, setProgramScoringType] = useState<'score' | 'yes_no'>('score');
   const [categories, setCategories]         = useState<EvalCategory[]>([]);
   const [scoringLevels, setScoringLevels]   = useState<ScoringLevel[]>([]);
   const [scores, setScores]                 = useState<Record<string, number>>({});
@@ -151,6 +152,7 @@ export default function ProjectRegistration() {
           })),
         }));
         setProgramName(prog?.name ?? "");
+        if (prog?.scoringType) setProgramScoringType(prog.scoringType);
         setCategories(cats);
 
         // 2. Scoring levels (optional — ignore if not available)
@@ -533,7 +535,21 @@ export default function ProjectRegistration() {
             </p>
           </div>
           {/* Live level badge */}
-          {scoringLevels.length > 0 && displayMax > 0 && (() => {
+          {displayMax > 0 && (programScoringType === 'yes_no' ? (
+            /* สอดคล้อง/ไม่สอดคล้อง badge */
+            (() => {
+              const allPass = displayTotal === displayMax;
+              return (
+                <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border shrink-0 ${allPass ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-rose-400 bg-rose-50 text-rose-700"}`}>
+                  {allPass ? <CheckCircle2 className="h-5 w-5 shrink-0" /> : <XCircle className="h-5 w-5 shrink-0" />}
+                  <div className="leading-tight">
+                    <p className="text-sm font-semibold">{allPass ? "สอดคล้อง" : "ไม่สอดคล้อง"}</p>
+                    <p className="text-xs opacity-70">{displayPct}%</p>
+                  </div>
+                </div>
+              );
+            })()
+          ) : scoringLevels.length > 0 && (() => {
             const lvl = [...scoringLevels].reverse().find(l => displayPct >= l.minScore && displayPct <= l.maxScore);
             if (!lvl) return null;
             const iconMap = { Trophy, Medal, Award, Star } as Record<string, ({ className }: { className?: string }) => JSX.Element>;
@@ -550,7 +566,7 @@ export default function ProjectRegistration() {
                 </div>
               </div>
             );
-          })()}
+          })())}
           <div className="text-right shrink-0">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">คะแนนรวม</p>
             <p className="text-xl font-bold text-primary">
@@ -593,9 +609,45 @@ export default function ProjectRegistration() {
       </div>
 
       {/* ════ SCORING LEVEL STRIP ════ */}
-      {scoringLevels.length > 0 && !evalLoading && (
-        <div className="px-4 sm:px-6 py-2 border-b bg-card/30">
-          <ScoringLevelBadges levels={scoringLevels} grandMax={displayMax} currentScore={displayTotal} />
+      {!evalLoading && (scoringLevels.length > 0 || programScoringType === 'yes_no') && (
+        <div className="px-4 sm:px-6 py-2 border-b bg-card/30 flex items-center gap-3">
+          {programScoringType === 'yes_no' ? (
+            /* สอดคล้อง/ไม่สอดคล้อง — ต้องผ่านครบทุกข้อ */
+            (() => {
+              const allPass = displayMax > 0 && displayTotal === displayMax;
+              return (
+                <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-semibold ${allPass ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-rose-400 bg-rose-50 text-rose-700"}`}>
+                  {allPass
+                    ? <><CheckCircle2 className="h-4 w-4" /> สอดคล้อง</>
+                    : <><XCircle className="h-4 w-4" /> ไม่สอดคล้อง</>}
+                </div>
+              );
+            })()
+          ) : (
+            <ScoringLevelBadges levels={scoringLevels} grandMax={displayMax} currentScore={displayTotal} />
+          )}
+          {displayMax > 0 && (
+            <div className="ml-auto shrink-0 text-right">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+                {programScoringType === 'yes_no' ? "วิธีคำนวณ (สอดคล้อง)" : isYesNoProgram ? "วิธีคำนวณ (ผ่าน/ไม่ผ่าน)" : "วิธีคำนวณ (คะแนน)"}
+              </p>
+              <p className="text-sm font-mono font-semibold text-foreground">
+                {displayTotal}/{displayMax}
+                {(programScoringType === 'yes_no' || isYesNoProgram) ? " ข้อ" : ""} = {displayPct}%
+              </p>
+              {programScoringType === 'yes_no' && (
+                <p className="text-[10px] font-bold text-red-600">*ต้องสอดคล้องครบทุกข้อ</p>
+              )}
+              {programScoringType !== 'yes_no' && !isYesNoProgram && grandMax > 0 && (
+                <>
+                  <p className="text-[10px] text-muted-foreground">คะแนนดิบ {grandTotal} ÷ {grandMax}</p>
+                  <p className="text-[10px] font-bold text-red-600">
+                    {grandMax === 100 ? "*คำนวนแบบคะแนนเต็มหมวด" : "*คำนวนแบบคะแนนไม่เต็มหมวด"}
+                  </p>
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
 

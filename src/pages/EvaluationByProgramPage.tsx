@@ -40,6 +40,7 @@ const EvaluationByProgramPage = () => {
   const { isAdmin, role, accessibleProgramIds, loading: roleLoading } = useUserRole();
 
   const [programName, setProgramName] = useState("");
+  const [programScoringType, setProgramScoringType] = useState<'score' | 'yes_no'>('score');
   const scoreView = role !== "user" ? "committee" : "self";
   const [categories, setCategories] = useState<EvalCategory[]>([]);
   const [scores, setScores] = useState<Record<string, number>>({});
@@ -74,6 +75,7 @@ const EvaluationByProgramPage = () => {
       // Fetch program name
       const { data: prog } = await apiClient.get(`programs/${programId}`);
       setProgramName(prog?.name || "");
+      if (prog?.scoringType) setProgramScoringType(prog.scoringType);
 
       // Scoring levels
       try {
@@ -509,7 +511,20 @@ const EvaluationByProgramPage = () => {
               </div>
               <div className="w-px h-8 bg-border" />
               {/* Live level badge for committee score */}
-              {scoringLevels.length > 0 && displayMax > 0 && (() => {
+              {displayMax > 0 && (programScoringType === 'yes_no' ? (
+                (() => {
+                  const allPass = displayCommitteeTotal === displayMax;
+                  return (
+                    <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border shrink-0 ${allPass ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-rose-400 bg-rose-50 text-rose-700"}`}>
+                      {allPass ? <CheckCircle2 className="h-5 w-5 shrink-0" /> : <XCircle className="h-5 w-5 shrink-0" />}
+                      <div className="leading-tight">
+                        <p className="text-sm font-semibold">{allPass ? "สอดคล้อง" : "ไม่สอดคล้อง"}</p>
+                        <p className="text-xs opacity-70">{displayCommitteePct}%</p>
+                      </div>
+                    </div>
+                  );
+                })()
+              ) : scoringLevels.length > 0 && (() => {
                 const lvl = [...scoringLevels].reverse().find(l => displayCommitteePct >= l.minScore && displayCommitteePct <= l.maxScore);
                 if (!lvl) return null;
                 const iconMap = { Trophy, Medal, Award, Star } as Record<string, ({ className }: { className?: string }) => JSX.Element>;
@@ -526,7 +541,7 @@ const EvaluationByProgramPage = () => {
                     </div>
                   </div>
                 );
-              })()}
+              })())}
               <div className="text-right">
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">กรรมการ</p>
                 <p className="text-xl font-bold text-primary">
@@ -603,9 +618,44 @@ const EvaluationByProgramPage = () => {
       </div>
 
       {/* Scoring level strip */}
-      {scoringLevels.length > 0 && role !== "user" && (
-        <div className="px-6 py-2 border-b bg-card/30">
-          <ScoringLevelBadges levels={scoringLevels} grandMax={displayMax} currentScore={displayCommitteeTotal} />
+      {role !== "user" && (scoringLevels.length > 0 || programScoringType === 'yes_no') && (
+        <div className="px-6 py-2 border-b bg-card/30 flex items-center gap-3">
+          {programScoringType === 'yes_no' ? (
+            (() => {
+              const allPass = displayMax > 0 && displayCommitteeTotal === displayMax;
+              return (
+                <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-semibold ${allPass ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-rose-400 bg-rose-50 text-rose-700"}`}>
+                  {allPass
+                    ? <><CheckCircle2 className="h-4 w-4" /> สอดคล้อง</>
+                    : <><XCircle className="h-4 w-4" /> ไม่สอดคล้อง</>}
+                </div>
+              );
+            })()
+          ) : (
+            <ScoringLevelBadges levels={scoringLevels} grandMax={displayMax} currentScore={displayCommitteeTotal} />
+          )}
+          {displayMax > 0 && (
+            <div className="ml-auto shrink-0 text-right">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+                {programScoringType === 'yes_no' ? "วิธีคำนวณ (สอดคล้อง)" : isYesNoProgram ? "วิธีคำนวณ (ผ่าน/ไม่ผ่าน)" : "วิธีคำนวณ (คะแนน)"}
+              </p>
+              <p className="text-sm font-mono font-semibold text-foreground">
+                {displayCommitteeTotal}/{displayMax}
+                {(programScoringType === 'yes_no' || isYesNoProgram) ? " ข้อ" : ""} = {displayCommitteePct}%
+              </p>
+              {programScoringType === 'yes_no' && (
+                <p className="text-[10px] font-bold text-red-600">*ต้องสอดคล้องครบทุกข้อ</p>
+              )}
+              {programScoringType !== 'yes_no' && !isYesNoProgram && grandMax > 0 && (
+                <>
+                  <p className="text-[10px] text-muted-foreground">คะแนนดิบ {grandCommitteeTotal} ÷ {grandMax}</p>
+                  <p className="text-[10px] font-bold text-red-600">
+                    {grandMax === 100 ? "*คำนวนแบบคะแนนเต็มหมวด" : "*คำนวนแบบคะแนนไม่เต็มหมวด"}
+                  </p>
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
 
