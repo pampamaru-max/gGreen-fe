@@ -171,21 +171,8 @@ export default function ProjectRegistration() {
           );
         } catch { /* no scoring levels configured */ }
 
-        // 3. Check latest evaluation status — if completed, create a new draft explicitly
-        let isLastCompleted = false;
-        if (!urlEvalId) {
-          try {
-            const { data: statusData } = await apiClient.get(
-              `evaluation/status?userId=${user?.id}&programId=${programId}`
-            );
-            if (statusData?.self_status === "completed") {
-              isLastCompleted = true;
-            }
-          } catch { /* no status record yet — treat as new */ }
-        }
-
-        if (isLastCompleted && !urlEvalId) {
-          // POST /evaluation to create a brand-new draft (backend findFirst would reuse old otherwise)
+        // 3. type=new → สร้างใหม่เสมอ แล้ว replace URL ด้วย id กันสร้าง duplicate ถ้า refresh
+        if (urlEvalType === "new" && !urlEvalId) {
           const { data: newEval } = await apiClient.post("evaluation", {
             programId,
             userId: user?.id,
@@ -195,8 +182,39 @@ export default function ProjectRegistration() {
           if (newEval?.id) {
             setEvaluationId(newEval.id);
             setEvaluationStatus("draft");
+            navigate(
+              `/register/evaluate?type=${urlEvalType}&year=${selectedYear}&id=${newEval.id}`,
+              { replace: true }
+            );
           }
-        } else {
+        } else if (!urlEvalId) {
+          // renew / upgrade — โหลด evaluation ล่าสุดของ program นั้น
+          // (กรณี isLastCompleted ก็ตรงนี้แล้ว)
+          try {
+            const { data: statusData } = await apiClient.get(
+              `evaluation/status?userId=${user?.id}&programId=${programId}`
+            );
+            if (statusData?.self_status === "completed") {
+              const { data: newEval } = await apiClient.post("evaluation", {
+                programId,
+                userId: user?.id,
+                evaluationType: urlEvalType,
+                year: selectedYear,
+              });
+              if (newEval?.id) {
+                setEvaluationId(newEval.id);
+                setEvaluationStatus("draft");
+                navigate(
+                  `/register/evaluate?type=${urlEvalType}&year=${selectedYear}&id=${newEval.id}`,
+                  { replace: true }
+                );
+              }
+              return;
+            }
+          } catch { /* no status yet */ }
+        }
+
+        if (urlEvalId || (urlEvalType !== "new")) {
           // 4. Load existing evaluation
           const fetchUrl = urlEvalId ? `evaluation/${urlEvalId}` : `evaluation/program/${programId}`;
           const { data: evalData } = await apiClient.get(fetchUrl);
