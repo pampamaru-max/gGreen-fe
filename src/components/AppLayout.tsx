@@ -1,7 +1,7 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
 import apiClient from "@/lib/axios";
@@ -10,6 +10,8 @@ import { User } from "lucide-react";
 export function AppLayout() {
   const { user } = useAuth();
   const [displayName, setDisplayName] = useState("");
+  const location = useLocation();
+  const sidebarDefaultOpen = !location.pathname.startsWith("/evaluation") && !location.pathname.startsWith("/register");
 
   useEffect(() => {
     if (!user) return;
@@ -18,7 +20,7 @@ export function AppLayout() {
   }, [user]);
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={sidebarDefaultOpen}>
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">

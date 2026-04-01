@@ -588,18 +588,18 @@ function EvaluatorIndicatorDialog({
                   </div>
                 </div>
 
-                {/* Committee yes/no — editable when !viewOnly */}
-                {!viewOnly && (
+                {/* Committee yes/no — editable when !viewOnly, read-only when completed */}
+                {(!viewOnly || committeeScore !== undefined) && (
                   <>
-                    <div className="space-y-2" style={{ pointerEvents: readOnly ? "none" : undefined, opacity: readOnly ? 0.7 : undefined }}>
+                    <div className="space-y-2" style={{ pointerEvents: (readOnly || viewOnly) ? "none" : undefined, opacity: (readOnly || viewOnly) ? 0.7 : undefined }}>
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">กรรมการประเมินความสอดคล้อง</p>
                       <div className="grid grid-cols-2 gap-3">
                         {[{ val: 1, label: 'สอดคล้อง', sub: 'ผ่านเกณฑ์', icon: '✓', color: 'emerald' }, { val: 0, label: 'ไม่สอดคล้อง', sub: 'ไม่ผ่านเกณฑ์', icon: '✗', color: 'rose' }].map(({ val, label, sub, icon, color }) => {
                           const isSelected = committeeScore === val;
                           return (
                             <button key={val}
-                              onClick={() => onCommitteeScoreChange?.(isSelected ? -1 : val)}
-                              className={`flex flex-col items-center justify-center gap-1 rounded-xl border-2 py-4 text-center cursor-pointer hover:shadow-sm transition-all ${isSelected ? (color === 'emerald' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-rose-500 bg-rose-50 text-rose-700') : 'border-border bg-muted/20 text-muted-foreground'}`}>
+                              onClick={() => !viewOnly && onCommitteeScoreChange?.(isSelected ? -1 : val)}
+                              className={`flex flex-col items-center justify-center gap-1 rounded-xl border-2 py-4 text-center ${viewOnly ? 'cursor-default' : 'cursor-pointer hover:shadow-sm'} transition-all ${isSelected ? (color === 'emerald' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-rose-500 bg-rose-50 text-rose-700') : 'border-border bg-muted/20 text-muted-foreground opacity-40'}`}>
                               <span className="text-2xl font-bold">{icon}</span>
                               <span className="text-sm font-semibold">{label}</span>
                               <span className="text-xs">{sub}</span>
@@ -608,9 +608,10 @@ function EvaluatorIndicatorDialog({
                         })}
                       </div>
                     </div>
-                    <div className="space-y-1.5" style={{ pointerEvents: readOnly ? "none" : undefined, opacity: readOnly ? 0.7 : undefined }}>
+                    <div className="space-y-1.5" style={{ pointerEvents: (readOnly || viewOnly) ? "none" : undefined, opacity: (readOnly || viewOnly) ? 0.7 : undefined }}>
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">ความเห็นกรรมการ</p>
                       <textarea value={committeeComment || ""} onChange={(e) => onCommitteeCommentChange?.(e.target.value)} placeholder="ระบุความเห็นของกรรมการ..."
+                        readOnly={viewOnly}
                         className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" />
                     </div>
                   </>
@@ -661,9 +662,9 @@ function EvaluatorIndicatorDialog({
                   )}
                 </div>
 
-                {/* Committee score — editable when !viewOnly */}
-                {!viewOnly && <>
-                <div className="space-y-2" style={{ pointerEvents: readOnly ? "none" : undefined, opacity: readOnly ? 0.7 : undefined }}>
+                {/* Committee score — editable when !viewOnly, read-only when completed */}
+                {(!viewOnly || committeeScore !== undefined) && <>
+                <div className="space-y-2" style={{ pointerEvents: (readOnly || viewOnly) ? "none" : undefined, opacity: (readOnly || viewOnly) ? 0.7 : undefined }}>
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">ให้คะแนน</p>
                     <div>
@@ -711,9 +712,10 @@ function EvaluatorIndicatorDialog({
                     </div>
                   )}
                 </div>
-                <div className="space-y-1.5" style={{ pointerEvents: readOnly ? "none" : undefined, opacity: readOnly ? 0.7 : undefined }}>
+                <div className="space-y-1.5" style={{ pointerEvents: (readOnly || viewOnly) ? "none" : undefined, opacity: (readOnly || viewOnly) ? 0.7 : undefined }}>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">ความเห็นกรรมการ</p>
                   <textarea value={committeeComment || ""} onChange={(e) => onCommitteeCommentChange?.(e.target.value)} placeholder="ระบุความเห็นของกรรมการ..."
+                    readOnly={viewOnly}
                     className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" />
                 </div>
                 </>}
