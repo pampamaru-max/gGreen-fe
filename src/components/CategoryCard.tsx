@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Category, ScoringCriterion } from "@/data/evaluationData";
 import { ChevronDown, ChevronRight, ChevronLeft, Trash2, FileText, X, Eye, ListChecks, Plus, Info, Save, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -65,6 +65,9 @@ interface Props {
   userRole?: string | null;
   scoreView?: "self" | "committee";
   onIndicatorClick?: (indicator: Category["topics"][0]["indicators"][0]) => void;
+  // notification ของ indicator ที่มีการเปลี่ยนแปลงใหม่ยังไม่ได้อ่าน
+  newIndicatorNotifs?: Map<string, { prevScore: number | null; newScore: number | null; isYesNo?: boolean }>;
+  forceOpen?: boolean;
 }
 
 // ── Shared utility ────────────────────────────────────────────────────────────
@@ -219,7 +222,7 @@ function EvaluateeIndicatorDialog({
                         <button className="shrink-0 mt-0.5 text-muted-foreground hover:text-foreground transition-colors"><Info className="h-4 w-4" /></button>
                       </TooltipTrigger>
                       <TooltipContent side="bottom" align="end" className="max-w-sm z-[9999]">
-                        <p className="text-sm leading-relaxed">{indicator.description}</p>
+                        <div className="text-sm leading-relaxed rich-content" dangerouslySetInnerHTML={{ __html: indicator.description! }} />
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -236,7 +239,7 @@ function EvaluateeIndicatorDialog({
             {indicator.detail && (
               <div className="space-y-1.5">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">รายละเอียดตัวชี้วัด</p>
-                <div className="text-base font-medium text-foreground leading-relaxed whitespace-pre-line bg-muted/30 rounded-md p-3">{indicator.detail}</div>
+                <div className="text-base font-medium text-foreground leading-relaxed bg-muted/30 rounded-md p-3 rich-content" dangerouslySetInnerHTML={{ __html: indicator.detail }} />
               </div>
             )}
             {indicator.evidenceDescription && (
@@ -341,6 +344,13 @@ function EvaluateeIndicatorDialog({
                     </p>
                   </div>
                 </div>
+
+                {indicator.notes && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">หมายเหตุเกณฑ์การให้คะแนน</p>
+                    <div className="text-sm font-medium text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-md p-3 leading-relaxed rich-content" dangerouslySetInnerHTML={{ __html: indicator.notes! }} />
+                  </div>
+                )}
               </>
             ) : (
               /* ── Normal score mode ── */
@@ -370,7 +380,7 @@ function EvaluateeIndicatorDialog({
                               style={c.score === score ? { backgroundColor: `hsl(${getScoreColor(c.score)})`, color: "white" } : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }}>
                               {c.score}
                             </span>
-                            <span className="leading-snug pt-1" style={{ color: c.score === score ? `hsl(${getScoreColor(c.score)})` : "hsl(var(--muted-foreground))" }}>{c.label}</span>
+                            <div className="leading-snug pt-1 rich-content" style={{ color: c.score === score ? `hsl(${getScoreColor(c.score)})` : "hsl(var(--muted-foreground))" }} dangerouslySetInnerHTML={{ __html: c.label }} />
                           </div>
                         ) : (
                           <button
@@ -387,7 +397,7 @@ function EvaluateeIndicatorDialog({
                               style={c.score === score ? { backgroundColor: `hsl(${getScoreColor(c.score)})`, color: "white" } : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }}>
                               {c.score}
                             </span>
-                            <span className="leading-snug pt-1" style={{ color: c.score === score ? `hsl(${getScoreColor(c.score)})` : "hsl(var(--foreground))" }}>{c.label}</span>
+                            <div className="leading-snug pt-1 rich-content" style={{ color: c.score === score ? `hsl(${getScoreColor(c.score)})` : "hsl(var(--foreground))" }} dangerouslySetInnerHTML={{ __html: c.label }} />
                           </button>
                         )
                       ))}
@@ -447,7 +457,7 @@ function EvaluateeIndicatorDialog({
                 {indicator.notes && (
                   <div className="space-y-1.5">
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">หมายเหตุเกณฑ์การให้คะแนน</p>
-                    <div className="text-sm font-medium text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-md p-3 leading-relaxed whitespace-pre-line">{indicator.notes}</div>
+                    <div className="text-sm font-medium text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-md p-3 leading-relaxed rich-content" dangerouslySetInnerHTML={{ __html: indicator.notes! }} />
                   </div>
                 )}
               </>
@@ -539,7 +549,7 @@ function EvaluatorIndicatorDialog({
                         <button className="shrink-0 mt-0.5 text-muted-foreground hover:text-foreground transition-colors"><Info className="h-4 w-4" /></button>
                       </TooltipTrigger>
                       <TooltipContent side="bottom" align="end" className="max-w-sm z-[9999]">
-                        <p className="text-sm leading-relaxed">{indicator.description}</p>
+                        <div className="text-sm leading-relaxed rich-content" dangerouslySetInnerHTML={{ __html: indicator.description! }} />
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -556,7 +566,7 @@ function EvaluatorIndicatorDialog({
             {indicator.detail && (
               <div className="space-y-1.5">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">รายละเอียดตัวชี้วัด</p>
-                <div className="text-base font-medium text-foreground leading-relaxed whitespace-pre-line bg-muted/30 rounded-md p-3">{indicator.detail}</div>
+                <div className="text-base font-medium text-foreground leading-relaxed bg-muted/30 rounded-md p-3 rich-content" dangerouslySetInnerHTML={{ __html: indicator.detail }} />
               </div>
             )}
             {indicator.evidenceDescription && (
@@ -638,6 +648,13 @@ function EvaluatorIndicatorDialog({
                     </div>
                   </>
                 )}
+
+                {indicator.notes && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">หมายเหตุเกณฑ์การให้คะแนน</p>
+                    <div className="text-sm font-medium text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-md p-3 leading-relaxed rich-content" dangerouslySetInnerHTML={{ __html: indicator.notes! }} />
+                  </div>
+                )}
               </>
             ) : (
               /* ── Normal score mode ── */
@@ -661,7 +678,7 @@ function EvaluatorIndicatorDialog({
                             style={{ backgroundColor: `hsl(${getScoreColor(selected.score)})`, color: "white" }}>
                             {selected.score}
                           </span>
-                          <span className="leading-snug text-foreground/80">{selected.label}</span>
+                          <div className="leading-snug text-foreground/80 rich-content" dangerouslySetInnerHTML={{ __html: selected.label }} />
                         </div>
                       ) : <p className="text-xs text-muted-foreground italic">ยังไม่ได้ประเมิน</p>;
                     })()
@@ -710,10 +727,9 @@ function EvaluatorIndicatorDialog({
                               style={isSelected ? { backgroundColor: `hsl(${getScoreColor(c.score)})`, color: "white" } : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }}>
                               {c.score}
                             </span>
-                            <span className="leading-snug pt-1"
-                              style={{ color: isSelected ? `hsl(${getScoreColor(c.score)})` : "hsl(var(--foreground))" }}>
-                              {c.label}
-                            </span>
+                            <div className="leading-snug pt-1 rich-content"
+                              style={{ color: isSelected ? `hsl(${getScoreColor(c.score)})` : "hsl(var(--foreground))" }}
+                              dangerouslySetInnerHTML={{ __html: c.label }} />
                           </button>
                         );
                       })}
@@ -753,7 +769,7 @@ function EvaluatorIndicatorDialog({
                 {indicator.notes && (
                   <div className="space-y-1.5">
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">หมายเหตุเกณฑ์การให้คะแนน</p>
-                    <div className="text-sm font-medium text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-md p-3 leading-relaxed whitespace-pre-line">{indicator.notes}</div>
+                    <div className="text-sm font-medium text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-md p-3 leading-relaxed rich-content" dangerouslySetInnerHTML={{ __html: indicator.notes! }} />
                   </div>
                 )}
               </>
@@ -899,14 +915,22 @@ export function IndicatorDialog({
 }
 
 
-export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDelete, uploadedFiles, onFilesChange, onSave, implementationDetails, onImplementationDetailChange, committeeScores, onCommitteeScoreChange, committeeComments, onCommitteeCommentChange, userRole, scoreView, onIndicatorClick }: Props) {
+export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDelete, uploadedFiles, onFilesChange, onSave, implementationDetails, onImplementationDetailChange, committeeScores, onCommitteeScoreChange, committeeComments, onCommitteeCommentChange, userRole, scoreView, onIndicatorClick, newIndicatorNotifs, forceOpen }: Props) {
   const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    if (forceOpen) setIsOpen(true);
+  }, [forceOpen]);
   const [selectedIndicator, setSelectedIndicator] = useState<Category["topics"][0]["indicators"][0] | null>(null);
   const color = categoryColors[colorIndex % categoryColors.length];
 
   const displayScores = scoreView === "committee" && committeeScores ? committeeScores : scores;
 
   const isYesNoCat = category.scoreType?.includes('yes_no');
+
+  const hasNewInCategory = newIndicatorNotifs
+    ? category.topics.some((t) => t.indicators.some((i) => newIndicatorNotifs.has(i.id)))
+    : false;
   const totalScore = category.topics.reduce(
     (sum, t) => sum + t.indicators.reduce((s, i) => s + (displayScores[i.id] || 0), 0),
     0
@@ -922,7 +946,7 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
   ) : 0;
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
+    <div id={`cat-${category.id}`} className="rounded-xl border bg-card overflow-hidden shadow-sm">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-muted/50"
@@ -934,7 +958,14 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
           <ChevronRight className="h-4 w-4" style={{ color: `hsl(${color})` }} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-foreground">{category.name}</p>
+          <div className="flex items-center gap-2">
+            <p className="font-semibold text-foreground">{category.name}</p>
+            {hasNewInCategory && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-white leading-none">
+                ใหม่
+              </span>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground">
             {category.topics.length} ประเด็น · {category.topics.reduce((s, t) => s + t.indicators.length, 0)} ตัวชี้วัด{isYesNoCat ? "" : ` · คะแนนเต็ม ${category.maxScore}`}
           </p>
@@ -983,6 +1014,13 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
                   const indScore = rawScore ?? 0;
                   const fileCount = (uploadedFiles[indicator.id] || []).length;
                   const isCommitteeUnscored = scoreView === "committee" && committeeScores && rawScore === undefined;
+                  const notif = newIndicatorNotifs?.get(indicator.id);
+                  const isYesNo = indicator.scoreType?.includes('yes_no');
+                  const formatScore = (v: number | null) => {
+                    if (v === null || v === undefined) return '–';
+                    if (isYesNo) return v === 1 ? 'ผ่าน' : 'ไม่ผ่าน';
+                    return String(v);
+                  };
                   return (
                     <button
                       key={indicator.id}
@@ -997,6 +1035,11 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
                     >
                       <span className="h-1 w-1 rounded-full bg-muted-foreground/40 shrink-0" />
                       <span className="flex-1 text-sm text-foreground truncate">{indicator.name}</span>
+                      {notif && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-white leading-none shrink-0 whitespace-nowrap">
+                          {formatScore(notif.prevScore)}→{formatScore(notif.newScore)}
+                        </span>
+                      )}
                       {fileCount > 0 && (
                         <span className="flex items-center gap-1 text-xs text-muted-foreground">
                           <FileText className="h-3.5 w-3.5" />

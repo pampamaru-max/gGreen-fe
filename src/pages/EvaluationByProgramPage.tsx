@@ -4,7 +4,12 @@ import { Category } from "@/data/evaluationData";
 import type { UploadedFile, IndicatorNavItem } from "@/components/evaluation/CategoryCard";
 import { CategoryCard, IndicatorDialog, getCategoryColor } from "@/components/evaluation/CategoryCard";
 import { ScoreSummary } from "@/components/evaluation/ScoreSummary";
-import { ClipboardCheck, Loader2, ArrowLeft, RotateCcw, CheckCircle2, Clock, FileText, AlertCircle, XCircle, FilePlus, RefreshCw, TrendingUp } from "lucide-react";
+import { ClipboardCheck, Loader2, ArrowLeft, RotateCcw, CheckCircle2, Clock, FileText, AlertCircle, XCircle, FilePlus, RefreshCw, TrendingUp, ChevronDown, Trophy, Medal, Award, Star } from "lucide-react";
+import { ScoringLevelBadges } from "@/components/self-eval/ScoringLevelBadges";
+import type { ScoringLevel } from "@/pages/ProjectRegistration";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import apiClient from "@/lib/axios";
 import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -35,6 +40,7 @@ const EvaluationByProgramPage = () => {
   const { isAdmin, role, accessibleProgramIds, loading: roleLoading } = useUserRole();
 
   const [programName, setProgramName] = useState("");
+  const [programScoringType, setProgramScoringType] = useState<'score' | 'yes_no'>('score');
   const scoreView = role !== "user" ? "committee" : "self";
   const [categories, setCategories] = useState<EvalCategory[]>([]);
   const [scores, setScores] = useState<Record<string, number>>({});
@@ -46,6 +52,18 @@ const EvaluationByProgramPage = () => {
   const [evaluationId, setEvaluationId] = useState<string | null>(null);
   const [evaluationStatus, setEvaluationStatus] = useState<string | null>(null);
   const [evaluationType, setEvaluationType] = useState<string | null>(null);
+  const [scoringLevels, setScoringLevels] = useState<ScoringLevel[]>([]);
+  const [year, setYear] = useState<number | null>(null);
+  // notification IDs ของ indicator ที่ผู้ถูกประเมินแก้ไขใหม่ (เฉพาะฝั่งกรรมการ)
+  const [newEvaluateeIndicatorIds, setNewEvaluateeIndicatorIds] = useState<Map<string, { prevScore: number | null; newScore: number | null }>>(new Map());
+  const [expandedCategoryId, setExpandedCategoryId] = useState<string | number | null>(null);
+
+  const handleCategoryClick = useCallback((categoryId: string | number) => {
+    setExpandedCategoryId(categoryId);
+    setTimeout(() => {
+      document.getElementById(`cat-${categoryId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  }, []);
 
   // Check access
   useEffect(() => {
@@ -65,6 +83,13 @@ const EvaluationByProgramPage = () => {
       // Fetch program name
       const { data: prog } = await apiClient.get(`programs/${programId}`);
       setProgramName(prog?.name || "");
+      if (prog?.scoringType) setProgramScoringType(prog.scoringType);
+
+      // Scoring levels
+      try {
+        const { data: levData } = await apiClient.get(`scoring-levels?programId=${programId}`);
+        setScoringLevels((levData ?? []).sort((a: ScoringLevel, b: ScoringLevel) => a.sortOrder - b.sortOrder));
+      } catch { /* no scoring levels */ }
 
       const [catRes, topicRes, indRes] = await Promise.all([
         apiClient.get(`categories?programId=${programId}`),
@@ -111,6 +136,7 @@ const EvaluationByProgramPage = () => {
           setEvaluationId(evalData.id);
           setEvaluationStatus(evalData.status);
           if (evalData.evaluationType) setEvaluationType(evalData.evaluationType);
+          if (evalData.year) setYear(evalData.year);
           const scoresData = evalData.evaluationScores || [];
 
           const loaded: Record<string, number> = {};
@@ -132,6 +158,23 @@ const EvaluationByProgramPage = () => {
           setCommitteeScores(loadedCommittee);
           setCommitteeComments(loadedComments);
           setUploadedFiles(loadedFiles);
+
+          // โหลด notification จากผู้ถูกประเมิน (สำหรับกรรมการ)
+          if (role !== "user" && evalData.id) {
+            try {
+              const { data: notifs } = await apiClient.get(
+                `evaluation/${evalData.id}/notifications?direction=evaluatee_to_committee`
+              );
+              const notifMap = new Map<string, { prevScore: number | null; newScore: number | null }>();
+              (notifs as { indicatorId: string; isRead: boolean; evaluateeScore: number | null; prevEvaluateeScore: number | null }[])
+                .filter((n) => !n.isRead)
+                .forEach((n) => notifMap.set(n.indicatorId, {
+                  prevScore: n.prevEvaluateeScore,
+                  newScore: n.evaluateeScore,
+                }));
+              setNewEvaluateeIndicatorIds(notifMap);
+            } catch { /* ไม่มี notification */ }
+          }
         }
       }
       } catch (err) {
@@ -264,6 +307,18 @@ const EvaluationByProgramPage = () => {
   const grandCommitteeTotal = committeeSummaryData?.reduce((s, c) => s + c.score, 0) ?? 0;
   const grandMax = summaryData.reduce((s, c) => s + c.totalPossible, 0);
 
+  // yes/no totals — used when grandMax === 0
+  const grandSelfPassCount       = summaryData.reduce((s, c: any) => s + (c.passCount ?? 0), 0);
+  const grandSelfPassTotal       = summaryData.reduce((s, c: any) => s + (c.totalIndicators ?? 0), 0);
+  const grandCommitteePassCount  = (committeeSummaryData ?? []).reduce((s, c: any) => s + (c.passCount ?? 0), 0);
+  const isYesNoProgram           = grandMax === 0 && grandSelfPassTotal > 0;
+  // unified for committee display
+  const displayCommitteeTotal    = isYesNoProgram ? grandCommitteePassCount : grandCommitteeTotal;
+  const displaySelfTotal         = isYesNoProgram ? grandSelfPassCount      : grandSelfTotal;
+  const displayMax               = isYesNoProgram ? grandSelfPassTotal      : grandMax;
+  const displayCommitteePct      = displayMax > 0 ? Math.round((displayCommitteeTotal / displayMax) * 100) : 0;
+  const displayUnit               = isYesNoProgram ? "ผ่าน" : "";
+
   // ── Wizard ──────────────────────────────────────────────────────────────────
   const flatIndicators = useMemo(() => {
     const items: Array<{ indicator: Category["topics"][0]["indicators"][0]; colorIndex: number }> = [];
@@ -283,7 +338,19 @@ const EvaluationByProgramPage = () => {
   const handleOpenWizard = useCallback((indicator: Category["topics"][0]["indicators"][0]) => {
     const idx = flatIndicators.findIndex((item) => item.indicator.id === indicator.id);
     if (idx !== -1) setWizardIndex(idx);
-  }, [flatIndicators]);
+    // mark evaluatee notification as read when committee opens this indicator
+    if (role !== "user" && evaluationId && newEvaluateeIndicatorIds.has(indicator.id)) {
+      apiClient.post(`evaluation/${evaluationId}/notifications/read`, {
+        direction: "evaluatee_to_committee",
+        indicatorIds: [indicator.id],
+      }).catch(() => {});
+      setNewEvaluateeIndicatorIds((prev) => {
+        const next = new Map(prev);
+        next.delete(indicator.id);
+        return next;
+      });
+    }
+  }, [flatIndicators, role, evaluationId, newEvaluateeIndicatorIds]);
 
   const navItems: IndicatorNavItem[] = useMemo(() =>
     flatIndicators.map(({ indicator, colorIndex }) => ({
@@ -314,18 +381,28 @@ const EvaluationByProgramPage = () => {
 
   const allCommitteeScored = useMemo(() => {
     if (role === "user") return true;
-    return flatIndicators.every(({ indicator }) => committeeScores[indicator.id] !== undefined);
+    return flatIndicators.every(({ indicator }) => {
+      const val = committeeScores[indicator.id];
+      if (val === undefined) return false;
+      // yes/no: -1 means deselected (not yet scored)
+      if (indicator.scoreType?.includes('yes_no') && val === -1) return false;
+      return true;
+    });
   }, [flatIndicators, committeeScores, role]);
 
-  const handleFillRandom = async () => {
+  const handleFillMode = async (mode: "full" | "good" | "mid" | "bad" | "clear") => {
+    const pickScore = (maxScore: number, criteria: { score: number; label: string }[]) => {
+      const sorted = [...(criteria.length > 0 ? criteria.map(c => c.score) : Array.from({ length: maxScore + 1 }, (_, i) => i))].sort((a, b) => a - b);
+      const n = sorted.length;
+      if (mode === "full")  return sorted[n - 1];
+      if (mode === "good")  return sorted[Math.max(0, n - 1 - Math.floor(Math.random() * Math.ceil(n * 0.25)))];
+      if (mode === "mid")   { const mid = Math.floor(n / 2); return sorted[Math.min(n - 1, Math.max(0, mid - 1 + Math.floor(Math.random() * 3)))]; }
+      if (mode === "bad")   return sorted[Math.floor(Math.random() * Math.max(1, Math.ceil(n * 0.35)))];
+      return 0;
+    };
     const newScores: Record<string, number> = {};
     for (const { indicator } of flatIndicators) {
-      const criteria = indicator.scoringCriteria;
-      if (criteria && criteria.length > 0) {
-        newScores[indicator.id] = criteria[Math.floor(Math.random() * criteria.length)].score;
-      } else {
-        newScores[indicator.id] = Math.floor(Math.random() * (indicator.maxScore + 1));
-      }
+      newScores[indicator.id] = mode === "clear" ? 0 : pickScore(indicator.maxScore, indicator.scoringCriteria ?? []);
     }
     setCommitteeScores((prev) => ({ ...prev, ...newScores }));
 
@@ -346,7 +423,8 @@ const EvaluationByProgramPage = () => {
         })
       )
     );
-    toast.success(`กรอกสุ่มครบ ${flatIndicators.length} ข้อแล้ว`);
+    const labels: Record<string, string> = { full: "เต็ม", good: "ดีแต่ไม่เต็ม", mid: "กลางๆ", bad: "แย่ๆ", clear: "" };
+    toast.success(mode === "clear" ? "ล้างคะแนนแล้ว" : `สุ่มคะแนน${labels[mode]}ครบ ${flatIndicators.length} ข้อแล้ว`);
   };
 
   const handleComplete = async () => {
@@ -397,89 +475,190 @@ const EvaluationByProgramPage = () => {
 
   return (
     <div className="min-h-full bg-background">
-      <div className="border-b bg-card/50 px-6 py-4">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/evaluation")} className="shrink-0">
-            <ArrowLeft className="h-5 w-5" />
+      <div className="border-b bg-card/50 px-4 sm:px-6 py-3">
+        {/* Row 1: back + icon + [spacer] + scores + actions */}
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/evaluation")} className="shrink-0 h-8 w-8">
+            <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-            <ClipboardCheck className="h-5 w-5 text-primary-foreground" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shrink-0">
+            <ClipboardCheck className="h-4 w-4 text-primary-foreground" />
           </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-lg font-bold text-foreground">ประเมิน {programName}</h2>
-              {evaluationType && EVAL_TYPE_CONFIG[evaluationType] && (
-                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${EVAL_TYPE_CONFIG[evaluationType].className}`}>
-                  {EVAL_TYPE_CONFIG[evaluationType].icon}
-                  {EVAL_TYPE_CONFIG[evaluationType].label}
-                </span>
-              )}
-              {currentStatus && (
-                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${currentStatus.badge}`}>
-                  {currentStatus.icon}
-                  {currentStatus.label}
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {visibleCategories.length} หมวด · {totalTopics} ประเด็น · {totalIndicators} ตัวชี้วัด · คะแนนเต็ม {grandMax}
-            </p>
-          </div>
-          {role !== "user" ? (
-            <div className="flex items-center gap-4 shrink-0">
+          <div className="flex-1 min-w-0" />
+          {/* Scores + badge + actions */}
+          <div className="flex items-center gap-2 shrink-0">
+            {role !== "user" ? (
+              <>
+                <div className="text-right">
+                  <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">ตนเอง</p>
+                  <p className="text-base font-bold text-muted-foreground leading-tight">
+                    {displaySelfTotal}{displayUnit && <span className="text-[10px] font-normal ml-0.5">{displayUnit}</span>}
+                    <span className="text-xs font-normal text-muted-foreground">/{displayMax}</span>
+                  </p>
+                </div>
+                <div className="w-px h-7 bg-border" />
+                {displayMax > 0 && (programScoringType === 'yes_no' ? (
+                  (() => {
+                    const allPass = displayCommitteeTotal === displayMax;
+                    return (
+                      <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-semibold ${allPass ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-rose-400 bg-rose-50 text-rose-700"}`}>
+                        {allPass ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> : <XCircle className="h-3.5 w-3.5 shrink-0" />}
+                        <div className="leading-tight">
+                          <p className="font-semibold">{allPass ? "สอดคล้อง" : "ไม่สอดคล้อง"}</p>
+                          <p className="opacity-70">{displayCommitteePct}%</p>
+                        </div>
+                      </div>
+                    );
+                  })()
+                ) : scoringLevels.length > 0 && (() => {
+                  const lvl = [...scoringLevels].reverse().find(l => displayCommitteePct >= l.minScore && displayCommitteePct <= l.maxScore);
+                  if (!lvl) return null;
+                  const iconMap = { Trophy, Medal, Award, Star } as Record<string, ({ className }: { className?: string }) => JSX.Element>;
+                  const IconComp = iconMap[lvl.icon] ?? Trophy;
+                  return (
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs shrink-0"
+                      style={{ borderColor: `${lvl.color}60`, backgroundColor: `${lvl.color}10`, color: lvl.color }}>
+                      <IconComp className="h-3.5 w-3.5 shrink-0" />
+                      <div className="leading-tight">
+                        <p className="font-semibold">{lvl.name}</p>
+                        <p className="opacity-70">{lvl.minScore}–{lvl.maxScore}%</p>
+                      </div>
+                    </div>
+                  );
+                })())}
+                <div className="text-right">
+                  <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">กรรมการ</p>
+                  <p className="text-base font-bold text-primary leading-tight">
+                    {displayCommitteeTotal}{displayUnit && <span className="text-[10px] font-normal ml-0.5">{displayUnit}</span>}
+                    <span className="text-xs font-normal text-muted-foreground">/{displayMax}</span>
+                  </p>
+                  {displayMax > 0 && <p className="text-[9px] text-muted-foreground">{displayCommitteePct}%</p>}
+                </div>
+              </>
+            ) : (
               <div className="text-right">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">ประเมินตนเอง</p>
-                <p className="text-xl font-bold text-muted-foreground">
-                  {grandSelfTotal}<span className="text-sm font-normal text-muted-foreground">/{grandMax}</span>
+                <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">คะแนนรวม</p>
+                <p className="text-base font-bold text-primary leading-tight">
+                  {displaySelfTotal}{displayUnit && <span className="text-[10px] font-normal ml-0.5">{displayUnit}</span>}
+                  <span className="text-xs font-normal text-muted-foreground">/{displayMax}</span>
                 </p>
               </div>
-              <div className="w-px h-8 bg-border" />
-              <div className="text-right">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">กรรมการ</p>
-                <p className="text-xl font-bold text-primary">
-                  {grandCommitteeTotal}<span className="text-sm font-normal text-muted-foreground">/{grandMax}</span>
-                </p>
+            )}
+            {role !== "user" && import.meta.env.DEV && !isCompleted && (
+              <div className="hidden sm:flex">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1 text-purple-600 border-purple-300 hover:bg-purple-50 text-xs h-8 px-2 shrink-0">
+                      🎲 <ChevronDown className="h-3 w-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-44">
+                    <DropdownMenuItem onClick={() => handleFillMode("full")}>⭐ สุ่มคะแนนเต็ม</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleFillMode("good")}>😊 สุ่มคะแนนดีแต่ไม่เต็ม</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleFillMode("mid")}>😐 สุ่มคะแนนกลางๆ</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleFillMode("bad")}>😕 สุ่มคะแนนแย่ๆ</DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => handleFillMode("clear")} className="text-destructive">🗑 ล้างคะแนน</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
-            </div>
-          ) : (
-            <div className="text-right">
-              <p className="text-xs text-muted-foreground">คะแนนรวม</p>
-              <p className="text-2xl font-bold text-primary">
-                {grandSelfTotal}<span className="text-sm font-normal text-muted-foreground">/{grandMax}</span>
-              </p>
-            </div>
+            )}
+            {isCompleted ? (
+              <Button variant="outline" size="sm"
+                onClick={() => navigate(`/evaluation/${programId}/summary?evaluationId=${evaluationId || ""}`)}
+                className="gap-1 text-green-700 border-green-300 bg-green-50 hover:bg-green-100 h-8 px-2 text-xs shrink-0">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">ดูสรุป</span>
+              </Button>
+            ) : (
+              role !== "user" && isSubmitted && (
+                <div className="flex items-center gap-1.5">
+                  <Button variant="outline" size="sm" onClick={handleReturn} className="gap-1 text-amber-600 border-amber-300 hover:bg-amber-50 h-8 px-2 text-xs shrink-0">
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">ส่งกลับ</span>
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleComplete}
+                    disabled={!allCommitteeScored}
+                    title={!allCommitteeScored ? `ยังมีตัวชี้วัดที่ยังไม่ได้ประเมิน ${flatIndicators.filter(({ indicator }) => { const v = committeeScores[indicator.id]; return v === undefined || (indicator.scoreType?.includes('yes_no') && v === -1); }).length} ข้อ` : ""}
+                    className="gap-1 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 h-8 px-2 text-xs shrink-0"
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">ยืนยันผล</span>
+                    {!allCommitteeScored && (
+                      <span className="rounded-full bg-white/20 px-1 text-[10px] font-bold">
+                        {flatIndicators.filter(({ indicator }) => { const v = committeeScores[indicator.id]; return v === undefined || (indicator.scoreType?.includes('yes_no') && v === -1); }).length}
+                      </span>
+                    )}
+                  </Button>
+                </div>
+              )
+            )}
+          </div>
+        </div>
+        {/* Row 2: program name + badges + subinfo */}
+        <div className="flex items-center gap-1.5 flex-wrap mt-1.5 ml-[40px]">
+          <h2 className="text-sm font-bold text-foreground w-full truncate">{programName}</h2>
+          {evaluationType && EVAL_TYPE_CONFIG[evaluationType] && (
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${EVAL_TYPE_CONFIG[evaluationType].className}`}>
+              {EVAL_TYPE_CONFIG[evaluationType].icon}
+              {EVAL_TYPE_CONFIG[evaluationType].label}
+            </span>
           )}
-          {role !== "user" && import.meta.env.DEV && !isCompleted && (
-            <Button variant="outline" size="sm" onClick={handleFillRandom} className="gap-1.5 text-purple-600 border-purple-300 hover:bg-purple-50 text-xs">
-              🎲 สุ่ม
-            </Button>
+          {currentStatus && (
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${currentStatus.badge}`}>
+              {currentStatus.icon}
+              {currentStatus.label}
+            </span>
           )}
-          {isCompleted ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate(`/evaluation/${programId}/summary?evaluationId=${evaluationId || ""}`)}
-              className="ml-2 gap-1.5 text-green-700 border-green-300 bg-green-50 hover:bg-green-100"
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              ดูสรุปผลการประเมิน
-            </Button>
-          ) : (
-            role !== "user" && isSubmitted && (
-              <div className="flex items-center gap-2 ml-2">
-                <Button variant="outline" size="sm" onClick={handleReturn} className="gap-1.5 text-amber-600 border-amber-300 hover:bg-amber-50">
-                  <RotateCcw className="h-4 w-4" />
-                  ส่งกลับ
-                </Button>
-                <Button size="sm" onClick={handleComplete} disabled={!allCommitteeScored} className="gap-1.5 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50">
-                  <CheckCircle2 className="h-4 w-4" />
-                  ยืนยันผลการประเมิน
-                </Button>
-              </div>
-            )
+          {year && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border border-border bg-muted/60 text-muted-foreground">
+              พ.ศ. {year + 543}
+            </span>
           )}
+          <span className="text-[11px] text-muted-foreground">
+            {visibleCategories.length} หมวด · {totalTopics} ประเด็น · {totalIndicators} ตัวชี้วัด{isYesNoProgram ? "" : ` · คะแนนเต็ม ${grandMax}`}
+          </span>
         </div>
       </div>
+
+      {/* Scoring level strip */}
+      {role !== "user" && (scoringLevels.length > 0 || programScoringType === 'yes_no') && (
+        <div className="px-4 sm:px-6 py-2 border-b bg-card/30 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <div className="flex-1 min-w-0">
+            {programScoringType === 'yes_no' ? (
+              (() => {
+                const allPass = displayMax > 0 && displayCommitteeTotal === displayMax;
+                return (
+                  <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-semibold ${allPass ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-rose-400 bg-rose-50 text-rose-700"}`}>
+                    {allPass ? <><CheckCircle2 className="h-4 w-4" /> สอดคล้อง</> : <><XCircle className="h-4 w-4" /> ไม่สอดคล้อง</>}
+                  </div>
+                );
+              })()
+            ) : (
+              <ScoringLevelBadges levels={scoringLevels} grandMax={displayMax} currentScore={displayCommitteeTotal} />
+            )}
+          </div>
+          {displayMax > 0 && (
+            <div className="shrink-0 text-right">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+                {programScoringType === 'yes_no' ? "วิธีคำนวณ (สอดคล้อง)" : isYesNoProgram ? "วิธีคำนวณ (ผ่าน/ไม่ผ่าน)" : "วิธีคำนวณ (คะแนน)"}
+              </p>
+              <p className="text-sm font-mono font-semibold text-foreground">
+                {displayCommitteeTotal}/{displayMax}{(programScoringType === 'yes_no' || isYesNoProgram) ? " ข้อ" : ""} = {displayCommitteePct}%
+              </p>
+              {programScoringType === 'yes_no' && <p className="text-[10px] font-bold text-red-600">*ต้องสอดคล้องครบทุกข้อ</p>}
+              {programScoringType !== 'yes_no' && !isYesNoProgram && grandMax > 0 && (
+                <>
+                  <p className="text-[10px] text-muted-foreground">คะแนนดิบ {grandCommitteeTotal} ÷ {grandMax}</p>
+                  <p className="text-[10px] font-bold text-red-600">{grandMax === 100 ? "*คำนวนแบบคะแนนเต็มหมวด" : "*คำนวนแบบคะแนนไม่เต็มหมวด"}</p>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {currentStatus?.banner && (
         <div className={`flex items-center gap-2 px-6 py-2.5 border-b text-sm font-medium ${currentStatus.banner}`}>
@@ -490,7 +669,7 @@ const EvaluationByProgramPage = () => {
       )}
 
       <div className="px-6 py-6 space-y-6">
-        <ScoreSummary data={summaryData} committeeData={committeeSummaryData} />
+        <ScoreSummary data={summaryData} committeeData={committeeSummaryData} onCategoryClick={handleCategoryClick} />
         {visibleCategories.map((category, idx) => (
           <CategoryCard
             key={category.id}
@@ -510,6 +689,8 @@ const EvaluationByProgramPage = () => {
             userRole={role}
             scoreView={scoreView}
             onIndicatorClick={handleOpenWizard}
+            newIndicatorNotifs={role !== "user" ? newEvaluateeIndicatorIds : undefined}
+            forceOpen={expandedCategoryId === category.id}
           />
         ))}
       </div>

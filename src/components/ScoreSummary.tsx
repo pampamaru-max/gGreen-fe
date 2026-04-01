@@ -12,7 +12,7 @@ interface SummaryItem {
   committeePassCount?: number;
 }
 
-export function ScoreSummary({ data, showOnlyWithScore }: { data: SummaryItem[]; showOnlyWithScore?: boolean }) {
+export function ScoreSummary({ data, showOnlyWithScore, onCategoryClick }: { data: SummaryItem[]; showOnlyWithScore?: boolean; onCategoryClick?: (categoryId: string | number) => void }) {
   const filtered = showOnlyWithScore ? data.filter(item => item.score > 0 || (item.passCount ?? 0) > 0) : data;
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -27,7 +27,7 @@ export function ScoreSummary({ data, showOnlyWithScore }: { data: SummaryItem[];
           const committeePass = item.committeePassCount;
           const committeePct = committeePass !== undefined && total > 0 ? Math.round((committeePass / total) * 100) : null;
           return (
-            <div key={item.id} className="relative overflow-hidden rounded-xl border bg-card p-4 transition-shadow hover:shadow-md">
+            <div key={item.id} onClick={() => onCategoryClick?.(item.id)} className={`relative overflow-hidden rounded-xl border bg-card p-4 transition-shadow hover:shadow-md ${onCategoryClick ? "cursor-pointer" : ""}`}>
               <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: `hsl(${color})` }} />
               <p className="text-xs font-medium text-muted-foreground mb-1">หมวดที่ {idx + 1}</p>
               <p className="text-sm font-semibold text-foreground leading-tight mb-3 line-clamp-2">{item.name}</p>
@@ -64,7 +64,7 @@ export function ScoreSummary({ data, showOnlyWithScore }: { data: SummaryItem[];
           ? Math.round((item.committeeScore / item.totalPossible) * 100)
           : null;
         return (
-          <div key={item.id} className="relative overflow-hidden rounded-xl border bg-card p-4 transition-shadow hover:shadow-md">
+          <div key={item.id} onClick={() => onCategoryClick?.(item.id)} className={`relative overflow-hidden rounded-xl border bg-card p-4 transition-shadow hover:shadow-md ${onCategoryClick ? "cursor-pointer" : ""}`}>
             <div className="absolute inset-x-0 top-0 h-1 rounded-full" style={{ backgroundColor: `hsl(${color})` }} />
             <p className="text-xs font-medium text-muted-foreground mb-1">หมวดที่ {idx + 1}</p>
             <p className="text-sm font-semibold text-foreground leading-tight mb-3 line-clamp-2">{item.name}</p>

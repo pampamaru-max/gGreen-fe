@@ -242,6 +242,7 @@ const EvaluationPage = () => {
                   <TableHead className="w-12 text-center">#</TableHead>
                   <TableHead>ชื่อหน่วยงาน</TableHead>
                   <TableHead>ชื่อโครงการ</TableHead>
+                  <TableHead className="text-center w-20">ปี พ.ศ.</TableHead>
                   <TableHead>จังหวัด</TableHead>
                   <TableHead className="text-center">สถานะประเมินตนเอง</TableHead>
                   <TableHead className="text-center">สถานะกรรมการประเมิน</TableHead>
@@ -257,6 +258,7 @@ const EvaluationPage = () => {
                     <TableCell className="text-center text-muted-foreground">{idx + 1}</TableCell>
                     <TableCell className="font-medium">{row.user_name}</TableCell>
                     <TableCell>{row.program_name}</TableCell>
+                    <TableCell className="text-center">{(row as any).year ? (row as any).year + 543 : "-"}</TableCell>
                     <TableCell>{row.province}</TableCell>
                     <TableCell className="text-center">{getSelfAssessmentBadge(row.self_status, row.has_self_score)}</TableCell>
                     <TableCell className="text-center">{getCommitteeBadge(row.has_committee_score)}</TableCell>
