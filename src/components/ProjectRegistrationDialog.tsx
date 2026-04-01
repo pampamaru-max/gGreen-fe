@@ -179,6 +179,7 @@ export default function ProjectRegistrationDialog({
       contact_phone: "",
       contact_email: "",
     },
+    mode: 'onBlur'
   });
 
   const selectedProvince = form.watch("province");
@@ -1016,10 +1017,12 @@ export default function ProjectRegistrationDialog({
                         <FormItem>
                           <FormLabel className="flex items-center gap-2">
                             <Mail className="w-4 h-4 text-primary" /> อีเมล{" "}
+                            <span className="text-destructive">*</span>
                           </FormLabel>
                           <FormControl>
                             <Input
                               type="email"
+                              required
                               placeholder="email@example.com"
                               {...field}
                             />
