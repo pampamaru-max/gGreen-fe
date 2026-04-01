@@ -104,6 +104,35 @@
 }
 
 @layer utilities {
+  .rich-content ol {
+    list-style-type: decimal;
+    padding-left: 1.25rem;
+    margin: 0.25rem 0;
+  }
+  .rich-content ul {
+    list-style-type: disc;
+    padding-left: 1.25rem;
+    margin: 0.25rem 0;
+  }
+  .rich-content li {
+    margin: 0.1rem 0;
+  }
+  .rich-content h2 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin: 0.4em 0 0.2em;
+  }
+  .rich-content h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 0.3em 0 0.15em;
+  }
+  .rich-content p {
+    margin: 0.15em 0;
+  }
+  .rich-content p:first-child { margin-top: 0; }
+  .rich-content p:last-child { margin-bottom: 0; }
+
   .scrollbar-thin {
     scrollbar-width: auto;
     scrollbar-color: hsl(var(--primary) / 0.5) hsl(var(--muted));

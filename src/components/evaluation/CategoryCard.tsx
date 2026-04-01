@@ -221,7 +221,7 @@ function EvaluateeIndicatorDialog({
                         <button className="shrink-0 mt-0.5 text-muted-foreground hover:text-foreground transition-colors"><Info className="h-4 w-4" /></button>
                       </TooltipTrigger>
                       <TooltipContent side="bottom" align="end" className="max-w-sm z-[9999]">
-                        <p className="text-sm leading-relaxed">{indicator.description}</p>
+                        <div className="text-sm leading-relaxed rich-content" dangerouslySetInnerHTML={{ __html: indicator.description! }} />
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -238,7 +238,7 @@ function EvaluateeIndicatorDialog({
             {indicator.detail && (
               <div className="space-y-1.5">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">รายละเอียดตัวชี้วัด</p>
-                <div className="text-base font-medium text-foreground leading-relaxed whitespace-pre-line bg-muted/30 rounded-md p-3">{indicator.detail}</div>
+                <div className="text-base font-medium text-foreground leading-relaxed bg-muted/30 rounded-md p-3 rich-content" dangerouslySetInnerHTML={{ __html: indicator.detail }} />
               </div>
             )}
             {indicator.evidenceDescription && (
@@ -341,6 +341,13 @@ function EvaluateeIndicatorDialog({
                     </div>
                   </div>
                 )}
+
+                {indicator.notes && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">หมายเหตุเกณฑ์การให้คะแนน</p>
+                    <div className="text-sm font-medium text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-md p-3 leading-relaxed rich-content" dangerouslySetInnerHTML={{ __html: indicator.notes! }} />
+                  </div>
+                )}
               </>
             ) : (
               /* ── Normal score mode ── */
@@ -363,7 +370,7 @@ function EvaluateeIndicatorDialog({
                               style={c.score === score ? { backgroundColor: `hsl(${getScoreColor(c.score)})`, color: "white" } : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }}>
                               {c.score}
                             </span>
-                            <span className="leading-snug pt-1" style={{ color: c.score === score ? `hsl(${getScoreColor(c.score)})` : "hsl(var(--muted-foreground))" }}>{c.label}</span>
+                            <div className="leading-snug pt-1 rich-content" style={{ color: c.score === score ? `hsl(${getScoreColor(c.score)})` : "hsl(var(--muted-foreground))" }} dangerouslySetInnerHTML={{ __html: c.label }} />
                           </div>
                         ) : (
                           <button key={c.score} onClick={() => onScoreChange(c.score === score ? 0 : c.score)}
@@ -373,7 +380,7 @@ function EvaluateeIndicatorDialog({
                               style={c.score === score ? { backgroundColor: `hsl(${getScoreColor(c.score)})`, color: "white" } : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }}>
                               {c.score}
                             </span>
-                            <span className="leading-snug pt-1" style={{ color: c.score === score ? `hsl(${getScoreColor(c.score)})` : "hsl(var(--foreground))" }}>{c.label}</span>
+                            <div className="leading-snug pt-1 rich-content" style={{ color: c.score === score ? `hsl(${getScoreColor(c.score)})` : "hsl(var(--foreground))" }} dangerouslySetInnerHTML={{ __html: c.label }} />
                           </button>
                         )
                       ))}
@@ -400,7 +407,7 @@ function EvaluateeIndicatorDialog({
                 {indicator.notes && (
                   <div className="space-y-1.5">
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">หมายเหตุเกณฑ์การให้คะแนน</p>
-                    <div className="text-sm font-medium text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-md p-3 leading-relaxed whitespace-pre-line">{indicator.notes}</div>
+                    <div className="text-sm font-medium text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-md p-3 leading-relaxed rich-content" dangerouslySetInnerHTML={{ __html: indicator.notes! }} />
                   </div>
                 )}
                 {committeeScore !== undefined && (
@@ -509,7 +516,7 @@ function EvaluatorIndicatorDialog({
                         <button className="shrink-0 mt-0.5 text-muted-foreground hover:text-foreground transition-colors"><Info className="h-4 w-4" /></button>
                       </TooltipTrigger>
                       <TooltipContent side="bottom" align="end" className="max-w-sm z-[9999]">
-                        <p className="text-sm leading-relaxed">{indicator.description}</p>
+                        <div className="text-sm leading-relaxed rich-content" dangerouslySetInnerHTML={{ __html: indicator.description! }} />
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -526,7 +533,7 @@ function EvaluatorIndicatorDialog({
             {indicator.detail && (
               <div className="space-y-1.5">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">รายละเอียดตัวชี้วัด</p>
-                <div className="text-base font-medium text-foreground leading-relaxed whitespace-pre-line bg-muted/30 rounded-md p-3">{indicator.detail}</div>
+                <div className="text-base font-medium text-foreground leading-relaxed bg-muted/30 rounded-md p-3 rich-content" dangerouslySetInnerHTML={{ __html: indicator.detail }} />
               </div>
             )}
             {indicator.evidenceDescription && (
@@ -608,6 +615,13 @@ function EvaluatorIndicatorDialog({
                     </div>
                   </>
                 )}
+
+                {indicator.notes && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">หมายเหตุเกณฑ์การให้คะแนน</p>
+                    <div className="text-sm font-medium text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-md p-3 leading-relaxed rich-content" dangerouslySetInnerHTML={{ __html: indicator.notes! }} />
+                  </div>
+                )}
               </>
             ) : (
               /* ── Normal score mode ── */
@@ -631,7 +645,7 @@ function EvaluatorIndicatorDialog({
                             style={{ backgroundColor: `hsl(${getScoreColor(selected.score)})`, color: "white" }}>
                             {selected.score}
                           </span>
-                          <span className="leading-snug text-foreground/80">{selected.label}</span>
+                          <div className="leading-snug text-foreground/80 rich-content" dangerouslySetInnerHTML={{ __html: selected.label }} />
                         </div>
                       ) : <p className="text-xs text-muted-foreground italic">ยังไม่ได้ประเมิน</p>;
                     })()
@@ -675,7 +689,7 @@ function EvaluatorIndicatorDialog({
                               style={isSelected ? { backgroundColor: `hsl(${getScoreColor(c.score)})`, color: "white" } : { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }}>
                               {c.score}
                             </span>
-                            <span className="leading-snug pt-1" style={{ color: isSelected ? `hsl(${getScoreColor(c.score)})` : "hsl(var(--foreground))" }}>{c.label}</span>
+                            <div className="leading-snug pt-1 rich-content" style={{ color: isSelected ? `hsl(${getScoreColor(c.score)})` : "hsl(var(--foreground))" }} dangerouslySetInnerHTML={{ __html: c.label }} />
                           </button>
                         );
                       })}
@@ -707,7 +721,7 @@ function EvaluatorIndicatorDialog({
                 {indicator.notes && (
                   <div className="space-y-1.5">
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">หมายเหตุเกณฑ์การให้คะแนน</p>
-                    <div className="text-sm font-medium text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-md p-3 leading-relaxed whitespace-pre-line">{indicator.notes}</div>
+                    <div className="text-sm font-medium text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-md p-3 leading-relaxed rich-content" dangerouslySetInnerHTML={{ __html: indicator.notes! }} />
                   </div>
                 )}
               </>
