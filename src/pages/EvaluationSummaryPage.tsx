@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { Loader2, ArrowLeft, ClipboardCheck, Medal } from "lucide-react";
+import { ArrowLeft, ClipboardCheck, Medal } from "lucide-react";
+import { PageLoading } from "@/components/ui/page-loading";
 import { Button } from "@/components/ui/button";
 import apiClient from "@/lib/axios";
 
@@ -106,11 +107,7 @@ const EvaluationSummaryPage = () => {
   }, [evaluationId]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <PageLoading />;
   }
 
   if (error || !result) {

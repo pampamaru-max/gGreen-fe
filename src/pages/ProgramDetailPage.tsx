@@ -1,9 +1,10 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Building2, UtensilsCrossed, Home, Factory, Trees, Recycle, Award, Star, ClipboardCheck, Loader2 } from "lucide-react";
+import { ArrowLeft, Building2, UtensilsCrossed, Home, Factory, Trees, Recycle, Award, Star, ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageLoading } from "@/components/ui/page-loading";
 import gLogo from "@/assets/g-logo.png";
 import AboutContentRenderer from "@/components/AboutContentRenderer";
 import type { ContentBlock } from "@/components/AboutContentEditor";
@@ -43,11 +44,7 @@ export default function ProgramDetailPage() {
   });
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <PageLoading />;
   }
 
   if (!program) {
