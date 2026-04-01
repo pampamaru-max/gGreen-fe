@@ -279,7 +279,7 @@ export default function EvaluateeHome() {
                 </div>
 
                 {/* Info Tiles Grid — compact */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 border-b border-slate-100">
+                <div className="grid grid-cols-2 lg:grid-cols-4 border-b border-slate-100">
                   <InfoTile icon={<ClipboardCheck className="h-4 w-4 text-emerald-500" />} label="โครงการ">
                     <span className="text-sm font-bold text-slate-700 truncate">{reg?.programName ?? programId}</span>
                   </InfoTile>
