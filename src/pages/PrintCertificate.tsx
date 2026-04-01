@@ -27,6 +27,8 @@ interface CertificateData {
         bgImageUrl: string | null;
         logoUrl: string | null;
         primaryColor: string;
+        orientation?: string;
+        layout?: any[];
       } | null;
     } | null;
   } | null;
@@ -92,7 +94,11 @@ export default function PrintCertificate() {
     bgImageUrl: null,
     logoUrl: null,
     primaryColor: scoringLevel.color || "#1a5632",
+    orientation: "landscape",
+    layout: [],
   };
+
+  const isPortrait = template.orientation === "portrait";
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col items-center py-10 print:py-0 print:bg-white">
@@ -110,10 +116,10 @@ export default function PrintCertificate() {
       {/* Certificate Paper */}
       <div 
         id="certificate-paper"
-        className="certificate-paper relative bg-white shadow-2xl overflow-hidden flex flex-col items-center justify-center text-center p-16 print:shadow-none print:m-0"
+        className="certificate-paper relative bg-white shadow-2xl overflow-hidden flex flex-col items-center justify-center text-center print:shadow-none print:m-0"
         style={{
-          width: "297mm",
-          height: "210mm",
+          width: isPortrait ? "210mm" : "297mm",
+          height: isPortrait ? "297mm" : "210mm",
           borderColor: template.primaryColor,
           backgroundImage: template.bgImageUrl ? `url(${template.bgImageUrl})` : undefined,
           backgroundSize: "cover",
@@ -130,78 +136,110 @@ export default function PrintCertificate() {
         {/* Inner Border */}
         <div className="absolute inset-4 border border-slate-200 pointer-events-none" />
 
-        <div className="relative z-10 flex flex-col items-center w-full h-full justify-center gap-10 py-12">
-          {/* Header */}
-          <div className="flex flex-col items-center gap-4">
-            {template.logoUrl && (
-              <img 
-                src={template.logoUrl} 
-                alt="Logo" 
-                className="h-24 w-24 object-contain" 
-              />
-            )}
-            <div className="space-y-1">
-              <h1 
-                className="text-5xl font-bold tracking-tight"
-                style={{ color: template.primaryColor }}
+        {/* Render Layout Elements if exists, else fallback to Legacy */}
+        {template.layout && template.layout.length > 0 ? (
+          <div className="relative w-full h-full">
+            {template.layout.map((el: any) => (
+              <div
+                key={el.id}
+                className="absolute"
+                style={{
+                  left: `${el.x}%`,
+                  top: `${el.y}%`,
+                  width: el.width ? `${el.width}%` : undefined,
+                  height: el.height ? `${el.height}%` : undefined,
+                  fontSize: el.fontSize ? `${el.fontSize}px` : undefined,
+                  fontWeight: el.fontWeight,
+                  color: el.color || template.primaryColor,
+                  textAlign: el.textAlign || "center",
+                  transform: "translate(-50%, -50%)",
+                }}
               >
-                {template.title}
-              </h1>
-              {template.subtitle && (
-                <p className="text-xl text-slate-600 font-medium">
-                  {template.subtitle}
-                </p>
-              )}
-            </div>
+                {el.type === "image" && <img src={el.content} alt="Logo" className="w-full h-full object-contain" />}
+                {el.type === "text" && <span>{el.content}</span>}
+                {el.type === "variable" && (
+                  <span>
+                    {el.content === "{recipient}" ? data.organizationName : 
+                     el.content === "{level}" ? `ระดับ ${levelName}` : el.content}
+                  </span>
+                )}
+              </div>
+            ))}
           </div>
-
-          {/* Body */}
-          <div className="flex flex-col items-center gap-6 w-full max-w-4xl">
-            <p className="text-xl text-slate-700">
-              {template.bodyText}
-            </p>
-            
-            <div className="flex flex-col items-center gap-2">
-              <h2 
-                className="text-4xl font-bold border-b-2 px-12 pb-2 mb-2"
-                style={{ borderColor: template.primaryColor, color: template.primaryColor }}
-              >
-                {data.organizationName}
-              </h2>
-              {data.province && (
-                <p className="text-lg text-slate-800 font-medium">
-                  จังหวัด{data.province}
-                </p>
+        ) : (
+          <div className="relative z-10 flex flex-col items-center w-full h-full justify-center gap-10 py-12 px-16">
+            {/* Legacy Header */}
+            <div className="flex flex-col items-center gap-4">
+              {template.logoUrl && (
+                <img 
+                  src={template.logoUrl} 
+                  alt="Logo" 
+                  className="h-24 w-24 object-contain" 
+                />
               )}
+              <div className="space-y-1">
+                <h1 
+                  className="text-5xl font-bold tracking-tight"
+                  style={{ color: template.primaryColor }}
+                >
+                  {template.title}
+                </h1>
+                {template.subtitle && (
+                  <p className="text-xl text-slate-600 font-medium">
+                    {template.subtitle}
+                  </p>
+                )}
+              </div>
             </div>
 
-            <div 
-              className="px-8 py-3 rounded-full text-white text-xl font-bold shadow-sm"
-              style={{ backgroundColor: template.primaryColor }}
-            >
-              ระดับ {levelName}
-            </div>
-
-            <p className="text-xl text-slate-800 font-medium max-w-prose">
-              {template.footerText}
-            </p>
-          </div>
-
-          {/* Signer */}
-          {template.signerName && (
-            <div className="flex flex-col items-center mt-4">
-              <div className="w-64 border-b border-slate-300 mb-4" />
-              <p className="text-xl font-bold text-slate-800">
-                {template.signerName}
+            {/* Legacy Body */}
+            <div className="flex flex-col items-center gap-6 w-full max-w-4xl">
+              <p className="text-xl text-slate-700">
+                {template.bodyText}
               </p>
-              {template.signerTitle && (
-                <p className="text-base text-slate-600">
-                  {template.signerTitle}
-                </p>
-              )}
+              
+              <div className="flex flex-col items-center gap-2">
+                <h2 
+                  className="text-4xl font-bold border-b-2 px-12 pb-2 mb-2"
+                  style={{ borderColor: template.primaryColor, color: template.primaryColor }}
+                >
+                  {data.organizationName}
+                </h2>
+                {data.province && (
+                  <p className="text-lg text-slate-800 font-medium">
+                    จังหวัด{data.province}
+                  </p>
+                )}
+              </div>
+
+              <div 
+                className="px-8 py-3 rounded-full text-white text-xl font-bold shadow-sm"
+                style={{ backgroundColor: template.primaryColor }}
+              >
+                ระดับ {levelName}
+              </div>
+
+              <p className="text-xl text-slate-800 font-medium max-w-prose">
+                {template.footerText}
+              </p>
             </div>
-          )}
-        </div>
+
+            {/* Legacy Signer */}
+            {template.signerName && (
+              <div className="flex flex-col items-center mt-4">
+                <div className="w-64 border-b border-slate-300 mb-4" />
+                <p className="text-xl font-bold text-slate-800">
+                  {template.signerName}
+                </p>
+                {template.signerTitle && (
+                  <p className="text-base text-slate-600">
+                    {template.signerTitle}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `
@@ -212,12 +250,12 @@ export default function PrintCertificate() {
             background: white;
           }
           @page {
-            size: A4 landscape;
+            size: A4 ${isPortrait ? "portrait" : "landscape"};
             margin: 0;
           }
           .certificate-paper {
-            width: 297mm !important;
-            height: 210mm !important;
+            width: ${isPortrait ? "210mm" : "297mm"} !important;
+            height: ${isPortrait ? "297mm" : "210mm"} !important;
             box-shadow: none !important;
             margin: 0 !important;
             border-width: 12px !important;
