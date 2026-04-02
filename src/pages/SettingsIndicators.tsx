@@ -24,6 +24,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import AddTopicWithIndicatorsDialog from "@/components/AddTopicWithIndicatorsDialog";
+import { AlertActionPopup } from "@/components/AlertActionPopup";
 
 interface DbProgram {
   id: string;
@@ -386,14 +387,7 @@ function SortableIndicatorRow({ ind, color, onEdit, onDelete, maxAllowed, scoreT
       )}
       <div className="flex items-center gap-0.5 opacity-0 group-hover/ind:opacity-100 transition-opacity">
         <EditIndicatorDialog indicator={ind} onSave={onEdit} maxAllowed={maxAllowed} scoreType={scoreType} />
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-          onClick={onDelete}
-        >
-          <Trash2 className="h-3 w-3" />
-        </Button>
+        <AlertActionPopup action={onDelete} type="delete" title="ยืนยันการลบตัวชี้วัด" description={`ต้องการลบตัวชี้วัด "${ind.name}" หรือไม่?`}/>
       </div>
     </div>
   );
@@ -718,14 +712,7 @@ const SettingsIndicators = () => {
                                       </CollapsibleTrigger>
                                       <span className="text-sm font-medium text-foreground flex-1">{topic.name}</span>
                                       <EditTopicDialog topic={topic} onSave={(name) => handleEditTopic(topic.id, name)} />
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                        onClick={() => handleDeleteTopic(topic.id)}
-                                      >
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                      </Button>
+                                      <AlertActionPopup action={() => handleDeleteTopic(topic.id)} type="delete" title="ยืนยันการลบประเด็น" description={`ต้องการลบประเด็น "${topic.name}" หรือไม่?`}/>
                                     </div>
 
                                     <CollapsibleContent>
