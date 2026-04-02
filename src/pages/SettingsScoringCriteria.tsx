@@ -57,9 +57,18 @@ interface LevelFormProps {
   onSubmit: (data: Omit<ScoringLevel, "id" | "sortOrder" | "programId">) => void;
   trigger: React.ReactNode;
   title: string;
+  programLevels: ScoringLevel[];
+  levelId?: number;
 }
 
-const LevelFormDialog = ({ initial, onSubmit, trigger, title }: LevelFormProps) => {
+const LevelFormDialog = ({
+  initial,
+  onSubmit,
+  trigger,
+  title,
+  programLevels,
+  levelId
+}: LevelFormProps) => {
   const { toast } = useToast();
   const [name, setName] = useState(initial?.name || "");
   const [minScore, setMinScore] = useState(String(initial?.minScore ?? ""));
@@ -79,9 +88,38 @@ const LevelFormDialog = ({ initial, onSubmit, trigger, title }: LevelFormProps) 
   }, [open, initial]);
 
   const handleSubmit = () => {
+    const min = parseFloat(minScore);
+    const max = parseFloat(maxScore);
     if (!name.trim() || minScore === "" || maxScore === "") {
       toast({ title: "กรุณากรอกข้อมูลให้ครบ", variant: "destructive" });
       return;
+    } else if (max > 100 || min > 100) {
+      toast({
+        title: "ไม่สารถใส่คะแนนมากกว่า 100 ได้",
+        variant: "destructive",
+      });
+      return;
+    } else if (min > max) {
+      toast({
+        title: "คะแนนต่ำสุดต้องน้อยกว่าคะแนนสูงสุด",
+        variant: "destructive",
+      });
+      return;
+    } else if (programLevels.length) {
+      const IsInRange = programLevels.find(
+        (e) => e.id != levelId &&
+          ((e.minScore <= min && min <= e.maxScore) ||
+          (e.minScore <= max && max <= e.maxScore) ||
+          (min <= e.minScore && e.maxScore <= max)),
+      );
+      
+      if (IsInRange) {
+        toast({
+          title: `ช่วงคะแนนทับซ้อนทับกับช่วงคะแนน ${IsInRange.minScore} - ${IsInRange.maxScore}`,
+          variant: "destructive",
+        });
+        return;
+      }
     }
     onSubmit({
       name: name.trim(),
@@ -168,7 +206,17 @@ const LevelFormDialog = ({ initial, onSubmit, trigger, title }: LevelFormProps) 
   );
 };
 
-const SortableLevelCard = ({ level, onEdit, onDelete }: { level: ScoringLevel; onEdit: (id: number, data: any) => void; onDelete: (id: number) => void }) => {
+const SortableLevelCard = ({
+  level,
+  onEdit,
+  onDelete,
+  programLevels,
+}: {
+  level: ScoringLevel;
+  onEdit: (id: number, data: any) => void;
+  onDelete: (id: number) => void;
+  programLevels: ScoringLevel[];
+}) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: level.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
   const IconComp = getIconComponent(level.icon);
@@ -198,6 +246,8 @@ const SortableLevelCard = ({ level, onEdit, onDelete }: { level: ScoringLevel; o
             <Pencil className="h-4 w-4" />
           </Button>
         }
+        programLevels={programLevels}
+        levelId={level.id}
       />
       <AlertDialog>
         <AlertDialogTrigger asChild>
@@ -504,7 +554,13 @@ const SettingsScoringCriteria = () => {
                           <SortableContext items={programLevels.map((l) => l.id)} strategy={verticalListSortingStrategy}>
                             <div className="space-y-3">
                               {programLevels.map((level) => (
-                                <SortableLevelCard key={level.id} level={level} onEdit={handleEdit} onDelete={handleDelete} />
+                                <SortableLevelCard
+                                  key={level.id}
+                                  level={level}
+                                  onEdit={handleEdit}
+                                  onDelete={handleDelete}
+                                  programLevels={programLevels}
+                                />
                               ))}
                             </div>
                           </SortableContext>
@@ -526,6 +582,7 @@ const SettingsScoringCriteria = () => {
                               <Plus className="h-4 w-4" /> เพิ่มระดับ
                             </Button>
                           }
+                          programLevels={programLevels}
                         />
                       </>
                     )}
@@ -535,14 +592,24 @@ const SettingsScoringCriteria = () => {
             </Collapsible>
           );
         })}
-
         {/* Unassigned levels */}
-        {levels.some(l => !l.programId) && (
+        {levels.some((l) => !l.programId) && (
           <div className="rounded-xl border border-dashed bg-muted/30 p-4 space-y-3">
-            <p className="font-semibold text-sm text-muted-foreground">ระดับที่ยังไม่ได้ผูกกับโครงการ</p>
-            {levels.filter(l => !l.programId).map((level) => (
-              <SortableLevelCard key={level.id} level={level} onEdit={handleEdit} onDelete={handleDelete} />
-            ))}
+            <p className="font-semibold text-sm text-muted-foreground">
+              ระดับที่ยังไม่ได้ผูกกับโครงการ
+            </p>
+            {(() => {
+              const unassignedLevels = levels.filter((l) => !l.programId);
+              return unassignedLevels.map((level) => (
+                <SortableLevelCard
+                  key={level.id}
+                  level={level}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  programLevels={unassignedLevels}
+                />
+              ));
+            })()}
           </div>
         )}
       </div>
