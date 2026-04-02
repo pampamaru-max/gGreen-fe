@@ -21,6 +21,7 @@ const PopoverContent = React.forwardRef<
         className,
       )}
       onWheel={(e) => e.stopPropagation()}
+      onTouchMove={(e)=>e.stopPropagation()}
       {...props}
     />
   </PopoverPrimitive.Portal>
