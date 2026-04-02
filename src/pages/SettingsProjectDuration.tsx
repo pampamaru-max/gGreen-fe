@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Pencil, Trash2, Clock, Info } from "lucide-react";
+import { AlertActionPopup } from "@/components/AlertActionPopup";
 
 interface Program { id: string; name: string; }
 interface ProgramDuration {
@@ -166,9 +167,22 @@ export default function SettingsProjectDuration() {
                   </div>
                 </div>
                 <div className="flex justify-end">
-                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteDialogOpen(true)}>
-                    <Trash2 className="h-4 w-4 mr-1" /> ลบข้อมูล
-                  </Button>
+                  <AlertActionPopup
+                    trigger={
+                      <Button variant="ghost" size="sm" className="shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive">
+                        <Trash2 className="h-4 w-4 mr-1" /> ลบข้อมูล
+                      </Button>
+                    }
+                    action={() => setDeleteDialogOpen(true)}
+                    title="ยืนยันการลบข้อมูลระยะเวลาของโครงการ"
+                    description={`ต้องการลบข้อมูลระยะเวลาของโครงการ ${programName} หรือไม่?`}
+                    labelButtonLeft="ยกเลิก"
+                    buttonRight={
+                      <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+                        {deleting ? "กำลังลบ..." : "ลบ"}
+                      </Button>
+                    }
+                  />
                 </div>
               </div>
             ) : (
@@ -225,22 +239,6 @@ export default function SettingsProjectDuration() {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>ยกเลิก</Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving ? "กำลังบันทึก..." : "บันทึก"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirm Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>ยืนยันการลบ</DialogTitle>
-            <DialogDescription>ต้องการลบข้อมูลระยะเวลาของโครงการ &ldquo;{programName}&rdquo; หรือไม่?</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>ยกเลิก</Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-              {deleting ? "กำลังลบ..." : "ลบ"}
             </Button>
           </DialogFooter>
         </DialogContent>

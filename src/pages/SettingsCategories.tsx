@@ -8,14 +8,11 @@ import apiClient from "@/lib/axios";
 import { toast } from "@/hooks/use-toast";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import {
-  AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader,
-  AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel,
-} from "@/components/ui/alert-dialog";
-import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { AlertActionPopup } from "@/components/AlertActionPopup";
 
 interface DbCategory {
   id: number;
@@ -442,30 +439,11 @@ const CategoryItem = ({ cat, topicCount, indicatorCount, onEdit, onDelete }: Cat
             </TooltipContent>
           </Tooltip>
         ) : (
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive h-8 w-8">
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>ยืนยันการลบหมวด</AlertDialogTitle>
-                <AlertDialogDescription>
-                  คุณต้องการลบหมวด "{cat.name}" ใช่หรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  onClick={() => onDelete(cat.id)}
-                >
-                  ลบ
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <AlertActionPopup
+            action={() => onDelete(cat.id)}
+            type="delete" title="ยืนยันการลบหมวด"
+            description={`คุณต้องการลบหมวด "${cat.name}" ใช่หรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้`}
+          />
         )}
       </div>
 
@@ -690,34 +668,29 @@ const ProgramCard = ({
               />
 
               {/* ─── Copy confirmation ─── */}
-              <AlertDialog open={pendingCopy !== null} onOpenChange={(v) => { if (!v) setPendingCopy(null); }}>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      {pendingCopy === "toRenew" ? "คัดลอกหมวดอัพเกรด → ต่ออายุ" : "คัดลอกหมวดต่ออายุ → อัพเกรด"}
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      {pendingCopy === "toRenew"
-                        ? `จะสร้างหมวดต่ออายุใหม่ ${upgradCategories.length} หมวดจากหมวดอัพเกรด${renewCategories.length > 0 ? ` และลบหมวดต่ออายุเดิม ${renewCategories.length} หมวดทิ้ง` : ""} ดำเนินการต่อหรือไม่?`
-                        : `จะสร้างหมวดอัพเกรดใหม่ ${renewCategories.length} หมวดจากหมวดต่ออายุ${upgradCategories.length > 0 ? ` และลบหมวดอัพเกรดเดิม ${upgradCategories.length} หมวดทิ้ง` : ""} ดำเนินการต่อหรือไม่?`
-                      }
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => {
-                        const type = pendingCopy;
-                        setPendingCopy(null);
-                        if (type === "toRenew") onCopyUpgradeToRenew(program.id);
-                        else onCopyRenewToUpgrade(program.id);
-                      }}
-                    >
-                      ดำเนินการ
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+               <AlertActionPopup
+                open={pendingCopy !== null} 
+                onOpenChange={(v) => { if (!v) setPendingCopy(null); }}
+                action={() => {
+                  const type = pendingCopy;
+                  setPendingCopy(null);
+                  if (type === "toRenew")
+                    onCopyUpgradeToRenew(program.id);
+                  else onCopyRenewToUpgrade(program.id);
+                }}
+                title={
+                  pendingCopy === "toRenew"
+                    ? "คัดลอกหมวดอัพเกรด → ต่ออายุ"
+                    : "คัดลอกหมวดต่ออายุ → อัพเกรด"
+                }
+                description={
+                  pendingCopy === "toRenew"
+                    ? `จะสร้างหมวดต่ออายุใหม่ ${upgradCategories.length} หมวดจากหมวดอัพเกรด${renewCategories.length > 0 ? ` และลบหมวดต่ออายุเดิม ${renewCategories.length} หมวดทิ้ง` : ""} ดำเนินการต่อหรือไม่?`
+                    : `จะสร้างหมวดอัพเกรดใหม่ ${renewCategories.length} หมวดจากหมวดต่ออายุ${upgradCategories.length > 0 ? ` และลบหมวดอัพเกรดเดิม ${upgradCategories.length} หมวดทิ้ง` : ""} ดำเนินการต่อหรือไม่?`
+                }
+                labelButtonLeft="ยกเลิก"
+                labelButtonRight="ดำเนินการ"
+              />
 
               {upgradCategories.length > 0 && (
                 <div className="space-y-2 pt-1">

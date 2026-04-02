@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Award, Trophy, Medal, Plus, Trash2, Loader2, Save, Pencil, GripVertical, ChevronRight, CheckCircle2, XCircle } from "lucide-react";
+import { Award, Trophy, Medal, Plus, Loader2, Save, Pencil, GripVertical, ChevronRight, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +21,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import apiClient from "@/lib/axios";
+import { AlertActionPopup } from "@/components/AlertActionPopup";
 
 interface ScoringLevel {
   id: number;
@@ -249,23 +250,12 @@ const SortableLevelCard = ({
         programLevels={programLevels}
         levelId={level.id}
       />
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>ยืนยันการลบ</AlertDialogTitle>
-            <AlertDialogDescription>คุณต้องการลบระดับ "{level.name}" ใช่หรือไม่?</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => onDelete(level.id)}>ลบ</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <AlertActionPopup
+        action={() => onDelete(level.id)}
+        type="delete"
+        title="ยืนยันการลบระดับ"
+        description={`คุณต้องการลบระดับ "${level.name}" ใช่หรือไม่?`}
+      />
     </div>
   );
 };
