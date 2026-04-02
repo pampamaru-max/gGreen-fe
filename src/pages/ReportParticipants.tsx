@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Users, Search, ArrowLeft, Loader2, CalendarIcon } from "lucide-react";
+import { Users, Search, ArrowLeft, Loader2, CalendarIcon, FileDown } from "lucide-react";
+import * as XLSX from "xlsx";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
@@ -75,6 +76,28 @@ const ReportParticipants = () => {
 
   const formatThaiDate = (date: Date) =>
     format(date, "d MMM yyyy", { locale: th });
+
+  const handleExportExcel = () => {
+    const rows = filtered.map((r: any, i: number) => ({
+      ลำดับ: i + 1,
+      ชื่อหน่วยงาน: r.organizationName,
+      เลขทะเบียนนิติบุคคล: r.juristicId || "-",
+      โครงการ: r.program?.name || getProgramName(r.programId),
+      จังหวัด: r.provinceName || r.province || "-",
+      ผู้ติดต่อ: r.contactName ? `${r.contactName} ${r.contactLastName || ""}`.trim() : "-",
+      เบอร์โทรศัพท์: r.contactPhone || "-",
+      อีเมล: r.contactEmail || "-",
+      วันที่สมัคร: new Date(r.createdAt).toLocaleDateString("th-TH", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      }),
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "ผู้เข้าร่วมโครงการ");
+    XLSX.writeFile(wb, "participants_report.xlsx");
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -177,6 +200,16 @@ const ReportParticipants = () => {
           <CardTitle className="text-base font-bold">
             ผู้เข้าร่วมโครงการทั้งหมด {filtered.length} รายการ
           </CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={handleExportExcel}
+            disabled={filtered.length === 0}
+          >
+            <FileDown className="h-4 w-4" />
+            Export Excel
+          </Button>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
