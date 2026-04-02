@@ -115,7 +115,7 @@ const LevelFormDialog = ({
       
       if (IsInRange) {
         toast({
-          title: `ช่วงคะแนนทับซ้อนทับกับช่วงคะแนน ${IsInRange.minScore} - ${IsInRange.maxScore}`,
+          title: `ช่วงคะแนนทับซ้อนกับช่วงคะแนน ${IsInRange.minScore} - ${IsInRange.maxScore}`,
           variant: "destructive",
         });
         return;
