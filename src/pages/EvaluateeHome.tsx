@@ -14,11 +14,13 @@ import {
   Eye,
   ListChecks,
   Printer,
+  X,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageLoading } from "@/components/ui/page-loading";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -63,6 +65,11 @@ export default function EvaluateeHome() {
   const [reg, setReg] = useState<Registration | null>(null);
   const [regLoading, setRegLoading] = useState(true);
   const [evalTypeDialogOpen, setEvalTypeDialogOpen] = useState(false);
+
+  // Filter states
+  const [filterYear, setFilterYear] = useState<string>("all");
+  const [filterSelfStatus, setFilterSelfStatus] = useState<string>("all");
+  const [filterCommitteeStatus, setFilterCommitteeStatus] = useState<string>("all");
 
   const { data: provinces = [] } = useQuery({
     queryKey: ["provinces"],
@@ -138,6 +145,43 @@ export default function EvaluateeHome() {
         return (a.program_name || "").localeCompare(b.program_name || "");
       });
   }, [evaluations, reg, user?.name]);
+
+  // Derived year options from allEvaluations
+  const yearOptions = useMemo(() => {
+    const years = allEvaluations
+      .map((e: any) => e.year)
+      .filter((y: any) => typeof y === "number" && y > 0);
+    return [...new Set(years)].sort((a: any, b: any) => b - a);
+  }, [allEvaluations]);
+
+  // Filtered evaluations
+  const filteredEvaluations = useMemo(() => {
+    return allEvaluations.filter((item: any) => {
+      if (filterYear !== "all" && String(item.year) !== filterYear) return false;
+      if (filterSelfStatus !== "all") {
+        const s = item.evaluation_status;
+        if (filterSelfStatus === "none" && s) return false;
+        if (filterSelfStatus === "draft" && s !== "draft") return false;
+        if (filterSelfStatus === "revision" && s !== "revision") return false;
+        if (filterSelfStatus === "submitted" && s !== "submitted" && s !== "submit") return false;
+        if (filterSelfStatus === "completed" && s !== "completed" && s !== "complete") return false;
+      }
+      if (filterCommitteeStatus !== "all") {
+        const hasScore = !!item.total_committee_score || item.has_committee_score;
+        if (filterCommitteeStatus === "done" && !hasScore) return false;
+        if (filterCommitteeStatus === "none" && hasScore) return false;
+      }
+      return true;
+    });
+  }, [allEvaluations, filterYear, filterSelfStatus, filterCommitteeStatus]);
+
+  const hasActiveFilters = filterYear !== "all" || filterSelfStatus !== "all" || filterCommitteeStatus !== "all";
+
+  const clearFilters = () => {
+    setFilterYear("all");
+    setFilterSelfStatus("all");
+    setFilterCommitteeStatus("all");
+  };
 
   const evaluationStatusMap: Record<
     string,
@@ -338,6 +382,68 @@ export default function EvaluateeHome() {
             </h2>
           </div>
 
+          {/* Filters */}
+          <div className="space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <Select value={filterYear} onValueChange={setFilterYear}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="ปี" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">ทุกปี</SelectItem>
+                  {yearOptions.map((y: any) => (
+                    <SelectItem key={y} value={String(y)}>{y + 543}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={filterSelfStatus} onValueChange={setFilterSelfStatus}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="สถานะประเมินตนเอง" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">สถานะประเมินตนเองทั้งหมด</SelectItem>
+                  <SelectItem value="none">ยังไม่เริ่ม</SelectItem>
+                  <SelectItem value="draft">ร่าง</SelectItem>
+                  <SelectItem value="revision">ส่งกลับแก้ไข</SelectItem>
+                  <SelectItem value="submitted">รอผู้ประเมิน</SelectItem>
+                  <SelectItem value="completed">ประเมินเสร็จสิ้น</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={filterCommitteeStatus} onValueChange={setFilterCommitteeStatus}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="สถานะกรรมการ" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">สถานะกรรมการทั้งหมด</SelectItem>
+                  <SelectItem value="none">ยังไม่ได้ประเมิน</SelectItem>
+                  <SelectItem value="done">ประเมินแล้ว</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center justify-between min-h-[28px]">
+              {hasActiveFilters ? (
+                <span className="text-xs text-slate-400">
+                  แสดง {filteredEvaluations.length} จาก {allEvaluations.length} รายการ
+                </span>
+              ) : (
+                <span />
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                disabled={!hasActiveFilters}
+                className="h-7 px-2 text-xs text-slate-500 gap-1 disabled:opacity-30"
+              >
+                <X className="h-3 w-3" />
+                ล้างตัวกรอง
+              </Button>
+            </div>
+          </div>
+
           <div className="rounded-2xl border border-slate-100 bg-white overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
               <Table>
@@ -370,17 +476,17 @@ export default function EvaluateeHome() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {allEvaluations.length === 0 ? (
+                  {filteredEvaluations.length === 0 ? (
                     <TableRow>
                       <TableCell
                         colSpan={8}
                         className="text-center py-10 text-slate-400"
                       >
-                        ไม่มีข้อมูลประวัติการประเมิน
+                        {allEvaluations.length === 0 ? "ไม่มีข้อมูลประวัติการประเมิน" : "ไม่พบรายการที่ตรงกับตัวกรอง"}
                       </TableCell>
                     </TableRow>
                   ) : (
-                    allEvaluations.map((item: any) => (
+                    filteredEvaluations.map((item: any) => (
                       <TableRow
                         key={item.id}
                         className="hover:bg-slate-50/50 transition-colors border-b border-slate-50 last:border-0 group"

@@ -55,7 +55,7 @@ const EvaluationPage = () => {
         } else {
           url = `evaluation/list?programs=${accessibleProgramIds.join(",")}`;
         }
-        const { data: result } = await apiClient.get(url);
+        const { data: result } = await apiClient.get(url, { params: { excludeDraft: 'true' } });
         if (Array.isArray(result)) {
           setRows(result);
         } else {
