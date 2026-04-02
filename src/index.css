@@ -155,4 +155,229 @@
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
     background-color: hsl(var(--primary) / 0.8);
   }
+
+  @keyframes shimmer {
+    0%   { transform: translateX(-150%); }
+    100% { transform: translateX(150%); }
+  }
+
+  @keyframes skeleton-wave {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  .animate-shimmer {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(
+      90deg,
+      hsl(165 60% 88%) 0%,
+      hsl(165 70% 78%) 20%,
+      hsl(165 80% 92%) 40%,
+      hsl(165 70% 78%) 60%,
+      hsl(165 60% 88%) 80%,
+      hsl(165 70% 78%) 100%
+    );
+    background-size: 400% 100%;
+    animation: skeleton-wave 1.6s ease-in-out infinite;
+  }
+
+  .animate-shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      105deg,
+      transparent 30%,
+      rgba(255, 255, 255, 0.7) 50%,
+      transparent 70%
+    );
+    animation: shimmer 1.6s ease-in-out infinite;
+  }
+
+  /* stagger delays สำหรับ element ลำดับต่างๆ */
+  .animate-shimmer:nth-child(2),
+  .animate-shimmer:nth-child(2)::after { animation-delay: 0.1s; }
+  .animate-shimmer:nth-child(3),
+  .animate-shimmer:nth-child(3)::after { animation-delay: 0.2s; }
+  .animate-shimmer:nth-child(4),
+  .animate-shimmer:nth-child(4)::after { animation-delay: 0.3s; }
+  .animate-shimmer:nth-child(5),
+  .animate-shimmer:nth-child(5)::after { animation-delay: 0.4s; }
+  .animate-shimmer:nth-child(6),
+  .animate-shimmer:nth-child(6)::after { animation-delay: 0.5s; }
+
+  /* ══════════════════════════════════════════
+     SPINNERS
+  ══════════════════════════════════════════ */
+
+  /* 1. Dots ring — จุดวนเป็นวงกลม fade ทีละจุด */
+  @keyframes sp-dots-fade {
+    0%, 100% { opacity: 0.15; transform: scale(0.75); }
+    50%       { opacity: 1;    transform: scale(1); }
+  }
+  .sp-dots-ring {
+    position: relative;
+    width: 40px; height: 40px;
+  }
+  .sp-dots-ring span {
+    position: absolute;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: hsl(var(--accent));
+    animation: sp-dots-fade 1.2s ease-in-out infinite;
+  }
+  .sp-dots-ring span:nth-child(1)  { top:0;     left:50%;  transform:translateX(-50%); animation-delay:0s;     }
+  .sp-dots-ring span:nth-child(2)  { top:15%;   right:4%;  animation-delay:-1.05s;    }
+  .sp-dots-ring span:nth-child(3)  { top:50%;   right:0;   transform:translateY(-50%); animation-delay:-0.9s;  }
+  .sp-dots-ring span:nth-child(4)  { bottom:15%;right:4%;  animation-delay:-0.75s;    }
+  .sp-dots-ring span:nth-child(5)  { bottom:0;  left:50%;  transform:translateX(-50%); animation-delay:-0.6s;  }
+  .sp-dots-ring span:nth-child(6)  { bottom:15%;left:4%;   animation-delay:-0.45s;    }
+  .sp-dots-ring span:nth-child(7)  { top:50%;   left:0;    transform:translateY(-50%); animation-delay:-0.3s;  }
+  .sp-dots-ring span:nth-child(8)  { top:15%;   left:4%;   animation-delay:-0.15s;    }
+
+  /* 2. Bounce dots — 3 จุดกระดอน */
+  @keyframes sp-bounce {
+    0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
+    40%           { transform: scale(1); opacity: 1; }
+  }
+  .sp-bounce { display: flex; gap: 6px; align-items: center; }
+  .sp-bounce span {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: hsl(var(--accent));
+    animation: sp-bounce 1.4s ease-in-out infinite;
+  }
+  .sp-bounce span:nth-child(1) { animation-delay: -0.32s; }
+  .sp-bounce span:nth-child(2) { animation-delay: -0.16s; }
+  .sp-bounce span:nth-child(3) { animation-delay: 0s; }
+
+  /* 3. Ring spinner — วงแหวนหมุน */
+  @keyframes sp-ring-spin {
+    0%   { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  .sp-ring {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: 4px solid hsl(var(--accent) / 0.2);
+    border-top-color: hsl(var(--accent));
+    animation: sp-ring-spin 0.85s linear infinite;
+  }
+
+  /* 4. Dual ring — วงแหวนคู่หมุนสวนทาง */
+  .sp-dual-ring {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: 4px solid transparent;
+    border-top-color: hsl(var(--accent));
+    border-bottom-color: hsl(var(--primary));
+    animation: sp-ring-spin 0.9s linear infinite;
+  }
+
+  /* 5. Ripple — วงกระจาย */
+  @keyframes sp-ripple {
+    0%   { transform: scale(0); opacity: 1; }
+    100% { transform: scale(1); opacity: 0; }
+  }
+  .sp-ripple {
+    position: relative;
+    width: 40px; height: 40px;
+  }
+  .sp-ripple span {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 3px solid hsl(var(--accent));
+    animation: sp-ripple 1.5s ease-out infinite;
+  }
+  .sp-ripple span:nth-child(2) { animation-delay: -0.75s; }
+
+  /* 6. Bar pulse — แท่งกระเพื่อม */
+  @keyframes sp-bar {
+    0%, 100% { transform: scaleY(0.3); opacity: 0.4; }
+    50%       { transform: scaleY(1);   opacity: 1; }
+  }
+  .sp-bars { display: flex; gap: 4px; align-items: center; height: 40px; }
+  .sp-bars span {
+    width: 5px; height: 100%;
+    border-radius: 3px;
+    background: hsl(var(--accent));
+    animation: sp-bar 1.1s ease-in-out infinite;
+  }
+  .sp-bars span:nth-child(1) { animation-delay: -0.45s; }
+  .sp-bars span:nth-child(2) { animation-delay: -0.3s; }
+  .sp-bars span:nth-child(3) { animation-delay: -0.15s; }
+  .sp-bars span:nth-child(4) { animation-delay: 0s; }
+  .sp-bars span:nth-child(5) { animation-delay: 0.15s; }
+
+  /* 7. Orbit — จุดวิ่งรอบวง */
+  @keyframes sp-orbit {
+    0%   { transform: rotate(0deg)   translateX(16px) rotate(0deg); }
+    100% { transform: rotate(360deg) translateX(16px) rotate(-360deg); }
+  }
+  .sp-orbit {
+    position: relative;
+    width: 40px; height: 40px;
+  }
+  .sp-orbit-center {
+    position: absolute;
+    inset: 50%;
+    width: 10px; height: 10px;
+    margin: -5px;
+    border-radius: 50%;
+    background: hsl(var(--accent) / 0.3);
+  }
+  .sp-orbit-dot {
+    position: absolute;
+    inset: 50%;
+    width: 10px; height: 10px;
+    margin: -5px;
+    border-radius: 50%;
+    background: hsl(var(--accent));
+    animation: sp-orbit 1s linear infinite;
+  }
+
+  /* 8. Flip square — สี่เหลี่ยมพลิก */
+  @keyframes sp-flip {
+    0%   { transform: perspective(120px) rotateX(0deg)   rotateY(0deg); }
+    50%  { transform: perspective(120px) rotateX(-180deg) rotateY(0deg); }
+    100% { transform: perspective(120px) rotateX(-180deg) rotateY(-180deg); }
+  }
+  .sp-flip {
+    width: 28px; height: 28px;
+    border-radius: 4px;
+    background: hsl(var(--accent));
+    animation: sp-flip 1.2s ease-in-out infinite;
+  }
+
+  /* 9. Ping pulse — จุดกระพริบขยาย */
+  @keyframes sp-ping {
+    0%   { transform: scale(1);   opacity: 1; }
+    75%  { transform: scale(2.2); opacity: 0; }
+    100% { transform: scale(2.2); opacity: 0; }
+  }
+  .sp-ping {
+    position: relative;
+    width: 20px; height: 20px;
+  }
+  .sp-ping span {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: hsl(var(--accent));
+  }
+  .sp-ping span:first-child { animation: sp-ping 1.2s cubic-bezier(0,0,0.2,1) infinite; opacity: 0.6; }
+
+  /* 10. Diamond rotate — เพชรหมุน */
+  @keyframes sp-diamond {
+    0%   { transform: rotate(0deg)   scale(1); }
+    50%  { transform: rotate(180deg) scale(0.7); }
+    100% { transform: rotate(360deg) scale(1); }
+  }
+  .sp-diamond {
+    width: 24px; height: 24px;
+    background: hsl(var(--accent));
+    animation: sp-diamond 1.1s ease-in-out infinite;
+  }
 }

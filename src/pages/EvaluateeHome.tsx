@@ -9,7 +9,6 @@ import {
   ClipboardCheck,
   CalendarDays,
   ArrowRight,
-  Loader2,
   Pencil,
   Plus,
   Eye,
@@ -19,6 +18,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PageLoading } from "@/components/ui/page-loading";
 import {
   Table,
   TableBody,
@@ -224,11 +224,7 @@ export default function EvaluateeHome() {
   }, [allEvaluations]);
 
   if (regLoading || evaluationsLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-full py-24">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <PageLoading />;
   }
 
   if (!hasAccess) {

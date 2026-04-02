@@ -61,6 +61,7 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import apiClient from "@/lib/axios";
 import { useQuery } from "@tanstack/react-query";
@@ -137,7 +138,7 @@ export default function ProjectRegistrationDialog({
   const [juristicChecking, setJuristicChecking] = useState(false);
   const juristicDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pendingFiles, setPendingFiles] = useState<Record<string, File>>({});
-  const [uploadingMap, setUploadingMap] = useState<Record<string, boolean>>({});
+  const [uploadingMap, setUploadingMap] = useState<Record<string, number>>({});
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const { data: programs = [] } = useQuery({
@@ -322,19 +323,25 @@ export default function ProjectRegistrationDialog({
       // Upload pending documents via BE API
       const uploadEntries = Object.entries(pendingFiles);
       for (const [templateId, file] of uploadEntries) {
-        setUploadingMap((prev) => ({ ...prev, [templateId]: true }));
+        setUploadingMap((prev) => ({ ...prev, [templateId]: 0 }));
         try {
           const formData = new FormData();
           formData.append("file", file);
           await apiClient.post(
             `registration-documents?registrationId=${registration.id}&documentTemplateId=${templateId}`,
             formData,
-            { headers: { "Content-Type": "multipart/form-data" } },
+            {
+              headers: { "Content-Type": "multipart/form-data" },
+              onUploadProgress: (e) => {
+                const pct = e.total ? Math.round((e.loaded / e.total) * 100) : 50;
+                setUploadingMap((prev) => ({ ...prev, [templateId]: pct }));
+              },
+            },
           );
         } catch {
           // Continue uploading other files even if one fails
         }
-        setUploadingMap((prev) => ({ ...prev, [templateId]: false }));
+        setUploadingMap((prev) => { const n = { ...prev }; delete n[templateId]; return n; });
       }
 
       toast({
@@ -1050,7 +1057,8 @@ export default function ProjectRegistrationDialog({
                   <div className="rounded-xl border border-border/60 bg-muted/30 p-4 space-y-3">
                     {documentTemplates.map((tpl, idx) => {
                       const pendingFile = pendingFiles[tpl.id];
-                      const isUploading = uploadingMap[tpl.id];
+                      const uploadPct = uploadingMap[tpl.id];
+                      const isUploading = uploadPct !== undefined;
                       return (
                         <div key={tpl.id} className="border rounded-lg p-3 space-y-2 bg-background">
                           <div className="flex items-start justify-between gap-2">
@@ -1109,21 +1117,26 @@ export default function ProjectRegistrationDialog({
                                   e.target.value = "";
                                 }}
                               />
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="text-xs"
-                                disabled={isUploading}
-                                onClick={() => fileInputRefs.current[tpl.id]?.click()}
-                              >
-                                {isUploading ? (
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
-                                ) : (
+                              {isUploading ? (
+                                <div className="space-y-1.5">
+                                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                    <span className="flex items-center gap-1.5"><Loader2 className="h-3 w-3 animate-spin" />กำลังอัปโหลด...</span>
+                                    <span>{uploadPct}%</span>
+                                  </div>
+                                  <Progress value={uploadPct} className="h-1.5" />
+                                </div>
+                              ) : (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs"
+                                  onClick={() => fileInputRefs.current[tpl.id]?.click()}
+                                >
                                   <Upload className="h-3.5 w-3.5 mr-1" />
-                                )}
-                                อัปโหลดไฟล์
-                              </Button>
+                                  อัปโหลดไฟล์
+                                </Button>
+                              )}
                               {tpl.isRequired && !pendingFile && (
                                 <span className="text-[11px] text-destructive flex items-center gap-1 mt-1">
                                   <AlertCircle className="h-3 w-3" />
