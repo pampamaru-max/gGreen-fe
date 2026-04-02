@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, FileUp, ExternalLink, FileText } from "lucide-react";
+import { Plus, Pencil, FileUp, ExternalLink, FileText } from "lucide-react";
+import { AlertActionPopup } from "@/components/AlertActionPopup";
 
 interface Program { id: string; name: string; }
 interface DocTemplate {
@@ -223,12 +224,20 @@ export default function SettingsDocuments() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => openEdit(doc)}>
+                          <Button
+                            variant="ghost"
+                            size="icon" 
+                            className="shrink-0 text-muted-foreground hover:text-foreground"
+                            onClick={() => openEdit(doc)}
+                          >
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(doc)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          <AlertActionPopup
+                            action={() => handleDelete(doc)}
+                            type="delete"
+                            title="ยืนยันการลบรายการ"
+                            description={`ต้องการลบเอกสาร "${doc.name}" หรือไม่?`}
+                          />
                         </div>
                       </TableCell>
                     </TableRow>

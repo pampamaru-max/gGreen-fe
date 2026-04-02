@@ -13,13 +13,14 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  Plus, Pencil, Trash2, GripVertical, X, Upload, FileText, Loader2,
+  Plus, Pencil, GripVertical, X, Upload, FileText, Loader2,
   Building2, UtensilsCrossed, Home, Factory, Trees, Recycle, Award, Star,
   ClipboardCheck, Leaf, ShoppingBag, Landmark, Globe, Sun, Wind, Droplets,
   Sprout, Hotel, FlameKindling, Bike, Bus, Car, Package, Truck,
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { AlertActionPopup } from "@/components/AlertActionPopup";
 
 /* ── Icon picker ── */
 const ICON_OPTIONS: { name: string; Icon: LucideIcon }[] = [
@@ -147,7 +148,12 @@ function SortableGuidelineCard({
             placeholder="ชื่อหัวข้อ..."
             className="flex-1 text-sm"
           />
-          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => onRemove(index)}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0"
+            onClick={() => onRemove(index)}
+          >
             <X className="h-3.5 w-3.5" />
           </Button>
         </div>
@@ -210,12 +216,20 @@ function SortableProgramCard({ program, onEdit, onDelete }: { program: Program; 
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <Button variant="ghost" size="icon" onClick={() => onEdit(program)}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="shrink-0 text-muted-foreground hover:text-foreground"
+            onClick={() => onEdit(program)}
+          >
             <Pencil className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => onDelete(program)}>
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          <AlertActionPopup
+            type="delete"
+            action={() => onDelete(program)}
+            title="ยืนยันการลบโครงการ"
+            description={`ต้องการลบโครงการ "${program.name}" หรือไม่?`}
+          />
         </div>
       </CardContent>
     </Card>
@@ -392,7 +406,7 @@ export default function SettingsPrograms() {
       setForm((f) => ({
         ...f,
         guidelines: f.guidelines.map((g, i) =>
-          i === guidelineIndex ? { ...g, files: [...g.files, ...newFiles] } : g
+          i === guidelineIndex ? { ...g, files: [...g.files, ...newFiles] } : g,
         ),
       }));
     } catch (err: any) {
@@ -501,11 +515,12 @@ export default function SettingsPrograms() {
             <SortableContext items={programs.map((p) => p.id)} strategy={verticalListSortingStrategy}>
               <div className="grid gap-3">
                 {programs.map((p) => (
-                  <SortableProgramCard key={p.id} program={p} onEdit={openEdit} onDelete={(prog) => {
-                    if (confirm(`ต้องการลบโครงการ "${prog.name}" หรือไม่?`)) {
-                      deleteMutation.mutate(prog.id);
-                    }
-                  }} />
+                  <SortableProgramCard
+                    key={p.id}
+                    program={p}
+                    onEdit={openEdit}
+                    onDelete={(prog) => deleteMutation.mutate(prog.id)}
+                  />
                 ))}
               </div>
             </SortableContext>
