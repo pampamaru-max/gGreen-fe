@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Building2, UtensilsCrossed, Home, Factory, Trees, Recycle, Award, ArrowRight, Star, ClipboardCheck, MapPin, Calendar, Phone, Users, ShieldCheck, Loader2, UserPlus } from "lucide-react";
+import { Building2, UtensilsCrossed, Home, Factory, Trees, Recycle, Award, ArrowRight, Star, ClipboardCheck, MapPin, Calendar, Phone, Users, ShieldCheck, UserPlus } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import apiClient from "@/lib/axios";
@@ -77,7 +78,17 @@ export default function HomePage() {
         </TabsList>
         <TabsContent value="programs">
           {programsLoading ? (
-            <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Card key={i} className="border-border/60">
+                  <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center gap-2">
+                    <Skeleton className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl" />
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-3 w-16 hidden sm:block" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
               {programs.map((p) => {

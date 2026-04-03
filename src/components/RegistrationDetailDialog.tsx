@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Upload, FileText, Trash2, Loader2, Download, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import apiClient from "@/lib/axios";
 import { useQuery } from "@tanstack/react-query";
@@ -75,7 +76,7 @@ export default function RegistrationDetailDialog({ registration, programName, op
   const [templates, setTemplates] = useState<DocumentTemplate[]>([]);
   const [documents, setDocuments] = useState<RegistrationDocument[]>([]);
   const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState<Record<string, boolean>>({});
+  const [uploading, setUploading] = useState<Record<string, number>>({});
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -127,7 +128,7 @@ export default function RegistrationDetailDialog({ registration, programName, op
 
   const handleUpload = async (templateId: string, file: File) => {
     if (!registration) return;
-    setUploading((prev) => ({ ...prev, [templateId]: true }));
+    setUploading((prev) => ({ ...prev, [templateId]: 0 }));
 
     try {
       const formData = new FormData();
@@ -135,7 +136,13 @@ export default function RegistrationDetailDialog({ registration, programName, op
       const { data: newDoc } = await apiClient.post(
         `registration-documents?registrationId=${registration.id}&documentTemplateId=${templateId}`,
         formData,
-        { headers: { "Content-Type": "multipart/form-data" } },
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+          onUploadProgress: (e) => {
+            const pct = e.total ? Math.round((e.loaded / e.total) * 100) : 50;
+            setUploading((prev) => ({ ...prev, [templateId]: pct }));
+          },
+        },
       );
       setDocuments((prev) => [
         ...prev.filter((d) => d.documentTemplateId !== templateId),
@@ -151,7 +158,7 @@ export default function RegistrationDetailDialog({ registration, programName, op
     } catch (err: any) {
       toast.error("อัปโหลดไฟล์ไม่สำเร็จ: " + (err.response?.data?.message ?? err.message));
     } finally {
-      setUploading((prev) => ({ ...prev, [templateId]: false }));
+      setUploading((prev) => { const n = { ...prev }; delete n[templateId]; return n; });
     }
   };
 
@@ -295,7 +302,8 @@ export default function RegistrationDetailDialog({ registration, programName, op
             <div className="space-y-3">
               {templates.map((tpl, idx) => {
                 const doc = getDocForTemplate(tpl.id);
-                const isUploading = uploading[tpl.id];
+                const uploadPct = uploading[tpl.id];
+                const isUploading = uploadPct !== undefined;
 
                 return (
                   <div
@@ -359,20 +367,25 @@ export default function RegistrationDetailDialog({ registration, programName, op
                             e.target.value = "";
                           }}
                         />
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-xs"
-                          disabled={isUploading}
-                          onClick={() => fileInputRefs.current[tpl.id]?.click()}
-                        >
-                          {isUploading ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
-                          ) : (
+                        {isUploading ? (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                              <span className="flex items-center gap-1.5"><Loader2 className="h-3 w-3 animate-spin" />กำลังอัปโหลด...</span>
+                              <span>{uploadPct}%</span>
+                            </div>
+                            <Progress value={uploadPct} className="h-1.5" />
+                          </div>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs"
+                            onClick={() => fileInputRefs.current[tpl.id]?.click()}
+                          >
                             <Upload className="h-3.5 w-3.5 mr-1" />
-                          )}
-                          อัปโหลดไฟล์
-                        </Button>
+                            อัปโหลดไฟล์
+                          </Button>
+                        )}
                         {tpl.isRequired && !doc && (
                           <span className="text-[11px] text-destructive flex items-center gap-1 mt-1">
                             <AlertCircle className="h-3 w-3" />

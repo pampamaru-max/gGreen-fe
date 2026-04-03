@@ -645,15 +645,9 @@ const EvaluationByProgramPage = () => {
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
                 {programScoringType === 'yes_no' ? "วิธีคำนวณ (สอดคล้อง)" : isYesNoProgram ? "วิธีคำนวณ (ผ่าน/ไม่ผ่าน)" : "วิธีคำนวณ (คะแนน)"}
               </p>
-              <p className="text-sm font-mono font-semibold text-foreground">
-                {displayCommitteeTotal}/{displayMax}{(programScoringType === 'yes_no' || isYesNoProgram) ? " ข้อ" : ""} = {displayCommitteePct}%
-              </p>
               {programScoringType === 'yes_no' && <p className="text-[10px] font-bold text-red-600">*ต้องสอดคล้องครบทุกข้อ</p>}
               {programScoringType !== 'yes_no' && !isYesNoProgram && grandMax > 0 && (
-                <>
-                  <p className="text-[10px] text-muted-foreground">คะแนนดิบ {grandCommitteeTotal} ÷ {grandMax}</p>
-                  <p className="text-[10px] font-bold text-red-600">{grandMax === 100 ? "*คำนวนแบบคะแนนเต็มหมวด" : "*คำนวนแบบคะแนนไม่เต็มหมวด"}</p>
-                </>
+                <p className="text-[10px] font-bold text-red-600">{grandMax === 100 ? "*คำนวนแบบคะแนนเต็มหมวด" : "*คำนวนแบบคะแนนไม่เต็มหมวด"}</p>
               )}
             </div>
           )}

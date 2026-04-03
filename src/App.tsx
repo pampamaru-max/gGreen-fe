@@ -29,6 +29,7 @@ import RegistrationManagement from "@/pages/RegistrationManagement";
 import SettingsUsers from "@/pages/SettingsUsers";
 import SettingsProjectDuration from "@/pages/SettingsProjectDuration";
 import NotFound from "./pages/NotFound";
+import LoadingPreviewPage from "@/pages/LoadingPreviewPage";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,7 @@ const App = () => (
             <Route path="/reports/participants" element={<ReportParticipants />} />
             <Route path="/reports/all-green" element={<ReportAllGreen />} />
             <Route path="/certificate/print/:id" element={<PrintCertificate />} />
+            <Route path="/dev/loading-preview" element={<LoadingPreviewPage />} />
 
             {/* Protected routes - with sidebar */}
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>

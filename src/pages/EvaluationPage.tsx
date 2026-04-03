@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ClipboardCheck, Loader2, Plus, Pencil, Search, X, Eye, BarChart2 } from "lucide-react";
+import { ClipboardCheck, Plus, Pencil, Search, X, Eye, BarChart2 } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PageLoading } from "@/components/ui/page-loading";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import apiClient from "@/lib/axios";
 
@@ -54,7 +55,7 @@ const EvaluationPage = () => {
         } else {
           url = `evaluation/list?programs=${accessibleProgramIds.join(",")}`;
         }
-        const { data: result } = await apiClient.get(url);
+        const { data: result } = await apiClient.get(url, { params: { excludeDraft: 'true' } });
         if (Array.isArray(result)) {
           setRows(result);
         } else {
@@ -133,11 +134,7 @@ const EvaluationPage = () => {
   };
 
   if (loading || roleLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <PageLoading />;
   }
 
   return (

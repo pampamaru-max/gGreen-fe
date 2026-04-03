@@ -7,6 +7,7 @@ import {
   Loader2,
   Calendar,
   ArrowLeft,
+  AlertCircle,
 } from "lucide-react";
 import {
   Dialog,
@@ -31,6 +32,7 @@ interface EvaluationTypeDialogProps {
   open: boolean;
   onClose: () => void;
   programId: string;
+  usedYears?: number[];
 }
 
 interface TypeOption {
@@ -46,26 +48,26 @@ export default function EvaluationTypeDialog({
   open,
   onClose,
   programId,
+  usedYears = [],
 }: EvaluationTypeDialogProps) {
   const navigate = useNavigate();
   const [eligibility, setEligibility] = useState<Eligibility | null>(null);
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<"type" | "year">("type");
   const currentYear = new Date().getFullYear();
-  const years = useMemo(()=>{
+  const years = useMemo(() => {
     const list = [];
-    const backRange = 10;
-    for (let i = 0 ; i <= backRange ; i++){
+    for (let i = 0; i <= 10; i++) {
       list.push(currentYear - i);
     }
-    return list;
-  },[currentYear])
-  const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+    return list.filter((y) => !usedYears.includes(y));
+  }, [currentYear, usedYears]);
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
 
   useEffect(() => {
     if (!open) {
       setStep("type");
-      setSelectedYear(currentYear);
+      setSelectedYear(null);
       return;
     }
     if (!programId) return;
@@ -192,17 +194,27 @@ export default function EvaluationTypeDialog({
           </div>
         ) : (
           <div className="flex flex-col gap-3 py-2">
-            <p className="text-sm text-slate-500 mb-2">
+            <p className="text-sm text-slate-500">
               กรุณาเลือกปีงบประมาณที่ต้องการเริ่มประเมินใหม่
             </p>
-            <div className="grid grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-1">
+            {usedYears.length > 0 && (
+              <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5">
+                <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                <p className="text-xs text-red-600 leading-relaxed">
+                  <span className="font-bold">ไม่สามารถเลือกปีที่มีใบประเมินอยู่แล้วได้</span>
+                  <br />
+                  ปีที่ถูกใช้แล้ว: {usedYears.map((y) => `พ.ศ. ${y + 543}`).join(", ")}
+                </p>
+              </div>
+            )}
+            <div className="flex flex-col gap-3">
               <Select onValueChange={(val) => setSelectedYear(Number(val))}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="เลือกปี" />
                 </SelectTrigger>
                 <SelectContent>
                   {years.map((y) => (
-                    <SelectItem key={y} value={String(y)} className="text-base">
+                    <SelectItem key={y} value={String(y)}>
                       ปี {y + 543} {y === currentYear ? "(ปีปัจจุบัน)" : ""}
                     </SelectItem>
                   ))}
@@ -211,9 +223,9 @@ export default function EvaluationTypeDialog({
 
               <Button
                 disabled={!selectedYear}
-                onClick={()=>{
+                onClick={() => {
                   onClose();
-                  navigate('/register/evaluate?type=new&year=${selectedYear}');
+                  navigate(`/register/evaluate?type=new&year=${selectedYear}`);
                 }}
               >
                 ยืนยัน

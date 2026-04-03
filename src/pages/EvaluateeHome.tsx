@@ -9,16 +9,18 @@ import {
   ClipboardCheck,
   CalendarDays,
   ArrowRight,
-  Loader2,
   Pencil,
   Plus,
   Eye,
   ListChecks,
   Printer,
+  X,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PageLoading } from "@/components/ui/page-loading";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -63,6 +65,11 @@ export default function EvaluateeHome() {
   const [reg, setReg] = useState<Registration | null>(null);
   const [regLoading, setRegLoading] = useState(true);
   const [evalTypeDialogOpen, setEvalTypeDialogOpen] = useState(false);
+
+  // Filter states
+  const [filterYear, setFilterYear] = useState<string>("all");
+  const [filterSelfStatus, setFilterSelfStatus] = useState<string>("all");
+  const [filterCommitteeStatus, setFilterCommitteeStatus] = useState<string>("all");
 
   const { data: provinces = [] } = useQuery({
     queryKey: ["provinces"],
@@ -138,6 +145,43 @@ export default function EvaluateeHome() {
         return (a.program_name || "").localeCompare(b.program_name || "");
       });
   }, [evaluations, reg, user?.name]);
+
+  // Derived year options from allEvaluations
+  const yearOptions = useMemo(() => {
+    const years = allEvaluations
+      .map((e: any) => e.year)
+      .filter((y: any) => typeof y === "number" && y > 0);
+    return [...new Set(years)].sort((a: any, b: any) => b - a);
+  }, [allEvaluations]);
+
+  // Filtered evaluations
+  const filteredEvaluations = useMemo(() => {
+    return allEvaluations.filter((item: any) => {
+      if (filterYear !== "all" && String(item.year) !== filterYear) return false;
+      if (filterSelfStatus !== "all") {
+        const s = item.evaluation_status;
+        if (filterSelfStatus === "none" && s) return false;
+        if (filterSelfStatus === "draft" && s !== "draft") return false;
+        if (filterSelfStatus === "revision" && s !== "revision") return false;
+        if (filterSelfStatus === "submitted" && s !== "submitted" && s !== "submit") return false;
+        if (filterSelfStatus === "completed" && s !== "completed" && s !== "complete") return false;
+      }
+      if (filterCommitteeStatus !== "all") {
+        const hasScore = !!item.total_committee_score || item.has_committee_score;
+        if (filterCommitteeStatus === "done" && !hasScore) return false;
+        if (filterCommitteeStatus === "none" && hasScore) return false;
+      }
+      return true;
+    });
+  }, [allEvaluations, filterYear, filterSelfStatus, filterCommitteeStatus]);
+
+  const hasActiveFilters = filterYear !== "all" || filterSelfStatus !== "all" || filterCommitteeStatus !== "all";
+
+  const clearFilters = () => {
+    setFilterYear("all");
+    setFilterSelfStatus("all");
+    setFilterCommitteeStatus("all");
+  };
 
   const evaluationStatusMap: Record<
     string,
@@ -224,11 +268,7 @@ export default function EvaluateeHome() {
   }, [allEvaluations]);
 
   if (regLoading || evaluationsLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-full py-24">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <PageLoading />;
   }
 
   if (!hasAccess) {
@@ -253,124 +293,77 @@ export default function EvaluateeHome() {
             </h1>
           </div>
 
-          <div className="rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-500 to-emerald-500 pr-[4px] pb-[4px]">
+          <div className="rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-500 to-emerald-500 pr-[3px] pb-[3px]">
             <Card className="overflow-hidden border-none shadow-sm bg-white rounded-xl h-full w-full">
               <CardContent className="p-0">
-                {/* Org Header */}
-                <div className="p-8 border-b border-slate-50 flex items-start gap-6 bg-gradient-to-br from-white to-slate-50/50">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white border border-slate-100 shrink-0 shadow-sm">
-                    <Building2 className="h-8 w-8 text-emerald-500" />
-                  </div>
-                  <div className="flex-1 min-w-0 pt-1">
-                    <div className="flex items-center gap-3 flex-wrap mb-1.5">
-                      <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
-                        {reg?.organizationName ?? user?.name ?? "-"}
-                      </h2>
-                      <Badge className="bg-blue-600 hover:bg-blue-700 text-white border-none px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider">
-                        {regStatus.label}
-                      </Badge>
+                {/* Org Header + Info compact row */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-br from-white to-slate-50/40">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 border border-emerald-100 shrink-0">
+                      <Building2 className="h-5 w-5 text-emerald-500" />
                     </div>
-                    <p className="text-sm font-semibold text-slate-400 uppercase tracking-[0.1em]">
-                      {reg?.organizationType || "General Organization"}
-                    </p>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 className="text-base font-bold text-slate-900 truncate">
+                          {reg?.organizationName ?? user?.name ?? "-"}
+                        </h2>
+                        <Badge className="bg-blue-600 hover:bg-blue-700 text-white border-none px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shrink-0">
+                          {regStatus.label}
+                        </Badge>
+                      </div>
+                      <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">
+                        {reg?.organizationType || "General Organization"}
+                      </p>
+                    </div>
                   </div>
                 </div>
 
-                {/* Info Tiles Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-0 divide-y sm:divide-y-0 sm:divide-x border-b border-slate-50">
-                  <InfoTile
-                    icon={
-                      <ClipboardCheck className="h-5 w-5 text-emerald-500" />
-                    }
-                    label="โครงการ"
-                  >
-                    <span className="text-base font-bold text-slate-700">
-                      {reg?.programName ?? programId}
-                    </span>
+                {/* Info Tiles Grid — compact */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 border-b border-slate-100">
+                  <InfoTile icon={<ClipboardCheck className="h-4 w-4 text-emerald-500" />} label="โครงการ">
+                    <span className="text-sm font-bold text-slate-700 truncate">{reg?.programName ?? programId}</span>
                   </InfoTile>
-                  <InfoTile
-                    icon={<MapPin className="h-5 w-5 text-emerald-500" />}
-                    label="จังหวัด"
-                  >
-                    <span className="text-base font-bold text-slate-700">
+                  <InfoTile icon={<MapPin className="h-4 w-4 text-emerald-500" />} label="จังหวัด">
+                    <span className="text-sm font-bold text-slate-700">
                       {(() => {
                         const pValue = reg?.province ?? user?.province;
-                        const found = provinces.find(
-                          (p: any) =>
-                            String(p.code) === pValue || p.name === pValue,
-                        );
+                        const found = provinces.find((p: any) => String(p.code) === pValue || p.name === pValue);
                         return found ? found.name : (pValue ?? "-");
                       })()}
                     </span>
                   </InfoTile>
-                  <InfoTile
-                    icon={<User className="h-5 w-5 text-emerald-500" />}
-                    label="ผู้ติดต่อ"
-                  >
-                    <div className="flex flex-col">
-                      <span className="text-base font-bold text-slate-700 truncate">
-                        {reg?.contactName ?? user?.name ?? "-"}
-                      </span>
-                      <span className="text-xs text-slate-400 font-medium truncate">
-                        {reg?.contactEmail ?? user?.email ?? "-"}
-                      </span>
-                    </div>
+                  <InfoTile icon={<User className="h-4 w-4 text-emerald-500" />} label="ผู้ติดต่อ">
+                    <span className="text-sm font-bold text-slate-700 truncate">{reg?.contactName ?? user?.name ?? "-"}</span>
+                    <span className="text-[11px] text-slate-400 truncate">{reg?.contactEmail ?? user?.email ?? "-"}</span>
                   </InfoTile>
-                  <InfoTile
-                    icon={<CalendarDays className="h-5 w-5 text-emerald-500" />}
-                    label="วันที่เข้าร่วม"
-                  >
-                    <span className="text-base font-bold text-slate-700">
+                  <InfoTile icon={<CalendarDays className="h-4 w-4 text-emerald-500" />} label="วันที่เข้าร่วม">
+                    <span className="text-sm font-bold text-slate-700">
                       {reg
-                        ? new Date(reg.createdAt).toLocaleDateString("th-TH", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          })
-                        : new Date(
-                            user?.createdAt ?? Date.now(),
-                          ).toLocaleDateString("th-TH", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          })}
+                        ? new Date(reg.createdAt).toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric" })
+                        : new Date(user?.createdAt ?? Date.now()).toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric" })}
                     </span>
                   </InfoTile>
                 </div>
 
-                {/* CTA Section */}
+                {/* CTA Section — compact */}
                 {(!reg || reg.status === "selected") && (
-                  <div className="p-6 bg-slate-50/30">
-                    <div className="flex flex-col md:flex-row items-center justify-between gap-6 rounded-2xl bg-white border border-slate-100 p-6 shadow-sm">
-                      <div className="space-y-1 text-center md:text-left">
-                        <p className="text-lg font-bold text-slate-800">
-                          {isDrafting
-                            ? "คุณมีแบบประเมินที่ยังดำเนินการค้างอยู่"
-                            : "พร้อมประเมินตนเองแล้วหรือยัง?"}
-                        </p>
-                        <p className="text-sm text-slate-500 font-medium">
-                          {isDrafting
-                            ? "กรุณาดำเนินการในส่วน 'ประวัติการประเมิน' ด้านล่างให้เสร็จสิ้นก่อนเริ่มรายงานใหม่"
-                            : `กรอกแบบประเมินตนเองสำหรับโครงการ ${reg?.programName || programId}`}
-                        </p>
-                      </div>
-                      <Button
-                        disabled={isDrafting}
-                        onClick={() => setEvalTypeDialogOpen(true)}
-                        className={`font-bold px-8 py-6 rounded-xl shadow-lg transition-all gap-2.5 w-full md:w-auto
-                          ${
-                            isDrafting
-                              ? "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
-                              : "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-100 hover:translate-y-[-2px] active:translate-y-0"
-                          }`}
-                      >
-                        <ClipboardCheck className="h-5 w-5" />
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-3">
+                    <div className="text-center sm:text-left">
+                      <p className="text-sm font-bold text-slate-700">พร้อมประเมินตนเองแล้วหรือยัง?</p>
+                      <p className="text-xs text-slate-400">
                         {isDrafting
-                          ? "คุณมีแบบประเมินที่กำลังดำเนินการ"
-                          : "เริ่มประเมินตนเอง"}
-                        <ArrowRight className="h-5 w-5" />
-                      </Button>
+                          ? "มีแบบประเมินค้างอยู่ — สามารถเริ่มปีใหม่ได้หากเลือกปีอื่น"
+                          : `กรอกแบบประเมินสำหรับโครงการ ${reg?.programName || programId}`}
+                      </p>
                     </div>
+                    <Button
+                      onClick={() => setEvalTypeDialogOpen(true)}
+                      className="font-bold px-5 py-2 h-9 rounded-lg shadow transition-all gap-2 w-full sm:w-auto shrink-0 text-sm bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      <ClipboardCheck className="h-4 w-4" />
+                      เริ่มประเมินตนเอง
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
                   </div>
                 )}
               </CardContent>
@@ -387,6 +380,68 @@ export default function EvaluateeHome() {
             <h2 className="text-xl font-bold text-slate-800 tracking-tight">
               ประวัติการประเมิน
             </h2>
+          </div>
+
+          {/* Filters */}
+          <div className="space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <Select value={filterYear} onValueChange={setFilterYear}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="ปี" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">ทุกปี</SelectItem>
+                  {yearOptions.map((y: any) => (
+                    <SelectItem key={y} value={String(y)}>{y + 543}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={filterSelfStatus} onValueChange={setFilterSelfStatus}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="สถานะประเมินตนเอง" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">สถานะประเมินตนเองทั้งหมด</SelectItem>
+                  <SelectItem value="none">ยังไม่เริ่ม</SelectItem>
+                  <SelectItem value="draft">ร่าง</SelectItem>
+                  <SelectItem value="revision">ส่งกลับแก้ไข</SelectItem>
+                  <SelectItem value="submitted">รอผู้ประเมิน</SelectItem>
+                  <SelectItem value="completed">ประเมินเสร็จสิ้น</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={filterCommitteeStatus} onValueChange={setFilterCommitteeStatus}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="สถานะกรรมการ" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">สถานะกรรมการทั้งหมด</SelectItem>
+                  <SelectItem value="none">ยังไม่ได้ประเมิน</SelectItem>
+                  <SelectItem value="done">ประเมินแล้ว</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center justify-between min-h-[28px]">
+              {hasActiveFilters ? (
+                <span className="text-xs text-slate-400">
+                  แสดง {filteredEvaluations.length} จาก {allEvaluations.length} รายการ
+                </span>
+              ) : (
+                <span />
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                disabled={!hasActiveFilters}
+                className="h-7 px-2 text-xs text-slate-500 gap-1 disabled:opacity-30"
+              >
+                <X className="h-3 w-3" />
+                ล้างตัวกรอง
+              </Button>
+            </div>
           </div>
 
           <div className="rounded-2xl border border-slate-100 bg-white overflow-hidden shadow-sm">
@@ -421,17 +476,17 @@ export default function EvaluateeHome() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {allEvaluations.length === 0 ? (
+                  {filteredEvaluations.length === 0 ? (
                     <TableRow>
                       <TableCell
                         colSpan={8}
                         className="text-center py-10 text-slate-400"
                       >
-                        ไม่มีข้อมูลประวัติการประเมิน
+                        {allEvaluations.length === 0 ? "ไม่มีข้อมูลประวัติการประเมิน" : "ไม่พบรายการที่ตรงกับตัวกรอง"}
                       </TableCell>
                     </TableRow>
                   ) : (
-                    allEvaluations.map((item: any) => (
+                    filteredEvaluations.map((item: any) => (
                       <TableRow
                         key={item.id}
                         className="hover:bg-slate-50/50 transition-colors border-b border-slate-50 last:border-0 group"
@@ -553,6 +608,7 @@ export default function EvaluateeHome() {
           open={evalTypeDialogOpen}
           onClose={() => setEvalTypeDialogOpen(false)}
           programId={programId}
+          usedYears={evaluations.map((e: any) => e.year).filter((y: any) => typeof y === "number" && y > 0)}
         />
       )}
     </div>
@@ -570,17 +626,15 @@ function InfoTile({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-start gap-4 p-6 transition-all hover:bg-slate-50/50 group">
-      <div className="mt-0.5 shrink-0 p-2.5 rounded-xl bg-slate-50 border border-slate-100 group-hover:bg-white group-hover:shadow-sm transition-all">
+    <div className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50/50 transition-colors group">
+      <div className="shrink-0 p-1.5 rounded-lg bg-slate-50 border border-slate-100 group-hover:bg-white transition-all">
         {icon}
       </div>
-      <div className="flex flex-col gap-0.5 min-w-0 overflow-hidden">
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">
+      <div className="flex flex-col min-w-0 overflow-hidden">
+        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-tight">
           {label}
         </p>
-        <div className="flex flex-col justify-center min-h-[1.5rem]">
-          {children}
-        </div>
+        <div className="flex flex-col">{children}</div>
       </div>
     </div>
   );
