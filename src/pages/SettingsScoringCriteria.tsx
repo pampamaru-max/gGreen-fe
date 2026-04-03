@@ -92,7 +92,7 @@ const LevelFormDialog = ({
       return;
     } else if (max > 100 || min > 100) {
       toast({
-        title: "ไม่สารถใส่คะแนนมากกว่า 100 ได้",
+        title: "ไม่สามารถใส่คะแนนมากกว่า 100 ได้",
         variant: "destructive",
       });
       return;
@@ -267,7 +267,7 @@ const ScoreBar = ({ levels }: { levels: ScoringLevel[] }) => (
       ) : (
         levels.map((level) => {
           const left = level.minScore;
-          const width = Math.max(0, level.maxScore - level.minScore);
+          const width = Math.max(0, level.maxScore - level.minScore + 1);
           return (
             <div
               key={level.id}
@@ -285,12 +285,25 @@ const ScoreBar = ({ levels }: { levels: ScoringLevel[] }) => (
         })
       )}
     </div>
-    <div className="flex justify-between mt-1 text-[10px] text-muted-foreground">
-      <span>0%</span>
-      <span>25%</span>
-      <span>50%</span>
-      <span>75%</span>
-      <span>100%</span>
+    <div className="relative mt-1 h-4">
+      {levels.map((level) => {
+        const left = level.minScore;
+        const width = Math.max(0, level.maxScore - level.minScore + 1);
+
+        return (
+          <div
+            key={level.id}
+            className="absolute text-[10px] text-muted-foreground flex justify-between px-1"
+            style={{
+              left: `${left}%`,
+              width: `${width}%`,
+            }}
+          >
+            <span>{level.minScore}%</span>
+            <span>{level.maxScore}%</span>
+          </div>
+        );
+      })}
     </div>
   </div>
 );
@@ -339,6 +352,7 @@ const SettingsScoringCriteria = () => {
       toast({
         title: "บันทึกสำเร็จ",
         description: `เปลี่ยนรูปแบบเกณฑ์การประเมินเป็น ${type === 'score' ? 'เกณฑ์คะแนน' : 'สอดคล้อง / ไม่สอดคล้อง'} เรียบร้อยแล้ว`,
+        variant: "success",
       });
     } catch (error: any) {
       console.error("Failed to update program scoring type:", error);
@@ -389,7 +403,7 @@ const SettingsScoringCriteria = () => {
         sortOrder: nextOrder,
       });
 
-      toast({ title: "เพิ่มระดับสำเร็จ" });
+      toast({ title: "เพิ่มระดับสำเร็จ", variant: "success" });
       fetchAll();
     } catch (error: any) {
       toast({
@@ -406,7 +420,7 @@ const SettingsScoringCriteria = () => {
   ) => {
     try {
       await apiClient.patch(`scoring-levels/${id}`, data);
-      toast({ title: "แก้ไขระดับสำเร็จ" });
+      toast({ title: "แก้ไขระดับสำเร็จ", variant: "success" });
       fetchAll();
     } catch (error: any) {
       toast({
@@ -420,7 +434,7 @@ const SettingsScoringCriteria = () => {
   const handleDelete = async (id: number) => {
     try {
       await apiClient.delete(`scoring-levels/${id}`);
-      toast({ title: "ลบระดับสำเร็จ" });
+      toast({ title: "ลบระดับสำเร็จ", variant: "success" });
       fetchAll();
     } catch (error: any) {
       toast({

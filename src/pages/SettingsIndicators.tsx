@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/collapsible";
 import AddTopicWithIndicatorsDialog from "@/components/AddTopicWithIndicatorsDialog";
 import { AlertActionPopup } from "@/components/AlertActionPopup";
+import { formatNumber } from "@/helpers/functions";
 
 interface DbProgram {
   id: string;
@@ -126,7 +127,7 @@ function AddIndicatorDialog({ onAdd, maxAllowed, scoreType = "score" }: { onAdd:
               </div>
               <Input
                 type="number"
-                value={maxScore}
+                value={formatNumber(maxScore)}
                 onChange={(e) => setMaxScore(Number(e.target.value))}
                 min={1}
                 max={maxAllowed}
@@ -233,7 +234,7 @@ function EditIndicatorDialog({ indicator, onSave, maxAllowed, scoreType = "score
                   </div>
                   <Input
                     type="number"
-                    value={maxScore}
+                    value={formatNumber(maxScore)}
                     onChange={(e) => setMaxScore(Number(e.target.value))}
                     min={1}
                     max={maxAllowed}
@@ -489,14 +490,14 @@ const SettingsIndicators = () => {
       }
     }
 
-    toast({ title: "เพิ่มประเด็นและตัวชี้วัดสำเร็จ" });
+    toast({ title: "เพิ่มประเด็นและตัวชี้วัดสำเร็จ", variant: "success" });
     fetchAll();
   };
 
   const handleEditTopic = async (topicId: string, name: string) => {
     try {
       await apiClient.patch(`topics/${topicId}`, { name });
-      toast({ title: "แก้ไขประเด็นสำเร็จ" });
+      toast({ title: "แก้ไขประเด็นสำเร็จ", variant: "success" });
       fetchAll();
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
@@ -506,7 +507,7 @@ const SettingsIndicators = () => {
   const handleDeleteTopic = async (topicId: string) => {
     try {
       await apiClient.delete(`topics/${topicId}`);
-      toast({ title: "ลบประเด็นสำเร็จ" });
+      toast({ title: "ลบประเด็นสำเร็จ", variant: "success" });
       fetchAll();
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
@@ -535,7 +536,7 @@ const SettingsIndicators = () => {
     const id = `${topicId}.${nextNum}`;
     try {
       await apiClient.post("indicators", { id, topicId, name, maxScore, sortOrder: nextNum });
-      toast({ title: "เพิ่มตัวชี้วัดสำเร็จ" });
+      toast({ title: "เพิ่มตัวชี้วัดสำเร็จ", variant: "success" });
       fetchAll();
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
@@ -571,7 +572,7 @@ const SettingsIndicators = () => {
         evidenceDescription: data.evidenceDescription,
         scoringCriteria: data.scoringCriteria,
       });
-      toast({ title: "แก้ไขตัวชี้วัดสำเร็จ" });
+      toast({ title: "แก้ไขตัวชี้วัดสำเร็จ", variant: "success" });
       fetchAll();
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
@@ -581,7 +582,7 @@ const SettingsIndicators = () => {
   const handleDeleteIndicator = async (indId: string) => {
     try {
       await apiClient.delete(`indicators/${indId}`);
-      toast({ title: "ลบตัวชี้วัดสำเร็จ" });
+      toast({ title: "ลบตัวชี้วัดสำเร็จ", variant: "success" });
       fetchAll();
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
@@ -701,6 +702,7 @@ const SettingsIndicators = () => {
                                 const topicInds = indicators.filter((i) => i.topicId === topic.id).sort((a, b) => a.sortOrder - b.sortOrder);
                                 return (
                                   <Collapsible key={topic.id} defaultOpen={false} className="group/topic border-b last:border-b-0">
+                                    {/* อาจจะแก้ */}
                                     <div
                                       className="flex items-center gap-2 px-4 py-2.5"
                                       style={{ backgroundColor: `hsl(${color} / 0.06)` }}
