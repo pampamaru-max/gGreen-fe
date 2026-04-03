@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/collapsible";
 import AddTopicWithIndicatorsDialog from "@/components/AddTopicWithIndicatorsDialog";
 import { AlertActionPopup } from "@/components/AlertActionPopup";
+import { formatNumber } from "@/helpers/functions";
 
 interface DbProgram {
   id: string;
@@ -126,7 +127,7 @@ function AddIndicatorDialog({ onAdd, maxAllowed, scoreType = "score" }: { onAdd:
               </div>
               <Input
                 type="number"
-                value={maxScore}
+                value={formatNumber(maxScore)}
                 onChange={(e) => setMaxScore(Number(e.target.value))}
                 min={1}
                 max={maxAllowed}
@@ -233,7 +234,7 @@ function EditIndicatorDialog({ indicator, onSave, maxAllowed, scoreType = "score
                   </div>
                   <Input
                     type="number"
-                    value={maxScore}
+                    value={formatNumber(maxScore)}
                     onChange={(e) => setMaxScore(Number(e.target.value))}
                     min={1}
                     max={maxAllowed}
@@ -701,6 +702,7 @@ const SettingsIndicators = () => {
                                 const topicInds = indicators.filter((i) => i.topicId === topic.id).sort((a, b) => a.sortOrder - b.sortOrder);
                                 return (
                                   <Collapsible key={topic.id} defaultOpen={false} className="group/topic border-b last:border-b-0">
+                                    {/* อาจจะแก้ */}
                                     <div
                                       className="flex items-center gap-2 px-4 py-2.5"
                                       style={{ backgroundColor: `hsl(${color} / 0.06)` }}

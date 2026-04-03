@@ -30,7 +30,6 @@ export default function SettingsProjectDuration() {
   const [formRenewalMonths, setFormRenewalMonths] = useState<string>("3");
   const [saving, setSaving] = useState(false);
 
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
@@ -101,7 +100,6 @@ export default function SettingsProjectDuration() {
     try {
       await apiClient.delete(`/program-durations/${duration.id}`);
       setDuration(null);
-      setDeleteDialogOpen(false);
       toast({ title: "ลบข้อมูลสำเร็จ" });
     } catch (error: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: error.response?.data?.message || error.message, variant: "destructive" });
@@ -173,7 +171,6 @@ export default function SettingsProjectDuration() {
                         <Trash2 className="h-4 w-4 mr-1" /> ลบข้อมูล
                       </Button>
                     }
-                    action={() => setDeleteDialogOpen(true)}
                     title="ยืนยันการลบข้อมูลระยะเวลาของโครงการ"
                     description={`ต้องการลบข้อมูลระยะเวลาของโครงการ ${programName} หรือไม่?`}
                     labelButtonLeft="ยกเลิก"

@@ -16,19 +16,29 @@ import { Trash2 } from "lucide-react";
 
 type popupType = "delete" | "warning";
 
-type AlertActionPopupProps = {
+type BaseProps = {
   open?: boolean;
   onOpenChange?(open: boolean): void;
   trigger?: ReactNode;
-  action: () => void;
   type?: popupType;
   title: ReactNode;
   description: ReactNode;
   labelButtonLeft?: string;
   labelButtonRight?: string;
   buttonLeft?: ReactNode;
-  buttonRight?: ReactNode;
 };
+
+type WithCustomRightButton = BaseProps & {
+  buttonRight: ReactNode;
+  action?: never;
+};
+
+type WithAction = BaseProps & {
+  buttonRight?: undefined;
+  action: () => void;
+};
+
+type AlertActionPopupProps = WithCustomRightButton | WithAction;
 
 export function AlertActionPopup({
   open,
