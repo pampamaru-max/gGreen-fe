@@ -108,12 +108,12 @@ export default function SettingsDocuments() {
       if (editing) {
         // Use backend API to update (bypasses RLS)
         await apiClient.patch(`/document-templates/${editing.id}`, formData, uploadConfig);
-        toast({ title: "บันทึกสำเร็จ" });
+        toast({ title: "บันทึกสำเร็จ", variant: "success" });
       } else {
         // Use backend API to create (bypasses RLS)
         formData.append("sortOrder", String(docs.length));
         await apiClient.post("/document-templates", formData, uploadConfig);
-        toast({ title: "เพิ่มเอกสารสำเร็จ" });
+        toast({ title: "เพิ่มเอกสารสำเร็จ", variant: "success" });
       }
 
       setDialogOpen(false);
@@ -134,7 +134,7 @@ export default function SettingsDocuments() {
     try {
       await apiClient.delete(`/document-templates/${doc.id}`);
       setDocs((prev) => prev.filter((d) => d.id !== doc.id));
-      toast({ title: "ลบสำเร็จ" });
+      toast({ title: "ลบสำเร็จ", variant: "success" });
     } catch (error: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: error.message, variant: "destructive" });
     }

@@ -490,14 +490,14 @@ const SettingsIndicators = () => {
       }
     }
 
-    toast({ title: "เพิ่มประเด็นและตัวชี้วัดสำเร็จ" });
+    toast({ title: "เพิ่มประเด็นและตัวชี้วัดสำเร็จ", variant: "success" });
     fetchAll();
   };
 
   const handleEditTopic = async (topicId: string, name: string) => {
     try {
       await apiClient.patch(`topics/${topicId}`, { name });
-      toast({ title: "แก้ไขประเด็นสำเร็จ" });
+      toast({ title: "แก้ไขประเด็นสำเร็จ", variant: "success" });
       fetchAll();
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
@@ -507,7 +507,7 @@ const SettingsIndicators = () => {
   const handleDeleteTopic = async (topicId: string) => {
     try {
       await apiClient.delete(`topics/${topicId}`);
-      toast({ title: "ลบประเด็นสำเร็จ" });
+      toast({ title: "ลบประเด็นสำเร็จ", variant: "success" });
       fetchAll();
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
@@ -536,7 +536,7 @@ const SettingsIndicators = () => {
     const id = `${topicId}.${nextNum}`;
     try {
       await apiClient.post("indicators", { id, topicId, name, maxScore, sortOrder: nextNum });
-      toast({ title: "เพิ่มตัวชี้วัดสำเร็จ" });
+      toast({ title: "เพิ่มตัวชี้วัดสำเร็จ", variant: "success" });
       fetchAll();
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
@@ -572,7 +572,7 @@ const SettingsIndicators = () => {
         evidenceDescription: data.evidenceDescription,
         scoringCriteria: data.scoringCriteria,
       });
-      toast({ title: "แก้ไขตัวชี้วัดสำเร็จ" });
+      toast({ title: "แก้ไขตัวชี้วัดสำเร็จ", variant: "success" });
       fetchAll();
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
@@ -582,7 +582,7 @@ const SettingsIndicators = () => {
   const handleDeleteIndicator = async (indId: string) => {
     try {
       await apiClient.delete(`indicators/${indId}`);
-      toast({ title: "ลบตัวชี้วัดสำเร็จ" });
+      toast({ title: "ลบตัวชี้วัดสำเร็จ", variant: "success" });
       fetchAll();
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });

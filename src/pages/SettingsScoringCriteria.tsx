@@ -389,7 +389,7 @@ const SettingsScoringCriteria = () => {
         sortOrder: nextOrder,
       });
 
-      toast({ title: "เพิ่มระดับสำเร็จ" });
+      toast({ title: "เพิ่มระดับสำเร็จ", variant: "success" });
       fetchAll();
     } catch (error: any) {
       toast({
@@ -406,7 +406,7 @@ const SettingsScoringCriteria = () => {
   ) => {
     try {
       await apiClient.patch(`scoring-levels/${id}`, data);
-      toast({ title: "แก้ไขระดับสำเร็จ" });
+      toast({ title: "แก้ไขระดับสำเร็จ", variant: "success" });
       fetchAll();
     } catch (error: any) {
       toast({
@@ -420,7 +420,7 @@ const SettingsScoringCriteria = () => {
   const handleDelete = async (id: number) => {
     try {
       await apiClient.delete(`scoring-levels/${id}`);
-      toast({ title: "ลบระดับสำเร็จ" });
+      toast({ title: "ลบระดับสำเร็จ", variant: "success" });
       fetchAll();
     } catch (error: any) {
       toast({

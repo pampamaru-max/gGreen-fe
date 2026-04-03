@@ -340,6 +340,7 @@ export default function ProjectRegistrationDialog({
       toast({
         title: "สมัครสำเร็จ",
         description: "ส่งข้อมูลการสมัครเข้าร่วมโครงการเรียบร้อยแล้ว",
+        variant: "success",
       });
       form.reset();
       setPendingFiles({});

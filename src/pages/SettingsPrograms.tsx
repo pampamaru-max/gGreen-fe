@@ -332,7 +332,7 @@ export default function SettingsPrograms() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["programs"] });
       setDialogOpen(false);
-      toast({ title: editingProgram ? "อัปเดตโครงการสำเร็จ" : "เพิ่มโครงการสำเร็จ" });
+      toast({ title: editingProgram ? "อัปเดตโครงการสำเร็จ" : "เพิ่มโครงการสำเร็จ", variant: "success" });
     },
     onError: (err: Error) => {
       toast({ title: "เกิดข้อผิดพลาด", description: err.message, variant: "destructive" });
@@ -345,7 +345,7 @@ export default function SettingsPrograms() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["programs"] });
-      toast({ title: "ลบโครงการสำเร็จ" });
+      toast({ title: "ลบโครงการสำเร็จ", variant: "success" });
     },
   });
 

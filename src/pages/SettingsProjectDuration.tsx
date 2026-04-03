@@ -84,7 +84,7 @@ export default function SettingsProjectDuration() {
         durationYears: years,
         renewalMonths: months,
       });
-      toast({ title: "บันทึกสำเร็จ" });
+      toast({ title: "บันทึกสำเร็จ", variant: "success" });
       setDialogOpen(false);
       fetchDuration();
     } catch (error: any) {
@@ -100,7 +100,7 @@ export default function SettingsProjectDuration() {
     try {
       await apiClient.delete(`/program-durations/${duration.id}`);
       setDuration(null);
-      toast({ title: "ลบข้อมูลสำเร็จ" });
+      toast({ title: "ลบข้อมูลสำเร็จ", variant: "success" });
     } catch (error: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: error.response?.data?.message || error.message, variant: "destructive" });
     } finally {
