@@ -236,7 +236,7 @@ const EditTemplateDialog = ({
       });
       if (field === "element") return data.url;
       setForm((f) => ({ ...f, [field]: data.url }));
-      toast({ title: "อัปโหลดสำเร็จ" });
+      toast({ title: "อัปโหลดสำเร็จ", variant: "success" });
     } catch (e: any) {
       toast({ title: "อัปโหลดล้มเหลว", description: e.message, variant: "destructive" });
     } finally {
@@ -576,7 +576,7 @@ const SettingsCertificate = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["certificate-templates"] });
-      toast({ title: "บันทึกสำเร็จ" });
+      toast({ title: "บันทึกสำเร็จ", variant: "success" });
     },
     onError: (err: Error) => {
       toast({ title: "เกิดข้อผิดพลาด", description: err.message, variant: "destructive" });

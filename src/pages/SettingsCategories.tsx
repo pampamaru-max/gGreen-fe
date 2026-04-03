@@ -804,7 +804,7 @@ const SettingsCategories = () => {
   const handleAddCategory = async (data: { name: string; maxScore: number; sortOrder: number; scoreType: AddScoreType }, programId: string) => {
     try {
       await apiClient.post("categories", { ...data, isDefault: false, programId });
-      toast({ title: "เพิ่มหมวดสำเร็จ" });
+      toast({ title: "เพิ่มหมวดสำเร็จ", description: `หมวด "${data.name}" ถูกเพิ่มเข้าระบบแล้ว`, variant: "success" });
       fetchData();
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
@@ -814,7 +814,7 @@ const SettingsCategories = () => {
   const handleDeleteCategory = async (id: number) => {
     try {
       await apiClient.delete(`categories/${id}`);
-      toast({ title: "ลบหมวดสำเร็จ" });
+      toast({ title: "ลบหมวดสำเร็จ", variant: "success" });
       fetchData();
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
@@ -829,7 +829,7 @@ const SettingsCategories = () => {
         sortOrder: updated.sortOrder,
         scoreType: updated.scoreType,
       });
-      toast({ title: "แก้ไขหมวดสำเร็จ" });
+      toast({ title: "แก้ไขหมวดสำเร็จ", description: `หมวด "${updated.name}" ถูกอัปเดตแล้ว`, variant: "success" });
       fetchData();
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
@@ -845,7 +845,7 @@ const SettingsCategories = () => {
         apiClient.patch(`categories/${c.id}`, { upgradeMode: mode, upgradeScoringLevelId: levelId })
       )
     );
-    toast({ title: "บันทึกการตั้งค่าอัพเกรดสำเร็จ" });
+    toast({ title: "บันทึกการตั้งค่าอัพเกรดสำเร็จ", variant: "success" });
     fetchData();
   };
 
@@ -858,7 +858,7 @@ const SettingsCategories = () => {
         apiClient.patch(`categories/${c.id}`, { renewMode: mode, renewScoringLevelId: levelId })
       )
     );
-    toast({ title: "บันทึกการตั้งค่าต่ออายุสำเร็จ" });
+    toast({ title: "บันทึกการตั้งค่าต่ออายุสำเร็จ", variant: "success" });
     fetchData();
   };
 
@@ -873,7 +873,7 @@ const SettingsCategories = () => {
           return apiClient.post("categories", { name: c.name, maxScore: c.maxScore, sortOrder: c.sortOrder, scoreType: renewType, isDefault: false, programId });
         })
       );
-      toast({ title: `คัดลอก ${upgradCats.length} หมวดอัพเกรดเป็นหมวดต่ออายุสำเร็จ` });
+      toast({ title: `คัดลอก ${upgradCats.length} หมวดอัพเกรดเป็นหมวดต่ออายุสำเร็จ`, variant: "success" });
       fetchData();
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
@@ -891,7 +891,7 @@ const SettingsCategories = () => {
           return apiClient.post("categories", { name: c.name, maxScore: c.maxScore, sortOrder: c.sortOrder, scoreType: upgradType, isDefault: false, programId });
         })
       );
-      toast({ title: `คัดลอก ${renewCats.length} หมวดต่ออายุเป็นหมวดอัพเกรดสำเร็จ` });
+      toast({ title: `คัดลอก ${renewCats.length} หมวดต่ออายุเป็นหมวดอัพเกรดสำเร็จ`, variant: "success" });
       fetchData();
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });

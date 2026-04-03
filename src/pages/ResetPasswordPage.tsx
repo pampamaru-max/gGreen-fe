@@ -43,7 +43,7 @@ export default function ResetPasswordPage() {
     if (error) {
       toast({ title: "เปลี่ยนรหัสผ่านไม่สำเร็จ", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "เปลี่ยนรหัสผ่านสำเร็จ", description: "คุณสามารถเข้าสู่ระบบด้วยรหัสผ่านใหม่ได้แล้ว" });
+      toast({ title: "เปลี่ยนรหัสผ่านสำเร็จ", description: "คุณสามารถเข้าสู่ระบบด้วยรหัสผ่านใหม่ได้แล้ว", variant: "success" });
       navigate("/login");
     }
     setLoading(false);
