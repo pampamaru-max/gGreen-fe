@@ -227,7 +227,7 @@ export default function SettingsDocuments() {
                           <Button
                             variant="ghost"
                             size="icon" 
-                            className="shrink-0 text-muted-foreground hover:text-foreground"
+                            className="edit-button"
                             onClick={() => openEdit(doc)}
                           >
                             <Pencil className="h-4 w-4" />

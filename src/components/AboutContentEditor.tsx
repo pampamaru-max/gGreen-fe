@@ -13,6 +13,7 @@ import {
   AlignLeft, AlignCenter, AlignRight,
   List, ListOrdered, Heading2, Heading3,
   Highlighter, Palette,
+  Link,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
@@ -20,8 +21,9 @@ import { useState } from "react";
 export type ContentBlock =
   | { type: "text"; content: string }
   | { type: "image"; url: string; caption: string }
-  | { type: "file"; url: string; name: string; title: string };
-
+  | { type: "file"; url: string; name: string; title: string }
+  | { type: "link"; url: string; title: string };
+  
 interface Props {
   blocks: ContentBlock[];
   onChange: (blocks: ContentBlock[]) => void;
@@ -220,6 +222,7 @@ export default function AboutContentEditor({ blocks, onChange, programId }: Prop
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const stableIds = useRef<string[]>([]);
+  const [linkIsEditing, setLinkIsEditing] = useState(false);
 
   // Sync stableIds length with blocks length
   while (stableIds.current.length < blocks.length) stableIds.current.push(genId());
@@ -286,6 +289,11 @@ export default function AboutContentEditor({ blocks, onChange, programId }: Prop
     e.target.value = "";
   };
 
+  const addLinkBlock = () => {
+    stableIds.current = [...stableIds.current, genId()];
+    onChange([...blocks, { type: "link", url: "", title: "" }]);
+  };
+
   return (
     <div className="space-y-3">
       {blocks.map((block, i) => (
@@ -337,6 +345,33 @@ export default function AboutContentEditor({ blocks, onChange, programId }: Prop
               </div>
             </div>
           )}
+          {block.type === "link" && (
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={block.title || ""}
+                onChange={(e) => updateBlock(i, { ...block, title: e.target.value })}
+                placeholder="หัวข้อลิงก์"
+                className="w-full text-xs border border-input rounded px-2 py-1 bg-background text-foreground"
+              />
+              <div className="flex flex-col gap-2 text-sm">
+                <div className="relative flex items-center text-sm">
+                  <span className="absolute left-2 text-muted-foreground">
+                    <Link className="h-4 w-4" />
+                  </span>
+                  <input
+                    type="url"
+                    value={block.url}
+                    onChange={(e) => updateBlock(i, { ...block, url: e.target.value })}
+                    onFocus={() => setLinkIsEditing(true)}
+                    onBlur={() => setLinkIsEditing(false)}
+                    placeholder="URL ลิงก์"
+                    className={`w-full text-xs border border-input rounded pl-8 px-2 py-1 bg-background ${linkIsEditing ? "text-foreground" : "text-primary underline truncate"}`}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       ))}
 
@@ -355,6 +390,9 @@ export default function AboutContentEditor({ blocks, onChange, programId }: Prop
         </Button>
         <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} type="button">
           <FileUp className="mr-1.5 h-3.5 w-3.5" /> อัปโหลดไฟล์
+        </Button>
+        <Button variant="outline" size="sm" onClick={addLinkBlock} type="button">
+          <Link className="mr-1.5 h-3.5 w-3.5" /> เพิ่มลิงก์
         </Button>
       </div>
 

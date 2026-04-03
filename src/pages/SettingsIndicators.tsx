@@ -77,7 +77,7 @@ function EditTopicDialog({ topic, onSave }: { topic: DbTopic; onSave: (name: str
   const [name, setName] = useState(topic.name);
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) setName(topic.name); }}>
-      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => setOpen(true)}>
+      <Button variant="ghost" size="icon" className="edit-button" onClick={() => setOpen(true)}>
         <Pencil className="h-3.5 w-3.5" />
       </Button>
       <DialogContent className="max-w-sm">
@@ -204,7 +204,7 @@ function EditIndicatorDialog({ indicator, onSave, maxAllowed, scoreType = "score
 
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) resetFromIndicator(); }}>
-      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => { resetFromIndicator(); setOpen(true); }}>
+      <Button variant="ghost" size="icon" className="edit-button" onClick={() => { resetFromIndicator(); setOpen(true); }}>
         <Pencil className="h-3 w-3" />
       </Button>
       <DialogContent className="max-w-6xl w-[95vw] h-[90vh] flex flex-col overflow-hidden">

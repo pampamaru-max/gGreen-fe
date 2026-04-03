@@ -55,7 +55,7 @@ export function AddCategoryDialog({ open, onOpenChange, scoreType, nextSortOrder
   }, [open, nextSortOrder]);
 
   const hasScore = !scoreType.startsWith("yes_no");
-  const isValid = name.trim() && Number(sortOrder) >= 0 && (!hasScore || Number(maxScore) > 0);
+  const isValid = name.trim() && Number(sortOrder) >= 1 && (!hasScore || Number(maxScore) > 0);
 
   const handleSubmit = () => {
     if (!isValid) return;
@@ -83,7 +83,7 @@ export function AddCategoryDialog({ open, onOpenChange, scoreType, nextSortOrder
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
             <Label>ลำดับหมวด</Label>
-            <Input type="number" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} min={0} />
+            <Input type="number" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} min={1} />
           </div>
           <div className="space-y-1.5">
             <Label>ชื่อหมวด</Label>

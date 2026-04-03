@@ -8,10 +8,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader,
-  AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel,
-} from "@/components/ui/alert-dialog";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -243,7 +239,7 @@ const SortableLevelCard = ({
         initial={level}
         onSubmit={(data) => onEdit(level.id, data)}
         trigger={
-          <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-foreground">
+          <Button variant="ghost" size="icon" className="edit-button">
             <Pencil className="h-4 w-4" />
           </Button>
         }
