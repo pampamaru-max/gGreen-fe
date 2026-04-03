@@ -1,4 +1,4 @@
-import { FileDown } from "lucide-react";
+import { FileDown, Link } from "lucide-react";
 import type { ContentBlock } from "./AboutContentEditor";
 
 interface Props {
@@ -25,9 +25,15 @@ export default function AboutContentRenderer({ blocks }: Props) {
         if (block.type === "image") {
           return (
             <figure key={i} className="space-y-1">
-              <img src={block.url} alt={block.caption || ""} className="rounded-lg max-w-full" />
+              <img
+                src={block.url}
+                alt={block.caption || ""}
+                className="rounded-lg max-w-full"
+              />
               {block.caption && (
-                <figcaption className="text-xs text-muted-foreground text-center">{block.caption}</figcaption>
+                <figcaption className="text-xs text-muted-foreground text-center">
+                  {block.caption}
+                </figcaption>
               )}
             </figure>
           );
@@ -36,7 +42,9 @@ export default function AboutContentRenderer({ blocks }: Props) {
           return (
             <div key={i} className="space-y-1">
               {block.title && (
-                <p className="text-sm font-medium text-foreground">{block.title}</p>
+                <p className="text-sm font-medium text-foreground">
+                  {block.title}
+                </p>
               )}
               <a
                 href={block.url}
@@ -46,6 +54,22 @@ export default function AboutContentRenderer({ blocks }: Props) {
               >
                 <FileDown className="h-4 w-4" />
                 {block.name}
+              </a>
+            </div>
+          );
+        }
+        if (block.type === "link") {
+          return (
+            <div key={i} className="space-y-1 flex items-center text-center gap-2">
+              <Link className="h-4 w-4 text-muted-foreground" />
+              <a
+                key={i}
+                href={block.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-primary underline"
+              >
+                {block.title}
               </a>
             </div>
           );
