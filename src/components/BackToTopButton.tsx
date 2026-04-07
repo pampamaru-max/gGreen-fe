@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { ArrowUp } from "lucide-react";
+import { se } from "date-fns/locale";
 
 type BackToTopButtonProps = {
-  container?: HTMLElement | null;
+  containerRef?: React.RefObject<HTMLElement>;
+  heightToShow?: number;
 };
 
-export function BackToTopButton({ container }: BackToTopButtonProps) {
+export function BackToTopButton({ containerRef, heightToShow = 300 }: BackToTopButtonProps) {
   let timeout: NodeJS.Timeout;
   const [isVisible, setIsVisible] = useState(false);
 
@@ -14,21 +16,35 @@ export function BackToTopButton({ container }: BackToTopButtonProps) {
     const handleScroll = () => {
       clearTimeout(timeout);
       timeout = setTimeout(() => {
-        setIsVisible((container?.scrollTop ?? window.scrollY) > 300);
+        setIsVisible(() => {
+          const container = containerRef?.current;
+          const scrollTop = container ? container.scrollTop : window.scrollY;
+          return scrollTop > heightToShow;
+        });
       }, 100);
     };
 
     handleScroll();
 
-    (container ?? window).addEventListener("scroll", handleScroll);
-    return () =>
-      (container ?? window).removeEventListener("scroll", handleScroll);
+    containerRef?.current?.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll);
+
+    return () => {
+      clearTimeout(timeout);
+      containerRef?.current?.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("scroll", handleScroll);
+    };
   }, []);
 
   if (!isVisible) return null;
 
   const scrollToTop = () => {
-    (container ?? window).scrollTo({ top: 0, behavior: "smooth" });
+    const container = containerRef?.current;
+    if (container) {
+      container.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
 
   return (
