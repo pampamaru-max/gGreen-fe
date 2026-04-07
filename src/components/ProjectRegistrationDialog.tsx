@@ -66,6 +66,9 @@ import { useToast } from "@/hooks/use-toast";
 import apiClient from "@/lib/axios";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import { AlertActionPopup } from "./AlertActionPopup";
+import { MAX_FILE_SIZE } from "@/helpers/constants";
+import { BackToTopButton } from "./BackToTopButton";
 
 interface DocumentTemplate {
   id: string;
@@ -140,6 +143,7 @@ export default function ProjectRegistrationDialog({
   const [pendingFiles, setPendingFiles] = useState<Record<string, File>>({});
   const [uploadingMap, setUploadingMap] = useState<Record<string, number>>({});
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const formContentRef = useRef<HTMLDivElement | null>(null);
 
   const { data: programs = [] } = useQuery({
     queryKey: ["programs"],
@@ -384,7 +388,8 @@ export default function ProjectRegistrationDialog({
             </div>
           </DialogHeader>
         </div>
-        <div className="overflow-y-auto scrollbar-thin flex-1 px-6 pb-6 mr-2">
+        <div ref={formContentRef} className="overflow-y-auto scrollbar-thin flex-1 px-6 pb-6 mr-2">
+          <BackToTopButton container={formContentRef.current} />
           <Form {...form}>
             <form
               onSubmit={form.handleSubmit(onSubmit)}
@@ -1052,8 +1057,9 @@ export default function ProjectRegistrationDialog({
               )}
               {documentTemplates.length > 0 && (
                 <div className="space-y-1.5">
-                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  <p className="text-xs font-bold text-muted-foreground tracking-wider">
                     เอกสารการสมัคร
+                    <span className="text-destructive text-xs"> รองรับ PDF, Word, Excel, PowerPoint และรูปภาพ (ไม่เกิน 10MB)</span>
                   </p>
                   <div className="rounded-xl border border-border/60 bg-muted/30 p-4 space-y-3">
                     {documentTemplates.map((tpl, idx) => {
@@ -1088,31 +1094,41 @@ export default function ProjectRegistrationDialog({
                             <div className="flex items-center gap-2 bg-muted/50 rounded-md px-3 py-2">
                               <FileText className="h-4 w-4 text-primary shrink-0" />
                               <span className="text-sm truncate flex-1">{pendingFile.name}</span>
-                              <Button
-                                type="button"
-                                size="icon"
-                                variant="ghost"
-                                className="h-7 w-7 text-destructive hover:text-destructive"
-                                onClick={() =>
+                              <AlertActionPopup
+                                type="delete"
+                                title="ยืนยันการลบ"
+                                description="คุณต้องการลบไฟล์ที่แนบนี้หรือไม่?"
+                                action={() => {
                                   setPendingFiles((prev) => {
                                     const next = { ...prev };
                                     delete next[tpl.id];
                                     return next;
-                                  })
+                                  });
+                                }}
+                                trigger={
+                                  <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
                                 }
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
+                              />
                             </div>
                           ) : (
                             <div>
                               <input
                                 type="file"
+                                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tiff"
                                 ref={(el) => { fileInputRefs.current[tpl.id] = el; }}
                                 className="hidden"
                                 onChange={(e) => {
                                   const file = e.target.files?.[0];
-                                  if (file) {
+                                  if (file && file.size > MAX_FILE_SIZE) {
+                                    toast({title: `ไฟล์ ${file.name} ใหญ่เกิน 10MB`, variant: "destructive"});
+                                  } else if (file) {
                                     setPendingFiles((prev) => ({ ...prev, [tpl.id]: file }));
                                   }
                                   e.target.value = "";

@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { AlertActionPopup } from "@/components/AlertActionPopup";
+import { MAX_FILE_SIZE } from "@/helpers/constants";
 
 /* ── Icon picker ── */
 const ICON_OPTIONS: { name: string; Icon: LucideIcon }[] = [
@@ -151,7 +152,7 @@ function SortableGuidelineCard({
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 shrink-0"
+            className="h-7 w-7 shrink-0 hover:bg-destructive/75"
             onClick={() => onRemove(index)}
           >
             <X className="h-3.5 w-3.5" />
@@ -165,7 +166,7 @@ function SortableGuidelineCard({
                 <a href={file.url} target="_blank" rel="noopener noreferrer" className="flex-1 truncate hover:underline">
                   {file.name}
                 </a>
-                <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={() => onRemoveFile(index, fi)}>
+                <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 hover:bg-destructive/75" onClick={() => onRemoveFile(index, fi)}>
                   <X className="h-3 w-3" />
                 </Button>
               </div>
@@ -175,10 +176,11 @@ function SortableGuidelineCard({
         <div>
           <input
             type="file"
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tiff"
             multiple
             className="hidden"
             ref={(el) => { fileInputRefs.current[index] = el; }}
-            onChange={(e) => onUpload(index, e.target.files)}
+            onChange={(e) => { onUpload(index, e.target.files); e.target.value = ""; }}
           />
           <Button
             variant="outline"
@@ -393,7 +395,12 @@ export default function SettingsPrograms() {
     setUploadingIndex(guidelineIndex);
     try {
       const newFiles: GuidelineFile[] = [];
+      const errorFiles: string[] = [];
       for (const file of Array.from(files)) {
+        if(file.size > MAX_FILE_SIZE) {
+          errorFiles.push(file.name);
+          continue;
+        }
         const formData = new FormData();
         formData.append("file", file);
         formData.append("folder", `guidelines/${form.id || "new"}`);
@@ -409,6 +416,13 @@ export default function SettingsPrograms() {
           i === guidelineIndex ? { ...g, files: [...g.files, ...newFiles] } : g,
         ),
       }));
+      if (errorFiles.length > 0) {
+        toast({
+          title: "บางไฟล์ไม่ถูกอัปโหลด",
+          description: `ไฟล์เหล่านี้ใหญ่เกิน 10MB และไม่ได้ถูกอัปโหลด: ${errorFiles.join(", ")}`,
+          variant: "destructive"
+        });
+      }      
     } catch (err: any) {
       toast({ title: "อัปโหลดไฟล์ไม่สำเร็จ", description: err.message, variant: "destructive" });
     } finally {
@@ -448,7 +462,12 @@ export default function SettingsPrograms() {
     setUploadingReportIndex(reportIndex);
     try {
       const newFiles: GuidelineFile[] = [];
+      const errorFiles: string[] = [];
       for (const file of Array.from(files)) {
+        if(file.size > MAX_FILE_SIZE) {
+          errorFiles.push(file.name);
+          continue;
+        }
         const formData = new FormData();
         formData.append("file", file);
         formData.append("folder", `reports/${form.id || "new"}`);
@@ -464,6 +483,13 @@ export default function SettingsPrograms() {
           i === reportIndex ? { ...r, files: [...r.files, ...newFiles] } : r
         ),
       }));
+      if (errorFiles.length > 0) {
+        toast({
+          title: "บางไฟล์ไม่ถูกอัปโหลด",
+          description: `ไฟล์เหล่านี้ใหญ่เกิน 10MB และไม่ได้ถูกอัปโหลด: ${errorFiles.join(", ")}`,
+          variant: "destructive"
+        });
+      } 
     } catch (err: any) {
       toast({ title: "อัปโหลดไฟล์ไม่สำเร็จ", description: err.message, variant: "destructive" });
     } finally {
@@ -588,7 +614,10 @@ export default function SettingsPrograms() {
             </TabsContent>
             <TabsContent value="guidelines" className="space-y-4 mt-4">
               <div className="space-y-3">
-                <Label>แนวทางการดำเนินงาน</Label>
+                <Label>
+                  แนวทางการดำเนินงาน<br />
+                  <span className="text-destructive text-xs"> รองรับ PDF, Word, Excel, PowerPoint และรูปภาพ (ไม่เกิน 10MB)</span>
+                </Label>
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleGuidelineDragEnd}>
                   <SortableContext items={form.guidelines.map((_, i) => `guideline-${i}`)} strategy={verticalListSortingStrategy}>
                     {form.guidelines.map((g, i) => (
@@ -624,7 +653,10 @@ export default function SettingsPrograms() {
             </TabsContent>
             <TabsContent value="reports" className="space-y-4 mt-4">
               <div className="space-y-3">
-                <Label>รายงาน</Label>
+                <Label>
+                  รายงาน<br />
+                  <span className="text-destructive text-xs"> รองรับ PDF, Word, Excel, PowerPoint และรูปภาพ (ไม่เกิน 10MB)</span>
+                </Label>
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleReportDragEnd}>
                   <SortableContext items={form.reports.map((_, i) => `report-${i}`)} strategy={verticalListSortingStrategy}>
                     {form.reports.map((r, i) => (
