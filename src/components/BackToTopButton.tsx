@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { ArrowUp } from "lucide-react";
-import { se } from "date-fns/locale";
 
 type BackToTopButtonProps = {
   containerRef?: React.RefObject<HTMLElement>;
