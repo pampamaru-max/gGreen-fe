@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Category, ScoringCriterion } from "@/data/evaluationData";
-import { ChevronDown, ChevronRight, ChevronLeft, Trash2, FileText, X, Eye, ListChecks, Plus, Info, Save, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronLeft, Trash2, FileText, X, Eye, ListChecks, Plus, Info, Save, Loader2, AlignLeft, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -1000,9 +1000,14 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
                     >
                       <span className="h-1 w-1 rounded-full bg-muted-foreground/40 shrink-0" />
                       <span className="flex-1 text-sm text-foreground truncate">{indicator.name}</span>
-                      {notif && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-white leading-none shrink-0 whitespace-nowrap">
-                          {formatScore(notif.prevScore)}→{formatScore(notif.newScore)}
+                      {implementationDetails?.[indicator.id] && (
+                        <span className="inline-flex items-center px-1 py-0.5 rounded bg-blue-50 text-blue-500 border border-blue-100 shrink-0">
+                          <AlignLeft className="h-3 w-3" />
+                        </span>
+                      )}
+                      {committeeComments?.[indicator.id] && (
+                        <span className="inline-flex items-center px-1 py-0.5 rounded bg-teal-50 text-teal-500 border border-teal-100 shrink-0">
+                          <MessageSquare className="h-3 w-3" />
                         </span>
                       )}
                       {fileCount > 0 && (
