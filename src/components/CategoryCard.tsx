@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { MAX_FILE_SIZE } from "@/helpers/constants";
 
 const categoryColors = [
   "210 70% 45%",
@@ -177,7 +178,7 @@ function EvaluateeIndicatorDialog({
     setUploading(true);
     const newFiles: UploadedFile[] = [];
     for (const file of Array.from(selectedFiles)) {
-      if (file.size > 10 * 1024 * 1024) {
+      if (file.size > MAX_FILE_SIZE) {
         toast.error(`ไฟล์ ${file.name} ใหญ่เกิน 10MB`);
         continue;
       }
@@ -284,7 +285,7 @@ function EvaluateeIndicatorDialog({
                   <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tiff" multiple className="hidden" onChange={handleFileUpload} />
                   <div onClick={() => fileInputRef.current?.click()} className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/20 py-6 cursor-pointer hover:bg-muted/40 hover:border-muted-foreground/40 transition-colors">
                     <ListChecks className="h-6 w-6 text-muted-foreground/40 mb-1.5" />
-                    <p className="text-xs text-muted-foreground text-center">รองรับ PDF, Word, Excel, PowerPoint และรูปภาพ</p>
+                    <p className="text-xs text-muted-foreground text-center">รองรับ PDF, Word, Excel, PowerPoint และรูปภาพ (ไม่เกิน 10 MB)</p>
                     <p className="text-xs text-muted-foreground/70 text-center mb-2">ลากไฟล์มาวางหรือคลิกเพื่ออัปโหลด</p>
                     <button disabled={uploading} className="flex items-center gap-1.5 text-xs font-medium px-4 py-1.5 rounded-md border bg-background text-foreground hover:bg-muted transition-colors">
                       <Plus className="h-3 w-3" />{uploading ? "กำลังอัปโหลด..." : "เลือกไฟล์"}

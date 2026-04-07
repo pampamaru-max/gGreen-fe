@@ -287,6 +287,7 @@ const EvaluationPage = () => {
                         size="icon"
                         onClick={() => navigate(`/evaluation/${row.program_id}?evaluationId=${row.evaluation_id}`)}
                         title={row.self_status === "completed" ? "ดูผลการประเมิน" : row.evaluation_id ? "แก้ไขการประเมิน" : "เพิ่มการประเมิน"}
+                        className="edit-button"
                       >
                         {row.self_status === "completed" ? (
                           <Eye className="h-4 w-4 text-muted-foreground" />
