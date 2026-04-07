@@ -389,7 +389,7 @@ export default function ProjectRegistrationDialog({
           </DialogHeader>
         </div>
         <div ref={formContentRef} className="overflow-y-auto scrollbar-thin flex-1 px-6 pb-6 mr-2">
-          <BackToTopButton container={formContentRef.current} />
+          <BackToTopButton containerRef={formContentRef} heightToShow={150} />
           <Form {...form}>
             <form
               onSubmit={form.handleSubmit(onSubmit)}
