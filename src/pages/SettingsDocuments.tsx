@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import apiClient from "@/lib/axios";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -9,8 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Plus, Pencil, FileUp, ExternalLink, FileText } from "lucide-react";
+import { Plus, Pencil, FileUp, ExternalLink, FileText, Trash2 } from "lucide-react";
 import { AlertActionPopup } from "@/components/AlertActionPopup";
+import { MAX_FILE_SIZE } from "@/helpers/constants";
 
 interface Program { id: string; name: string; }
 interface DocTemplate {
@@ -37,6 +38,7 @@ export default function SettingsDocuments() {
   const [formRequired, setFormRequired] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     // Fetch programs from backend API for consistency
@@ -263,11 +265,57 @@ export default function SettingsDocuments() {
             <div className="space-y-2">
               <Label>ตัวอย่างเอกสาร</Label>
               <div className="flex items-center gap-2">
-                <label className="flex items-center gap-2 cursor-pointer border rounded-md px-3 py-2 text-sm hover:bg-muted transition-colors">
-                  <FileUp className="h-4 w-4" />
-                  {file ? file.name : "เลือกไฟล์"}
-                  <input type="file" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-                </label>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tiff"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files?.[0] && e.target.files[0].size > MAX_FILE_SIZE) {
+                        toast({ title: `ไฟล์ ${e.target.files[0].name} ใหญ่เกิน 10MB`, variant: "destructive" });
+                      } else if (e.target.files?.[0]) {
+                        setFile(e.target.files[0]);
+                      }
+                      e.target.value = "";
+                    }} />
+                  <div onClick={() => fileInputRef.current?.click()} className="w-full flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/20 py-4 cursor-pointer hover:bg-muted/40 hover:border-muted-foreground/40 transition-colors">
+                    {
+                      file ? (
+                        <div className="flex w-full px-4 items-center justify-between">
+                          <div className="flex w-full gap-2">
+                            <FileText className="h-5 w-5 text-primary" />
+                            <span className="text-sm text-primary">{file.name}</span>
+                          </div>
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <AlertActionPopup
+                              type="delete"
+                              title="ยืนยันการลบ"
+                              description="คุณต้องการลบไฟล์ที่แนบนี้หรือไม่?"
+                              action={() => setFile(null)}
+                              trigger={
+                                <Button
+                                  type="button"
+                                  size="icon"
+                                  variant="ghost"
+                                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              }
+                            />
+                          </div>
+                        </div>
+                      ) :
+                      <>
+                        <FileUp className="h-6 w-6 text-muted-foreground/40 mb-1.5" />
+                        <p className="text-xs text-muted-foreground text-center">รองรับ PDF, Word, Excel, PowerPoint และรูปภาพ (ไม่เกิน 10 MB)</p>
+                        <p className="text-xs text-muted-foreground/70 text-center mb-2">ลากไฟล์มาวางหรือคลิกเพื่ออัปโหลด</p>
+                        <button disabled={uploading} className="flex items-center gap-1.5 text-xs font-medium px-4 py-1.5 rounded-md border bg-background text-foreground hover:bg-muted transition-colors">
+                          <Plus className="h-3 w-3" />{uploading ? "กำลังอัปโหลด..." : "เลือกไฟล์"}
+                        </button>
+                      </>
+                    }
+                  </div>
               </div>
               {editing?.sampleFileUrl && !file && (
                 <p className="text-xs text-muted-foreground">ไฟล์ปัจจุบัน: {editing.sampleFileName || "มีไฟล์แนบ"}</p>

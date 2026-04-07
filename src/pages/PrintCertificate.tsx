@@ -99,6 +99,11 @@ export default function PrintCertificate() {
   };
 
   const isPortrait = template.orientation === "portrait";
+  const layout = template.layout 
+    ? (Array.isArray(template.layout) 
+        ? template.layout 
+        : (template.layout[template.orientation || "landscape"] || []))
+    : [];
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col items-center py-10 print:py-0 print:bg-white">
@@ -137,30 +142,37 @@ export default function PrintCertificate() {
         <div className="absolute inset-4 border border-slate-200 pointer-events-none" />
 
         {/* Render Layout Elements if exists, else fallback to Legacy */}
-        {template.layout && template.layout.length > 0 ? (
+        {layout && layout.length > 0 ? (
           <div className="relative w-full h-full">
-            {template.layout.map((el: any) => (
+            {layout.map((el: any) => (
               <div
                 key={el.id}
                 className="absolute"
                 style={{
                   left: `${el.x}%`,
                   top: `${el.y}%`,
-                  width: el.width ? `${el.width}%` : undefined,
+                  width: (el.width && el.width > 0) ? `${el.width}%` : "auto",
+                  minWidth: el.type === "image" ? undefined : "max-content",
+                  maxWidth: (el.width && el.width > 0) ? undefined : "90%",
                   height: el.height ? `${el.height}%` : undefined,
                   fontSize: el.fontSize ? `${el.fontSize}px` : undefined,
-                  fontWeight: el.fontWeight,
+                  fontWeight: el.fontWeight === "bold" ? "800" : "400",
                   color: el.color || template.primaryColor,
                   textAlign: el.textAlign || "center",
                   transform: "translate(-50%, -50%)",
+                  fontFamily: "'Sarabun', sans-serif",
                 }}
               >
                 {el.type === "image" && <img src={el.content} alt="Logo" className="w-full h-full object-contain" />}
-                {el.type === "text" && <span>{el.content}</span>}
+                {el.type === "text" && <span className="break-words block w-full">{el.content}</span>}
                 {el.type === "variable" && (
-                  <span>
+                  <span className="break-words block w-full">
                     {el.content === "{recipient}" ? data.organizationName : 
-                     el.content === "{level}" ? `ระดับ ${levelName}` : el.content}
+                     el.content === "{level}" ? `ระดับ ${levelName}` : 
+                     el.content === "{year}" ? data.year :
+                     el.content === "{signer_name}" ? template.signerName :
+                     el.content === "{signer_title}" ? template.signerTitle :
+                     el.content}
                   </span>
                 )}
               </div>
@@ -218,6 +230,10 @@ export default function PrintCertificate() {
               >
                 ระดับ {levelName}
               </div>
+
+              <p className="text-2xl font-bold text-slate-800 -mt-4">
+                ประจำปี {data.year}
+              </p>
 
               <p className="text-xl text-slate-800 font-medium max-w-prose">
                 {template.footerText}

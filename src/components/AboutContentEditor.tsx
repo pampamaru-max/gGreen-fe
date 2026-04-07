@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { MAX_FILE_SIZE } from "@/helpers/constants";
 
 export type ContentBlock =
   | { type: "text"; content: string }
@@ -285,7 +286,9 @@ export default function AboutContentEditor({ blocks, onChange, programId }: Prop
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) uploadFile(file, "file");
+    if (file && file.size > MAX_FILE_SIZE) {
+      toast({ title: `ไฟล์ ${file.name} ใหญ่เกิน 10MB`, variant: "destructive" });
+    } else if (file) uploadFile(file, "file");
     e.target.value = "";
   };
 
@@ -397,7 +400,12 @@ export default function AboutContentEditor({ blocks, onChange, programId }: Prop
       </div>
 
       <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
-      <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileSelect} />
+      <input ref={fileInputRef}
+        type="file"
+        accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tiff"
+        className="hidden"
+        onChange={handleFileSelect}
+      />
     </div>
   );
 }

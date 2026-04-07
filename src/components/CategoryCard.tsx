@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Category, ScoringCriterion } from "@/data/evaluationData";
-import { ChevronDown, ChevronRight, ChevronLeft, Trash2, FileText, X, Eye, ListChecks, Plus, Info, Save, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronLeft, Trash2, FileText, X, Eye, ListChecks, Plus, Info, Save, Loader2, AlignLeft, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { MAX_FILE_SIZE } from "@/helpers/constants";
 
 const categoryColors = [
   "210 70% 45%",
@@ -177,7 +178,7 @@ function EvaluateeIndicatorDialog({
     setUploading(true);
     const newFiles: UploadedFile[] = [];
     for (const file of Array.from(selectedFiles)) {
-      if (file.size > 10 * 1024 * 1024) {
+      if (file.size > MAX_FILE_SIZE) {
         toast.error(`ไฟล์ ${file.name} ใหญ่เกิน 10MB`);
         continue;
       }
@@ -284,7 +285,7 @@ function EvaluateeIndicatorDialog({
                   <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tiff" multiple className="hidden" onChange={handleFileUpload} />
                   <div onClick={() => fileInputRef.current?.click()} className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/20 py-6 cursor-pointer hover:bg-muted/40 hover:border-muted-foreground/40 transition-colors">
                     <ListChecks className="h-6 w-6 text-muted-foreground/40 mb-1.5" />
-                    <p className="text-xs text-muted-foreground text-center">รองรับ PDF, Word, Excel, PowerPoint และรูปภาพ</p>
+                    <p className="text-xs text-muted-foreground text-center">รองรับ PDF, Word, Excel, PowerPoint และรูปภาพ (ไม่เกิน 10 MB)</p>
                     <p className="text-xs text-muted-foreground/70 text-center mb-2">ลากไฟล์มาวางหรือคลิกเพื่ออัปโหลด</p>
                     <button disabled={uploading} className="flex items-center gap-1.5 text-xs font-medium px-4 py-1.5 rounded-md border bg-background text-foreground hover:bg-muted transition-colors">
                       <Plus className="h-3 w-3" />{uploading ? "กำลังอัปโหลด..." : "เลือกไฟล์"}
@@ -944,6 +945,12 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
     (sum, t) => sum + t.indicators.reduce((s, i) => s + ((displayScores[i.id] ?? -1) === 1 ? 1 : 0), 0),
     0
   ) : 0;
+  const totalIndCount = category.topics.reduce((s, t) => s + t.indicators.length, 0);
+  const filledCount = isYesNoCat
+    ? category.topics.reduce((sum, t) => sum + t.indicators.reduce((s, i) => s + ((displayScores[i.id] ?? -1) !== -1 ? 1 : 0), 0), 0)
+    : category.topics.reduce((sum, t) => sum + t.indicators.reduce((s, i) => s + ((displayScores[i.id] ?? 0) > 0 ? 1 : 0), 0), 0);
+  const fillPct = totalIndCount > 0 ? (filledCount / totalIndCount) * 100 : 0;
+  const fillColor = filledCount === totalIndCount && totalIndCount > 0 ? "#059669" : `hsl(${color})`;
 
   return (
     <div id={`cat-${category.id}`} className="rounded-xl border bg-card overflow-hidden shadow-sm">
@@ -969,6 +976,14 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
           <p className="text-xs text-muted-foreground">
             {category.topics.length} ประเด็น · {category.topics.reduce((s, t) => s + t.indicators.length, 0)} ตัวชี้วัด{isYesNoCat ? "" : ` · คะแนนเต็ม ${category.maxScore}`}
           </p>
+          <div className="flex items-center gap-1.5 mt-1">
+            <div className="h-1 w-16 rounded-full bg-muted overflow-hidden">
+              <div className="h-full rounded-full transition-all duration-300" style={{ width: `${fillPct}%`, backgroundColor: fillColor }} />
+            </div>
+            <span className="text-[10px] font-medium" style={{ color: fillColor }}>
+              {filledCount}/{totalIndCount}
+            </span>
+          </div>
         </div>
         <div className="text-right mr-2">
           {isYesNoCat ? (
@@ -1035,9 +1050,14 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
                     >
                       <span className="h-1 w-1 rounded-full bg-muted-foreground/40 shrink-0" />
                       <span className="flex-1 text-sm text-foreground truncate">{indicator.name}</span>
-                      {notif && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-white leading-none shrink-0 whitespace-nowrap">
-                          {formatScore(notif.prevScore)}→{formatScore(notif.newScore)}
+                      {implementationDetails?.[indicator.id] && (
+                        <span className="inline-flex items-center px-1 py-0.5 rounded bg-blue-50 text-blue-500 border border-blue-100 shrink-0">
+                          <AlignLeft className="h-3 w-3" />
+                        </span>
+                      )}
+                      {committeeComments?.[indicator.id] && (
+                        <span className="inline-flex items-center px-1 py-0.5 rounded bg-teal-50 text-teal-500 border border-teal-100 shrink-0">
+                          <MessageSquare className="h-3 w-3" />
                         </span>
                       )}
                       {fileCount > 0 && (
