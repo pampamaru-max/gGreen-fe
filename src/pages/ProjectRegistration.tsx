@@ -1,24 +1,20 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Building2, MapPin, Phone, Mail, User, ClipboardCheck,
-  Loader2, CheckCircle2, CalendarDays, Hash, ArrowLeft,
+  ClipboardCheck, Loader2, CheckCircle2, ArrowLeft,
   Clock, FileText, AlertCircle, XCircle, RotateCcw,
   FilePlus, RefreshCw, TrendingUp,
   Trophy, Medal, Award, Star,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { CategoryCard, IndicatorDialog, getCategoryColor } from "@/components/CategoryCard";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
 import type { UploadedFile, IndicatorNavItem } from "@/components/CategoryCard";
-import { ScoreSummary } from "@/components/ScoreSummary";
-import { SelfEvalHeader } from "@/components/self-eval/SelfEvalHeader";
-import { ScoringLevelBadges } from "@/components/self-eval/ScoringLevelBadges";
+import { ScoreSummary } from "@/components/evaluation/ScoreSummary";
 import { Category } from "@/data/evaluationData";
 
 // Category extended with scoreType / upgrade-renew settings from DB
@@ -65,12 +61,6 @@ export interface ScoringLevel {
   sortOrder: number;
 }
 
-
-const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  pending:  { label: "รอดำเนินการ",         variant: "secondary" },
-  selected: { label: "ผ่านการคัดเลือก",      variant: "default" },
-  rejected: { label: "ไม่ผ่านการคัดเลือก",   variant: "destructive" },
-};
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
@@ -359,35 +349,49 @@ export default function ProjectRegistration() {
   const summaryData = useMemo(() =>
     visibleCategories.map((cat, idx) => {
       const isYesNo = cat.scoreType?.includes('yes_no');
-      let totalScore = 0, totalMax = 0, totalCommittee = 0;
-      let passCount = 0, committeePassCount = 0, totalIndicators = 0;
+      let totalScore = 0, totalMax = 0;
+      let passCount = 0, totalIndicators = 0;
       cat.topics.forEach((t) => t.indicators.forEach((i) => {
         if (isYesNo) {
           totalIndicators++;
           if ((scores[i.id] ?? -1) === 1) passCount++;
-          if ((committeeScores[i.id] ?? -1) === 1) committeePassCount++;
         } else {
-          totalScore     += scores[i.id] ?? 0;
-          totalMax       += i.maxScore;
-          totalCommittee += committeeScores[i.id] ?? 0;
+          totalScore += scores[i.id] ?? 0;
+          totalMax   += i.maxScore;
         }
       }));
-      const hasCommittee = Object.keys(committeeScores).length > 0;
-      const res: any = {
+      return {
         id: cat.id, name: cat.name, score: totalScore,
         maxScore: cat.maxScore, totalPossible: totalMax, index: idx,
         scoreType: cat.scoreType,
+        ...(isYesNo ? { passCount, totalIndicators } : {}),
       };
-      if (isYesNo) {
-        res.passCount = passCount;
-        res.totalIndicators = totalIndicators;
-        res.committeePassCount = hasCommittee ? committeePassCount : undefined;
-      } else {
-        res.committeeScore = hasCommittee ? totalCommittee : undefined;
-      }
-      return res;
     }),
-  [scores, categories, committeeScores]);
+  [scores, visibleCategories]);
+
+  const committeeSummaryData = useMemo(() => {
+    if (Object.keys(committeeScores).length === 0) return undefined;
+    return visibleCategories.map((cat) => {
+      const isYesNo = cat.scoreType?.includes('yes_no');
+      let totalScore = 0, totalMax = 0;
+      let passCount = 0, totalIndicators = 0;
+      cat.topics.forEach((t) => t.indicators.forEach((i) => {
+        if (isYesNo) {
+          totalIndicators++;
+          if ((committeeScores[i.id] ?? -1) === 1) passCount++;
+        } else {
+          totalScore += committeeScores[i.id] ?? 0;
+          totalMax   += i.maxScore;
+        }
+      }));
+      return {
+        id: cat.id, name: cat.name, score: totalScore,
+        maxScore: cat.maxScore, totalPossible: totalMax,
+        scoreType: cat.scoreType,
+        ...(isYesNo ? { passCount, totalIndicators } : {}),
+      };
+    });
+  }, [committeeScores, visibleCategories]);
 
   const allScored = useMemo(() => {
     if (visibleCategories.length === 0) return false;
@@ -400,10 +404,6 @@ export default function ProjectRegistration() {
 
   const grandTotal    = summaryData.reduce((s, c) => s + c.score, 0);
   const grandMax      = summaryData.reduce((s, c) => s + c.totalPossible, 0);
-  const grandCommitteeTotal = summaryData.every((s: any) => s.committeeScore === undefined)
-    ? undefined
-    : summaryData.reduce((s, c: any) => s + (c.committeeScore || 0), 0);
-
   // yes/no totals — used when grandMax === 0
   const grandPassCount  = summaryData.reduce((s, c: any) => s + (c.passCount ?? 0), 0);
   const grandPassTotal  = summaryData.reduce((s, c: any) => s + (c.totalIndicators ?? 0), 0);
@@ -413,6 +413,9 @@ export default function ProjectRegistration() {
   const displayMax      = isYesNoProgram ? grandPassTotal  : grandMax;
   const displayPct      = displayMax > 0 ? Math.round((displayTotal / displayMax) * 100) : 0;
   const displayUnit     = isYesNoProgram ? "ผ่าน" : "";
+  const grandCommitteeTotal = committeeSummaryData
+    ? committeeSummaryData.reduce((s, c) => s + c.score, 0)
+    : undefined;
 
   // ── Wizard flat list ───────────────────────────────────────────────────────
   const flatIndicators = useMemo(() => {
@@ -495,9 +498,6 @@ export default function ProjectRegistration() {
   [flatIndicators, scores]);
   const totalTopics   = visibleCategories.reduce((s, c) => s + c.topics.length, 0);
   const totalIndicators = visibleCategories.reduce((s, c) => s + c.topics.reduce((ts, t) => ts + t.indicators.length, 0), 0);
-  const status = registration
-    ? (statusMap[registration.status] ?? { label: registration.status, variant: "outline" as const })
-    : { label: "ผ่านการคัดเลือก", variant: "default" as const };
 
   // Derived from evaluationStatus
   const isEvalReadOnly = evaluationStatus === "submitted" || evaluationStatus === "completed";
@@ -537,37 +537,7 @@ export default function ProjectRegistration() {
             <ClipboardCheck className="h-4 w-4 text-primary-foreground" />
           </div>
           <h2 className="flex-1 min-w-0 text-sm font-bold text-foreground truncate">ประเมิน {programName}</h2>
-          {/* Score + level badge — right side */}
           <div className="flex items-center gap-2 shrink-0">
-            {displayMax > 0 && (programScoringType === 'yes_no' ? (
-              (() => {
-                const allPass = displayTotal === displayMax;
-                return (
-                  <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-semibold ${allPass ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-rose-400 bg-rose-50 text-rose-700"}`}>
-                    {allPass ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> : <XCircle className="h-3.5 w-3.5 shrink-0" />}
-                    <div className="leading-tight">
-                      <p className="font-semibold">{allPass ? "สอดคล้อง" : "ไม่สอดคล้อง"}</p>
-                      <p className="opacity-70">{displayPct}%</p>
-                    </div>
-                  </div>
-                );
-              })()
-            ) : scoringLevels.length > 0 && (() => {
-              const lvl = [...scoringLevels].reverse().find(l => displayPct >= l.minScore && displayPct <= l.maxScore);
-              if (!lvl) return null;
-              const iconMap = { Trophy, Medal, Award, Star } as Record<string, ({ className }: { className?: string }) => JSX.Element>;
-              const IconComp = iconMap[lvl.icon] ?? Trophy;
-              return (
-                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs shrink-0"
-                  style={{ borderColor: `${lvl.color}60`, backgroundColor: `${lvl.color}10`, color: lvl.color }}>
-                  <IconComp className="h-3.5 w-3.5 shrink-0" />
-                  <div className="leading-tight">
-                    <p className="font-semibold">{lvl.name}</p>
-                    <p className="opacity-70">{lvl.minScore}–{lvl.maxScore}%</p>
-                  </div>
-                </div>
-              );
-            })())}
             <div className="text-right">
               <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">คะแนนรวม</p>
               <p className="text-base font-bold text-primary leading-tight">
@@ -638,15 +608,51 @@ export default function ProjectRegistration() {
             {programScoringType === 'yes_no' ? (
               (() => {
                 const allPass = displayMax > 0 && displayTotal === displayMax;
+                const color = allPass ? "#059669" : "#E11D48";
                 return (
-                  <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-semibold ${allPass ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-rose-400 bg-rose-50 text-rose-700"}`}>
-                    {allPass ? <><CheckCircle2 className="h-4 w-4" /> สอดคล้อง</> : <><XCircle className="h-4 w-4" /> ไม่สอดคล้อง</>}
+                  <div
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-white font-bold shrink-0"
+                    style={{ background: `linear-gradient(135deg, ${color}cc 0%, ${color} 100%)`, boxShadow: `0 4px 14px ${color}50` }}
+                  >
+                    {allPass ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <XCircle className="h-4 w-4 shrink-0" />}
+                    <span className="text-sm">{allPass ? "สอดคล้อง" : "ไม่สอดคล้อง"}</span>
                   </div>
                 );
               })()
-            ) : (
-              <ScoringLevelBadges levels={scoringLevels} grandMax={displayMax} currentScore={displayTotal} />
-            )}
+            ) : (() => {
+              const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = { Trophy, Medal, Award, Star };
+              const pct = displayMax > 0 ? Math.round((displayTotal / displayMax) * 100) : 0;
+              const activeLevel = [...scoringLevels].reverse().find(l => pct >= l.minScore && pct <= l.maxScore);
+              const others = scoringLevels.filter(l => l.id !== activeLevel?.id);
+              return (
+                <div className="flex flex-wrap items-center gap-2">
+                  {activeLevel && (() => {
+                    const IconComp = ICON_MAP[activeLevel.icon] ?? Trophy;
+                    return (
+                      <div
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-white font-bold shrink-0"
+                        style={{ background: `linear-gradient(135deg, ${activeLevel.color}cc 0%, ${activeLevel.color} 100%)`, boxShadow: `0 4px 14px ${activeLevel.color}50` }}
+                      >
+                        <IconComp className="h-4 w-4 shrink-0" />
+                        <span className="text-sm">{activeLevel.name}</span>
+                        <span className="text-[11px] font-normal opacity-85">({activeLevel.minScore}–{activeLevel.maxScore}%)</span>
+                      </div>
+                    );
+                  })()}
+                  {others.map(level => {
+                    const IconComp = ICON_MAP[level.icon] ?? Trophy;
+                    return (
+                      <div key={level.id} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] border"
+                        style={{ borderColor: `${level.color}25`, color: `${level.color}60` }}>
+                        <IconComp className="h-3 w-3 shrink-0" />
+                        <span>{level.name}</span>
+                        <span className="opacity-70">({level.minScore}–{level.maxScore}%)</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
           {displayMax > 0 && (
             <div className="shrink-0 text-right">
@@ -681,7 +687,7 @@ export default function ProjectRegistration() {
         ) : (
           <>
             {/* Score summary grid */}
-            {summaryData.length > 0 && <ScoreSummary data={summaryData} onCategoryClick={handleCategoryClick} />}
+            {summaryData.length > 0 && <ScoreSummary data={summaryData} committeeData={committeeSummaryData} onCategoryClick={handleCategoryClick} />}
 
             {/* Category cards */}
             {visibleCategories.map((category, idx) => (

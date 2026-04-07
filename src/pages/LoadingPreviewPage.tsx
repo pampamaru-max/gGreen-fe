@@ -6,7 +6,11 @@ import { Button } from "@/components/ui/button";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { ClipboardCheck, FileText, Upload, Trash2, AlertCircle, Loader2, CheckCircle2 } from "lucide-react";
+import { ClipboardCheck, Upload, Trash2, AlertCircle, Loader2, CheckCircle2, ArrowLeft, RotateCcw, XCircle, Trophy, Medal, Award, Star } from "lucide-react";
+import { ScoreSummary as ScoreSummaryA } from "@/components/ScoreSummary";
+import { ScoreSummary as ScoreSummaryB } from "@/components/evaluation/ScoreSummary";
+import { ScoringLevelBadges } from "@/components/self-eval/ScoringLevelBadges";
+import type { ScoringLevel } from "@/pages/ProjectRegistration";
 
 type Variant = "pulse" | "shimmer" | "wave";
 
@@ -256,7 +260,7 @@ const PAGES = [
 ] as const;
 
 type PageKey = (typeof PAGES)[number]["key"];
-type Tab = "skeleton" | "spinners" | "upload" | "pageloading";
+type Tab = "skeleton" | "spinners" | "upload" | "pageloading" | "score-summary";
 
 // ─── Upload Loading Showcase ──────────────────────────────────────────────────
 
@@ -583,8 +587,621 @@ function UploadShowcase() {
   );
 }
 
+// ─── Score Summary Showcase ───────────────────────────────────────────────────
+
+// Mock data สำหรับ Component A (src/components/ScoreSummary.tsx)
+// ใช้ใน /register/evaluate (ProjectRegistration) — committeeScore อยู่ใน item เดียวกัน
+const MOCK_A_SCORE = [
+  { id: 1, name: "หมวด 1", score: 23, maxScore: 25, totalPossible: 25, committeeScore: 15 },
+  { id: 2, name: "หมวด 2", score: 13, maxScore: 15, totalPossible: 15, committeeScore: 7  },
+  { id: 3, name: "หมวด 3", score: 14, maxScore: 15, totalPossible: 15, committeeScore: 8  },
+];
+const MOCK_A_YESNO = [
+  { id: 1, name: "หมวด 1", score: 0, maxScore: 0, totalPossible: 0, scoreType: "yes_no", totalIndicators: 10, passCount: 8,  committeePassCount: 6 },
+  { id: 2, name: "หมวด 2", score: 0, maxScore: 0, totalPossible: 0, scoreType: "yes_no", totalIndicators: 8,  passCount: 7,  committeePassCount: 4 },
+  { id: 3, name: "หมวด 3", score: 0, maxScore: 0, totalPossible: 0, scoreType: "yes_no", totalIndicators: 6,  passCount: 5,  committeePassCount: 3 },
+];
+
+// Mock data สำหรับ Component B (src/components/evaluation/ScoreSummary.tsx)
+// ใช้ใน /evaluation/[id] (EvaluationByProgramPage) — committeeData เป็น array แยก
+const MOCK_B_SELF_SCORE = [
+  { id: 1, name: "หมวด 1", score: 23, maxScore: 25, totalPossible: 25 },
+  { id: 2, name: "หมวด 2", score: 13, maxScore: 15, totalPossible: 15 },
+  { id: 3, name: "หมวด 3", score: 14, maxScore: 15, totalPossible: 15 },
+];
+const MOCK_B_COMMITTEE_SCORE = [
+  { id: 1, name: "หมวด 1", score: 15, maxScore: 25, totalPossible: 25 },
+  { id: 2, name: "หมวด 2", score: 7,  maxScore: 15, totalPossible: 15 },
+  { id: 3, name: "หมวด 3", score: 8,  maxScore: 15, totalPossible: 15 },
+];
+const MOCK_B_SELF_YESNO = [
+  { id: 1, name: "หมวด 1", score: 0, maxScore: 0, totalPossible: 0, scoreType: "yes_no", totalIndicators: 10, passCount: 8 },
+  { id: 2, name: "หมวด 2", score: 0, maxScore: 0, totalPossible: 0, scoreType: "yes_no", totalIndicators: 8,  passCount: 7 },
+  { id: 3, name: "หมวด 3", score: 0, maxScore: 0, totalPossible: 0, scoreType: "yes_no", totalIndicators: 6,  passCount: 5 },
+];
+const MOCK_B_COMMITTEE_YESNO = [
+  { id: 1, name: "หมวด 1", score: 0, maxScore: 0, totalPossible: 0, scoreType: "yes_no", totalIndicators: 10, passCount: 6 },
+  { id: 2, name: "หมวด 2", score: 0, maxScore: 0, totalPossible: 0, scoreType: "yes_no", totalIndicators: 8,  passCount: 4 },
+  { id: 3, name: "หมวด 3", score: 0, maxScore: 0, totalPossible: 0, scoreType: "yes_no", totalIndicators: 6,  passCount: 3 },
+];
+
+// Mock scoring levels (ทอง/เงิน/ทองแดง/ไม่ผ่าน)
+const MOCK_SCORING_LEVELS: ScoringLevel[] = [
+  { id: 1, name: "ทอง",    minScore: 80, maxScore: 100, color: "#F59E0B", icon: "Trophy", sortOrder: 1 },
+  { id: 2, name: "เงิน",   minScore: 70, maxScore: 79,  color: "#94A3B8", icon: "Medal",  sortOrder: 2 },
+  { id: 3, name: "ทองแดง", minScore: 60, maxScore: 69,  color: "#F97316", icon: "Award",  sortOrder: 3 },
+  { id: 4, name: "ไม่ผ่าน", minScore: 0,  maxScore: 59,  color: "#EF4444", icon: "Star",   sortOrder: 4 },
+];
+
+// ─── Shared mock header for both pages ───────────────────────────────────────
+
+/** Header แบบ self-eval (user) — ใช้ใน /register/evaluate */
+function MockHeaderSelf({ grandMax, selfTotal, isYesNo }: { grandMax: number; selfTotal: number; isYesNo?: boolean }) {
+  return (
+    <div className="border-b bg-card/50 px-4 py-3">
+      <div className="flex items-center gap-2">
+        <button className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground shrink-0">
+          <ArrowLeft className="h-4 w-4" />
+        </button>
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shrink-0">
+          <ClipboardCheck className="h-4 w-4 text-primary-foreground" />
+        </div>
+        <div className="flex-1 min-w-0" />
+        <div className="text-right shrink-0">
+          <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">คะแนนรวม</p>
+          <p className="text-base font-bold text-primary leading-tight">
+            {isYesNo ? `${selfTotal} ผ่าน` : selfTotal}
+            <span className="text-xs font-normal text-muted-foreground">/{grandMax}</span>
+          </p>
+          {!isYesNo && <p className="text-[9px] text-muted-foreground">{grandMax > 0 ? Math.round((selfTotal / grandMax) * 100) : 0}%</p>}
+        </div>
+      </div>
+      <div className="flex items-center gap-1.5 flex-wrap mt-1.5 ml-[40px]">
+        <h2 className="text-sm font-bold w-full">Green Hotel</h2>
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border bg-blue-50 text-blue-700 border-blue-200">ประเมินใหม่</span>
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border bg-amber-50 text-amber-700 border-amber-200">รอผู้ประเมิน</span>
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border border-border bg-muted/60 text-muted-foreground">พ.ศ. 2568</span>
+        <span className="text-[11px] text-muted-foreground">3 หมวด · 3 ประเด็น · 11 ตัวชี้วัด{!isYesNo && ` · คะแนนเต็ม ${grandMax}`}</span>
+      </div>
+    </div>
+  );
+}
+
+/** Header แบบ committee (admin) — ใช้ใน /evaluation/[id] */
+function MockHeaderCommittee({ grandMax, selfTotal, committeeTotal, isYesNo }: { grandMax: number; selfTotal: number; committeeTotal: number; isYesNo?: boolean }) {
+  const selfPct = grandMax > 0 ? Math.round((selfTotal / grandMax) * 100) : 0;
+  const committeePct = grandMax > 0 ? Math.round((committeeTotal / grandMax) * 100) : 0;
+  const currentLevel = [...MOCK_SCORING_LEVELS].reverse().find(l => committeePct >= l.minScore && committeePct <= l.maxScore);
+  return (
+    <div className="border-b bg-card/50 px-4 py-3">
+      <div className="flex items-center gap-2">
+        <button className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground shrink-0">
+          <ArrowLeft className="h-4 w-4" />
+        </button>
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shrink-0">
+          <ClipboardCheck className="h-4 w-4 text-primary-foreground" />
+        </div>
+        <div className="flex-1 min-w-0" />
+        {/* Scores + badge + actions */}
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="text-right">
+            <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">ตนเอง</p>
+            <p className="text-base font-bold text-muted-foreground leading-tight">
+              {isYesNo ? `${selfTotal} ผ่าน` : selfTotal}
+              <span className="text-xs font-normal text-muted-foreground">/{grandMax}</span>
+            </p>
+          </div>
+          <div className="w-px h-7 bg-border" />
+          {!isYesNo && currentLevel && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs shrink-0"
+              style={{ borderColor: `${currentLevel.color}60`, backgroundColor: `${currentLevel.color}10`, color: currentLevel.color }}>
+              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+              <div className="leading-tight">
+                <p className="font-semibold">{currentLevel.name}</p>
+                <p className="opacity-70">{currentLevel.minScore}–{currentLevel.maxScore}%</p>
+              </div>
+            </div>
+          )}
+          {isYesNo && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs shrink-0 border-rose-400 bg-rose-50 text-rose-700">
+              <XCircle className="h-3.5 w-3.5 shrink-0" />
+              <div className="leading-tight">
+                <p className="font-semibold">ไม่สอดคล้อง</p>
+                <p className="opacity-70">{committeePct}%</p>
+              </div>
+            </div>
+          )}
+          <div className="text-right">
+            <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">กรรมการ</p>
+            <p className="text-base font-bold text-primary leading-tight">
+              {isYesNo ? `${committeeTotal} ผ่าน` : committeeTotal}
+              <span className="text-xs font-normal text-muted-foreground">/{grandMax}</span>
+            </p>
+            {!isYesNo && <p className="text-[9px] text-muted-foreground">{committeePct}%</p>}
+          </div>
+          <div className="w-px h-7 bg-border" />
+          <Button variant="outline" size="sm" className="gap-1 text-amber-600 border-amber-300 hover:bg-amber-50 h-8 px-2 text-xs shrink-0">
+            <RotateCcw className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">ส่งกลับ</span>
+          </Button>
+          <Button size="sm" className="gap-1 bg-green-600 hover:bg-green-700 text-white h-8 px-2 text-xs shrink-0">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">ยืนยันผล</span>
+          </Button>
+        </div>
+      </div>
+      <div className="flex items-center gap-1.5 flex-wrap mt-1.5 ml-[40px]">
+        <h2 className="text-sm font-bold w-full">Green Hotel</h2>
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border bg-blue-50 text-blue-700 border-blue-200">ประเมินใหม่</span>
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border bg-amber-50 text-amber-700 border-amber-200">รอผู้ประเมิน</span>
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border border-border bg-muted/60 text-muted-foreground">พ.ศ. 2568</span>
+        <span className="text-[11px] text-muted-foreground">3 หมวด · 3 ประเด็น · 11 ตัวชี้วัด{!isYesNo && ` · คะแนนเต็ม ${grandMax}`}</span>
+      </div>
+    </div>
+  );
+}
+
+/** Level strip — ใต้ header ทั้ง 2 หน้า */
+function MockLevelStrip({ grandMax, currentScore, isYesNo }: { grandMax: number; currentScore: number; isYesNo?: boolean }) {
+  const allPass = isYesNo && currentScore === grandMax;
+  return (
+    <div className="px-4 py-2 border-b bg-card/30 flex flex-wrap items-center gap-x-3 gap-y-1">
+      <div className="flex-1 min-w-0">
+        {isYesNo ? (
+          <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-semibold ${allPass ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-rose-400 bg-rose-50 text-rose-700"}`}>
+            {allPass ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+            {allPass ? "สอดคล้อง" : "ไม่สอดคล้อง"}
+          </div>
+        ) : (
+          <ScoringLevelBadges levels={MOCK_SCORING_LEVELS} grandMax={grandMax} currentScore={currentScore} />
+        )}
+      </div>
+      <div className="shrink-0 text-right">
+        <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+          {isYesNo ? "วิธีคำนวณ (สอดคล้อง)" : "วิธีคำนวณ (คะแนน)"}
+        </p>
+        {!isYesNo && <p className="text-[10px] font-bold text-red-600">*คำนวนแบบคะแนนไม่เต็มหมวด</p>}
+        {isYesNo && <p className="text-[10px] font-bold text-red-600">*ต้องสอดคล้องครบทุกข้อ</p>}
+      </div>
+    </div>
+  );
+}
+
+// ─── Redesigned components (score type) ──────────────────────────────────────
+
+const LEVEL_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  Trophy, Medal, Award, Star,
+};
+
+/** Level strip ที่ active level โดดเด่น — gradient + glow */
+function RedesignedLevelStrip({ grandMax, currentScore }: { grandMax: number; currentScore: number }) {
+  const pct = grandMax > 0 ? Math.round((currentScore / grandMax) * 100) : 0;
+  const activeLevel = [...MOCK_SCORING_LEVELS].reverse().find(l => pct >= l.minScore && pct <= l.maxScore);
+  const others = MOCK_SCORING_LEVELS.filter(l => l.id !== activeLevel?.id);
+
+  return (
+    <div className="px-4 py-2.5 border-b bg-card/30 flex flex-wrap items-center gap-x-3 gap-y-2">
+      <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+        {/* Active level — big & glowing */}
+        {activeLevel && (() => {
+          const IconComp = LEVEL_ICON_MAP[activeLevel.icon] ?? Trophy;
+          return (
+            <div
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-white font-bold shrink-0"
+              style={{
+                background: `linear-gradient(135deg, ${activeLevel.color}cc 0%, ${activeLevel.color} 100%)`,
+                boxShadow: `0 4px 14px ${activeLevel.color}50`,
+              }}
+            >
+              <IconComp className="h-4 w-4 shrink-0" />
+              <span className="text-sm">{activeLevel.name}</span>
+              <span className="text-[11px] font-normal opacity-85">({activeLevel.minScore}–{activeLevel.maxScore}%)</span>
+            </div>
+          );
+        })()}
+        {/* Inactive levels — muted small pills */}
+        {others.map(level => {
+          const IconComp = LEVEL_ICON_MAP[level.icon] ?? Trophy;
+          return (
+            <div
+              key={level.id}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] border"
+              style={{ borderColor: `${level.color}25`, color: `${level.color}60` }}
+            >
+              <IconComp className="h-3 w-3 shrink-0" />
+              <span>{level.name}</span>
+              <span className="opacity-70">({level.minScore}–{level.maxScore}%)</span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="shrink-0 text-right">
+        <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">วิธีคำนวณ (คะแนน)</p>
+        <p className="text-[10px] font-bold text-red-600">*คำนวนแบบคะแนนไม่เต็มหมวด</p>
+      </div>
+    </div>
+  );
+}
+
+type BtnStyle = "amber-green" | "neutral" | "primary";
+type CardStyle = "blue" | "brand" | "multi" | "minimal";
+
+const CARD_TOP_COLORS: Record<CardStyle, (idx: number) => React.CSSProperties> = {
+  blue:    () => ({ background: "linear-gradient(to right, #1E40AF, #60A5FA)" }),
+  brand:   () => ({ background: "linear-gradient(to right, #0D9488, #5EEAD4)" }),
+  multi:   (i) => ([
+    { background: "linear-gradient(to right, #2563EB, #60A5FA)" },
+    { background: "linear-gradient(to right, #7C3AED, #A78BFA)" },
+    { background: "linear-gradient(to right, #059669, #34D399)" },
+  ][i % 3]),
+  minimal: () => ({}),
+};
+
+function RedesignedHeaderCommittee({ grandMax, selfTotal, committeeTotal, btnStyle = "amber-green" }: {
+  grandMax: number; selfTotal: number; committeeTotal: number; btnStyle?: BtnStyle;
+}) {
+  const selfPct = grandMax > 0 ? Math.round((selfTotal / grandMax) * 100) : 0;
+  const committeePct = grandMax > 0 ? Math.round((committeeTotal / grandMax) * 100) : 0;
+
+  const ReturnBtn = () => {
+    if (btnStyle === "neutral")
+      return (
+        <Button variant="outline" size="sm" className="gap-1 h-8 px-2 text-xs shrink-0 text-muted-foreground border-border hover:bg-muted">
+          <RotateCcw className="h-3.5 w-3.5" /><span className="hidden sm:inline">ส่งกลับ</span>
+        </Button>
+      );
+    if (btnStyle === "primary")
+      return (
+        <Button variant="ghost" size="sm" className="gap-1 h-8 px-2 text-xs shrink-0 text-muted-foreground hover:bg-muted">
+          <RotateCcw className="h-3.5 w-3.5" /><span className="hidden sm:inline">ส่งกลับ</span>
+        </Button>
+      );
+    return (
+      <Button variant="outline" size="sm" className="gap-1 text-amber-600 border-amber-300 hover:bg-amber-50 h-8 px-2 text-xs shrink-0">
+        <RotateCcw className="h-3.5 w-3.5" /><span className="hidden sm:inline">ส่งกลับ</span>
+      </Button>
+    );
+  };
+
+  const ConfirmBtn = () => {
+    if (btnStyle === "neutral")
+      return (
+        <Button variant="outline" size="sm" className="gap-1 h-8 px-2 text-xs shrink-0 border-foreground/30 hover:bg-foreground/5">
+          <CheckCircle2 className="h-3.5 w-3.5" /><span className="hidden sm:inline">ยืนยันผล</span>
+        </Button>
+      );
+    if (btnStyle === "primary")
+      return (
+        <Button size="sm" className="gap-1 h-8 px-2 text-xs shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground">
+          <CheckCircle2 className="h-3.5 w-3.5" /><span className="hidden sm:inline">ยืนยันผล</span>
+        </Button>
+      );
+    return (
+      <Button size="sm" className="gap-1 bg-green-600 hover:bg-green-700 text-white h-8 px-2 text-xs shrink-0">
+        <CheckCircle2 className="h-3.5 w-3.5" /><span className="hidden sm:inline">ยืนยันผล</span>
+      </Button>
+    );
+  };
+
+  return (
+    <div className="border-b bg-card/50 px-4 py-3">
+      <div className="flex items-center gap-2">
+        <button className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground shrink-0">
+          <ArrowLeft className="h-4 w-4" />
+        </button>
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shrink-0">
+          <ClipboardCheck className="h-4 w-4 text-primary-foreground" />
+        </div>
+        <div className="flex-1 min-w-0" />
+        <div className="flex items-center gap-2.5 shrink-0">
+          <div className="text-right">
+            <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">ตนเอง</p>
+            <p className="text-base font-bold text-muted-foreground leading-tight">
+              {selfTotal}<span className="text-xs font-normal">/{grandMax}</span>
+            </p>
+            <p className="text-[9px] text-muted-foreground">{selfPct}%</p>
+          </div>
+          <div className="w-px h-8 bg-border" />
+          <div className="text-right">
+            <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">กรรมการ</p>
+            <p className="text-base font-bold text-primary leading-tight">
+              {committeeTotal}<span className="text-xs font-normal text-muted-foreground">/{grandMax}</span>
+            </p>
+            <p className="text-[9px] text-muted-foreground">{committeePct}%</p>
+          </div>
+          <div className="w-px h-8 bg-border" />
+          <ReturnBtn />
+          <ConfirmBtn />
+        </div>
+      </div>
+      <div className="flex items-center gap-1.5 flex-wrap mt-1.5 ml-[40px]">
+        <h2 className="text-sm font-bold w-full">Green Hotel</h2>
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border bg-blue-50 text-blue-700 border-blue-200">ประเมินใหม่</span>
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border bg-amber-50 text-amber-700 border-amber-200">รอผู้ประเมิน</span>
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border border-border bg-muted/60 text-muted-foreground">พ.ศ. 2568</span>
+        <span className="text-[11px] text-muted-foreground">3 หมวด · 3 ประเด็น · 11 ตัวชี้วัด · คะแนนเต็ม {grandMax}</span>
+      </div>
+    </div>
+  );
+}
+
+function RedesignedScoreCard({ name, idx, selfScore, totalPossible, committeeScore, cardStyle = "blue" }: {
+  name: string; idx: number; selfScore: number; totalPossible: number; committeeScore?: number; cardStyle?: CardStyle;
+}) {
+  const selfPct = totalPossible > 0 ? Math.round((selfScore / totalPossible) * 100) : 0;
+  const committeePct = committeeScore !== undefined && totalPossible > 0
+    ? Math.round((committeeScore / totalPossible) * 100) : 0;
+  const topStyle = CARD_TOP_COLORS[cardStyle](idx);
+
+  return (
+    <div className={`relative overflow-hidden rounded-xl bg-white border shadow-sm hover:shadow-md transition-shadow ${cardStyle === "minimal" ? "border-l-4" : ""}`}
+      style={cardStyle === "minimal" ? { borderLeftColor: ["#2563EB","#7C3AED","#059669"][idx % 3] } : {}}>
+      {cardStyle !== "minimal" && <div className="h-1.5 w-full" style={topStyle} />}
+      <div className="p-4">
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">หมวดที่ {idx + 1}</p>
+        <p className="text-sm font-bold text-foreground mt-0.5 mb-4 leading-tight">{name}</p>
+
+        <div className="space-y-1.5">
+          {committeeScore !== undefined && (
+            <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#3B82F6" }}>ประเมินตนเอง</p>
+          )}
+          <div className="flex items-baseline gap-1">
+            <span className="text-3xl font-extrabold text-foreground leading-none">{selfScore}</span>
+            <span className="text-sm font-medium text-muted-foreground">/{totalPossible}</span>
+            <span className="ml-auto text-sm font-bold" style={{ color: "#2563EB" }}>{selfPct}%</span>
+          </div>
+          <div className="h-2 w-full rounded-full overflow-hidden" style={{ backgroundColor: "#DBEAFE" }}>
+            <div className="h-full rounded-full transition-all duration-700"
+              style={{ width: `${selfPct}%`, background: "linear-gradient(to right, #60A5FA, #1D4ED8)" }} />
+          </div>
+        </div>
+
+        {committeeScore !== undefined && (
+          <>
+            <div className="my-3 border-t border-dashed border-border/60" />
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#0F766E" }}>กรรมการ</p>
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-bold text-foreground leading-none">{committeeScore}</span>
+                <span className="text-sm font-medium text-muted-foreground">/{totalPossible}</span>
+                <span className="ml-auto text-sm font-bold" style={{ color: "#0F766E" }}>{committeePct}%</span>
+              </div>
+              <div className="h-2 w-full rounded-full overflow-hidden" style={{ backgroundColor: "#CCFBF1" }}>
+                <div className="h-full rounded-full transition-all duration-700"
+                  style={{ width: `${committeePct}%`, background: "linear-gradient(to right, #2DD4BF, #0F766E)" }} />
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// grandMax = 55 (25+15+15), selfTotal = 50
+const REDESIGN_PRESETS = [
+  { key: "fail",   label: "ไม่ผ่าน", pct: "45%",  cats: [{ s:23, c:11 }, { s:13, c:7  }, { s:14, c:7  }] },
+  { key: "bronze", label: "ทองแดง", pct: "64%",  cats: [{ s:23, c:16 }, { s:13, c:10 }, { s:14, c:9  }] },
+  { key: "silver", label: "เงิน",   pct: "73%",  cats: [{ s:23, c:18 }, { s:13, c:12 }, { s:14, c:10 }] },
+  { key: "gold",   label: "ทอง",    pct: "91%",  cats: [{ s:23, c:23 }, { s:13, c:13 }, { s:14, c:14 }] },
+] as const;
+
+const BTN_STYLE_OPTIONS: { key: BtnStyle; label: string; desc: string }[] = [
+  { key: "amber-green", label: "Amber + Green",  desc: "ส่งกลับ amber / ยืนยัน green (ปัจจุบัน)" },
+  { key: "neutral",     label: "Neutral",        desc: "ทั้งคู่ outline สีเทา" },
+  { key: "primary",     label: "Ghost + Primary", desc: "ส่งกลับ ghost / ยืนยัน primary" },
+];
+
+const CARD_STYLE_OPTIONS: { key: CardStyle; label: string; desc: string }[] = [
+  { key: "blue",    label: "Blue",     desc: "gradient น้ำเงิน (ปัจจุบัน)" },
+  { key: "brand",   label: "Brand",    desc: "gradient teal (สีแบรนด์)" },
+  { key: "multi",   label: "Multi",    desc: "แต่ละหมวดสีต่างกัน" },
+  { key: "minimal", label: "Minimal",  desc: "border ซ้าย ไม่มีบาร์บน" },
+];
+
+function RedesignShowcase() {
+  const [presetKey, setPresetKey] = useState<"fail"|"bronze"|"silver"|"gold">("gold");
+  const [btnStyle, setBtnStyle] = useState<BtnStyle>("amber-green");
+  const [cardStyle, setCardStyle] = useState<CardStyle>("blue");
+  const preset = REDESIGN_PRESETS.find(p => p.key === presetKey)!;
+
+  const grandMax = 55;
+  const selfTotal = preset.cats.reduce((s, c) => s + c.s, 0);
+  const committeeTotal = preset.cats.reduce((s, c) => s + c.c, 0);
+  const selfData = MOCK_B_SELF_SCORE.map((cat, i) => ({ ...cat, score: preset.cats[i].s }));
+  const committeeData = MOCK_B_SELF_SCORE.map((cat, i) => ({ ...cat, score: preset.cats[i].c }));
+
+  return (
+    <div className="space-y-4">
+      {/* Controls row */}
+      <div className="flex flex-col sm:flex-row gap-4 p-4 bg-muted/40 rounded-xl border">
+
+        {/* Score preset */}
+        <div className="space-y-1.5 flex-1">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">จำลองคะแนน</p>
+          <div className="flex flex-wrap gap-1.5">
+            {REDESIGN_PRESETS.map(p => {
+              const level = MOCK_SCORING_LEVELS.find(l => l.name === p.label);
+              const isActive = p.key === presetKey;
+              return (
+                <button key={p.key} onClick={() => setPresetKey(p.key)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
+                  style={isActive && level ? {
+                    background: `linear-gradient(135deg, ${level.color}cc, ${level.color})`,
+                    borderColor: level.color, color: "#fff",
+                    boxShadow: `0 2px 8px ${level.color}50`,
+                  } : { borderColor: level ? `${level.color}40` : undefined, color: level ? `${level.color}90` : undefined }}>
+                  {p.label} <span className="opacity-75">{p.pct}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="w-px bg-border hidden sm:block" />
+
+        {/* Card style */}
+        <div className="space-y-1.5 flex-1">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">สีบาร์หมวด</p>
+          <div className="flex flex-wrap gap-1.5">
+            {CARD_STYLE_OPTIONS.map(o => (
+              <button key={o.key} onClick={() => setCardStyle(o.key)}
+                className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition-all ${cardStyle === o.key ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground hover:border-foreground/40"}`}
+                title={o.desc}>
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="w-px bg-border hidden sm:block" />
+
+        {/* Button style */}
+        <div className="space-y-1.5 flex-1">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">สไตล์ปุ่ม</p>
+          <div className="flex flex-wrap gap-1.5">
+            {BTN_STYLE_OPTIONS.map(o => (
+              <button key={o.key} onClick={() => setBtnStyle(o.key)}
+                className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition-all ${btnStyle === o.key ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground hover:border-foreground/40"}`}
+                title={o.desc}>
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Preview */}
+      <div className="rounded-xl border bg-background overflow-hidden">
+        <RedesignedHeaderCommittee grandMax={grandMax} selfTotal={selfTotal} committeeTotal={committeeTotal} btnStyle={btnStyle} />
+        <RedesignedLevelStrip grandMax={grandMax} currentScore={committeeTotal} />
+        <div className="px-6 py-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {selfData.map((cat, idx) => (
+              <RedesignedScoreCard key={cat.id} idx={idx} name={cat.name}
+                selfScore={cat.score} totalPossible={cat.totalPossible}
+                committeeScore={committeeData[idx]?.score} cardStyle={cardStyle} />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Divider({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="h-px flex-1 bg-border" />
+      <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground px-2">{label}</p>
+      <div className="h-px flex-1 bg-border" />
+    </div>
+  );
+}
+
+function ScoreSummaryShowcase() {
+  // totals for score type
+  const grandMax = MOCK_B_SELF_SCORE.reduce((s, c) => s + c.totalPossible, 0);
+  const selfTotal = MOCK_B_SELF_SCORE.reduce((s, c) => s + c.score, 0);
+  const committeeTotal = MOCK_B_COMMITTEE_SCORE.reduce((s, c) => s + c.score, 0);
+  // totals for yes_no type
+  const yesNoMax = MOCK_B_SELF_YESNO.reduce((s, c) => s + (c.totalIndicators ?? 0), 0);
+  const yesNoSelf = MOCK_B_SELF_YESNO.reduce((s, c) => s + (c.passCount ?? 0), 0);
+  const yesNoCommittee = MOCK_B_COMMITTEE_YESNO.reduce((s, c) => s + (c.passCount ?? 0), 0);
+
+  return (
+    <div className="space-y-10">
+      <p className="text-sm text-muted-foreground">
+        แสดง component จริงทั้ง 2 ตัว × 2 score type — แก้ไขที่ไฟล์ component เพื่อเห็นผลทันที
+      </p>
+
+      {/* ═══════════════ Component A ═══════════════ */}
+      <Divider label="Component A — src/components/ScoreSummary.tsx — ใช้ใน /register/evaluate" />
+
+      {/* A: score */}
+      <div className="space-y-1.5">
+        <p className="text-xs font-semibold text-muted-foreground">แบบ score (คะแนนตัวเลข)</p>
+        <div className="rounded-xl border bg-background overflow-hidden">
+          <MockHeaderSelf grandMax={grandMax} selfTotal={selfTotal} />
+          <MockLevelStrip grandMax={grandMax} currentScore={selfTotal} />
+          <div className="px-4 py-4">
+            <ScoreSummaryA data={MOCK_A_SCORE} />
+          </div>
+        </div>
+      </div>
+
+      {/* A: yes_no */}
+      <div className="space-y-1.5">
+        <p className="text-xs font-semibold text-muted-foreground">แบบ yes_no (ผ่าน/ไม่ผ่าน)</p>
+        <div className="rounded-xl border bg-background overflow-hidden">
+          <MockHeaderSelf grandMax={yesNoMax} selfTotal={yesNoSelf} isYesNo />
+          <MockLevelStrip grandMax={yesNoMax} currentScore={yesNoSelf} isYesNo />
+          <div className="px-4 py-4">
+            <ScoreSummaryA data={MOCK_A_YESNO} />
+          </div>
+        </div>
+      </div>
+
+      {/* ═══════════════ Component B ═══════════════ */}
+      <Divider label="Component B — src/components/evaluation/ScoreSummary.tsx — ใช้ใน /evaluation/[id]" />
+
+      {/* B: score + committee */}
+      <div className="space-y-1.5">
+        <p className="text-xs font-semibold text-muted-foreground">แบบ score (คะแนนตัวเลข) — มีกรรมการ</p>
+        <div className="rounded-xl border bg-background overflow-hidden">
+          <MockHeaderCommittee grandMax={grandMax} selfTotal={selfTotal} committeeTotal={committeeTotal} />
+          <MockLevelStrip grandMax={grandMax} currentScore={committeeTotal} />
+          <div className="px-6 py-6">
+            <ScoreSummaryB data={MOCK_B_SELF_SCORE} committeeData={MOCK_B_COMMITTEE_SCORE} />
+          </div>
+        </div>
+      </div>
+
+      {/* ═══════════════ Redesign v1 ═══════════════ */}
+      <Divider label="✨ Redesign v1 — score + committee (Component B)" />
+      <RedesignShowcase />
+
+      {/* B: score self only */}
+      <div className="space-y-1.5">
+        <p className="text-xs font-semibold text-muted-foreground">แบบ score (คะแนนตัวเลข) — ไม่มีกรรมการ (self-eval เท่านั้น)</p>
+        <div className="rounded-xl border bg-background overflow-hidden">
+          <MockHeaderCommittee grandMax={grandMax} selfTotal={selfTotal} committeeTotal={0} />
+          <MockLevelStrip grandMax={grandMax} currentScore={0} />
+          <div className="px-6 py-6">
+            <ScoreSummaryB data={MOCK_B_SELF_SCORE} />
+          </div>
+        </div>
+      </div>
+
+      {/* B: yes_no + committee */}
+      <div className="space-y-1.5">
+        <p className="text-xs font-semibold text-muted-foreground">แบบ yes_no (ผ่าน/ไม่ผ่าน) — มีกรรมการ</p>
+        <div className="rounded-xl border bg-background overflow-hidden">
+          <MockHeaderCommittee grandMax={yesNoMax} selfTotal={yesNoSelf} committeeTotal={yesNoCommittee} isYesNo />
+          <MockLevelStrip grandMax={yesNoMax} currentScore={yesNoCommittee} isYesNo />
+          <div className="px-6 py-6">
+            <ScoreSummaryB data={MOCK_B_SELF_YESNO} committeeData={MOCK_B_COMMITTEE_YESNO} />
+          </div>
+        </div>
+      </div>
+
+      {/* B: yes_no self only */}
+      <div className="space-y-1.5">
+        <p className="text-xs font-semibold text-muted-foreground">แบบ yes_no (ผ่าน/ไม่ผ่าน) — ไม่มีกรรมการ</p>
+        <div className="rounded-xl border bg-background overflow-hidden">
+          <MockHeaderCommittee grandMax={yesNoMax} selfTotal={yesNoSelf} committeeTotal={0} isYesNo />
+          <MockLevelStrip grandMax={yesNoMax} currentScore={0} isYesNo />
+          <div className="px-6 py-6">
+            <ScoreSummaryB data={MOCK_B_SELF_YESNO} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function LoadingPreviewPage() {
-  const [tab, setTab] = useState<Tab>("spinners");
+  const [tab, setTab] = useState<Tab>("score-summary");
   const [page, setPage] = useState<PageKey>("home");
   const [variant, setVariant] = useState<Variant>("wave");
 
@@ -609,6 +1226,9 @@ export default function LoadingPreviewPage() {
         <Button size="sm" variant={tab === "pageloading" ? "default" : "ghost"} onClick={() => setTab("pageloading")}>
           Page Loading
         </Button>
+        <Button size="sm" variant={tab === "score-summary" ? "default" : "ghost"} onClick={() => setTab("score-summary")}>
+          Score Summary
+        </Button>
       </div>
 
       {tab === "pageloading" && (
@@ -630,6 +1250,12 @@ export default function LoadingPreviewPage() {
             </div>
             <UploadStyleProgressBar />
           </div>
+        </div>
+      )}
+
+      {tab === "score-summary" && (
+        <div className="space-y-4">
+          <ScoreSummaryShowcase />
         </div>
       )}
 
