@@ -895,6 +895,12 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
     (sum, t) => sum + t.indicators.reduce((s, i) => s + ((displayScores[i.id] ?? -1) === 1 ? 1 : 0), 0),
     0
   ) : 0;
+  const totalIndCount = category.topics.reduce((s, t) => s + t.indicators.length, 0);
+  const filledCount = isYesNoCat
+    ? category.topics.reduce((sum, t) => sum + t.indicators.reduce((s, i) => s + ((displayScores[i.id] ?? -1) !== -1 ? 1 : 0), 0), 0)
+    : category.topics.reduce((sum, t) => sum + t.indicators.reduce((s, i) => s + ((displayScores[i.id] ?? 0) > 0 ? 1 : 0), 0), 0);
+  const fillPct = totalIndCount > 0 ? (filledCount / totalIndCount) * 100 : 0;
+  const fillColor = filledCount === totalIndCount && totalIndCount > 0 ? "#059669" : `hsl(${color})`;
 
   return (
     <div id={`cat-${category.id}`} className="rounded-xl border bg-card overflow-hidden shadow-sm">
@@ -920,6 +926,14 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
           <p className="text-xs text-muted-foreground">
             {category.topics.length} ประเด็น · {category.topics.reduce((s, t) => s + t.indicators.length, 0)} ตัวชี้วัด{isYesNoCat ? "" : ` · คะแนนเต็ม ${category.maxScore}`}
           </p>
+          <div className="flex items-center gap-1.5 mt-1">
+            <div className="h-1 w-16 rounded-full bg-muted overflow-hidden">
+              <div className="h-full rounded-full transition-all duration-300" style={{ width: `${fillPct}%`, backgroundColor: fillColor }} />
+            </div>
+            <span className="text-[10px] font-medium" style={{ color: fillColor }}>
+              {filledCount}/{totalIndCount}
+            </span>
+          </div>
         </div>
         <div className="text-right mr-2">
           {isYesNoCat ? (
