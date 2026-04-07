@@ -8,14 +8,11 @@ import apiClient from "@/lib/axios";
 import { toast } from "@/hooks/use-toast";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import {
-  AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader,
-  AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel,
-} from "@/components/ui/alert-dialog";
-import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { AlertActionPopup } from "@/components/AlertActionPopup";
 
 interface DbCategory {
   id: number;
@@ -442,30 +439,11 @@ const CategoryItem = ({ cat, topicCount, indicatorCount, onEdit, onDelete }: Cat
             </TooltipContent>
           </Tooltip>
         ) : (
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive h-8 w-8">
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>ยืนยันการลบหมวด</AlertDialogTitle>
-                <AlertDialogDescription>
-                  คุณต้องการลบหมวด "{cat.name}" ใช่หรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  onClick={() => onDelete(cat.id)}
-                >
-                  ลบ
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <AlertActionPopup
+            action={() => onDelete(cat.id)}
+            type="delete" title="ยืนยันการลบหมวด"
+            description={`คุณต้องการลบหมวด "${cat.name}" ใช่หรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้`}
+          />
         )}
       </div>
 
@@ -690,34 +668,29 @@ const ProgramCard = ({
               />
 
               {/* ─── Copy confirmation ─── */}
-              <AlertDialog open={pendingCopy !== null} onOpenChange={(v) => { if (!v) setPendingCopy(null); }}>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      {pendingCopy === "toRenew" ? "คัดลอกหมวดอัพเกรด → ต่ออายุ" : "คัดลอกหมวดต่ออายุ → อัพเกรด"}
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      {pendingCopy === "toRenew"
-                        ? `จะสร้างหมวดต่ออายุใหม่ ${upgradCategories.length} หมวดจากหมวดอัพเกรด${renewCategories.length > 0 ? ` และลบหมวดต่ออายุเดิม ${renewCategories.length} หมวดทิ้ง` : ""} ดำเนินการต่อหรือไม่?`
-                        : `จะสร้างหมวดอัพเกรดใหม่ ${renewCategories.length} หมวดจากหมวดต่ออายุ${upgradCategories.length > 0 ? ` และลบหมวดอัพเกรดเดิม ${upgradCategories.length} หมวดทิ้ง` : ""} ดำเนินการต่อหรือไม่?`
-                      }
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => {
-                        const type = pendingCopy;
-                        setPendingCopy(null);
-                        if (type === "toRenew") onCopyUpgradeToRenew(program.id);
-                        else onCopyRenewToUpgrade(program.id);
-                      }}
-                    >
-                      ดำเนินการ
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+               <AlertActionPopup
+                open={pendingCopy !== null} 
+                onOpenChange={(v) => { if (!v) setPendingCopy(null); }}
+                action={() => {
+                  const type = pendingCopy;
+                  setPendingCopy(null);
+                  if (type === "toRenew")
+                    onCopyUpgradeToRenew(program.id);
+                  else onCopyRenewToUpgrade(program.id);
+                }}
+                title={
+                  pendingCopy === "toRenew"
+                    ? "คัดลอกหมวดอัพเกรด → ต่ออายุ"
+                    : "คัดลอกหมวดต่ออายุ → อัพเกรด"
+                }
+                description={
+                  pendingCopy === "toRenew"
+                    ? `จะสร้างหมวดต่ออายุใหม่ ${upgradCategories.length} หมวดจากหมวดอัพเกรด${renewCategories.length > 0 ? ` และลบหมวดต่ออายุเดิม ${renewCategories.length} หมวดทิ้ง` : ""} ดำเนินการต่อหรือไม่?`
+                    : `จะสร้างหมวดอัพเกรดใหม่ ${renewCategories.length} หมวดจากหมวดต่ออายุ${upgradCategories.length > 0 ? ` และลบหมวดอัพเกรดเดิม ${upgradCategories.length} หมวดทิ้ง` : ""} ดำเนินการต่อหรือไม่?`
+                }
+                labelButtonLeft="ยกเลิก"
+                labelButtonRight="ดำเนินการ"
+              />
 
               {upgradCategories.length > 0 && (
                 <div className="space-y-2 pt-1">
@@ -831,7 +804,7 @@ const SettingsCategories = () => {
   const handleAddCategory = async (data: { name: string; maxScore: number; sortOrder: number; scoreType: AddScoreType }, programId: string) => {
     try {
       await apiClient.post("categories", { ...data, isDefault: false, programId });
-      toast({ title: "เพิ่มหมวดสำเร็จ" });
+      toast({ title: "เพิ่มหมวดสำเร็จ", description: `หมวด "${data.name}" ถูกเพิ่มเข้าระบบแล้ว`, variant: "success" });
       fetchData();
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
@@ -841,7 +814,7 @@ const SettingsCategories = () => {
   const handleDeleteCategory = async (id: number) => {
     try {
       await apiClient.delete(`categories/${id}`);
-      toast({ title: "ลบหมวดสำเร็จ" });
+      toast({ title: "ลบหมวดสำเร็จ", variant: "success" });
       fetchData();
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
@@ -856,7 +829,7 @@ const SettingsCategories = () => {
         sortOrder: updated.sortOrder,
         scoreType: updated.scoreType,
       });
-      toast({ title: "แก้ไขหมวดสำเร็จ" });
+      toast({ title: "แก้ไขหมวดสำเร็จ", description: `หมวด "${updated.name}" ถูกอัปเดตแล้ว`, variant: "success" });
       fetchData();
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
@@ -872,7 +845,7 @@ const SettingsCategories = () => {
         apiClient.patch(`categories/${c.id}`, { upgradeMode: mode, upgradeScoringLevelId: levelId })
       )
     );
-    toast({ title: "บันทึกการตั้งค่าอัพเกรดสำเร็จ" });
+    toast({ title: "บันทึกการตั้งค่าอัพเกรดสำเร็จ", variant: "success" });
     fetchData();
   };
 
@@ -885,7 +858,7 @@ const SettingsCategories = () => {
         apiClient.patch(`categories/${c.id}`, { renewMode: mode, renewScoringLevelId: levelId })
       )
     );
-    toast({ title: "บันทึกการตั้งค่าต่ออายุสำเร็จ" });
+    toast({ title: "บันทึกการตั้งค่าต่ออายุสำเร็จ", variant: "success" });
     fetchData();
   };
 
@@ -900,7 +873,7 @@ const SettingsCategories = () => {
           return apiClient.post("categories", { name: c.name, maxScore: c.maxScore, sortOrder: c.sortOrder, scoreType: renewType, isDefault: false, programId });
         })
       );
-      toast({ title: `คัดลอก ${upgradCats.length} หมวดอัพเกรดเป็นหมวดต่ออายุสำเร็จ` });
+      toast({ title: `คัดลอก ${upgradCats.length} หมวดอัพเกรดเป็นหมวดต่ออายุสำเร็จ`, variant: "success" });
       fetchData();
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
@@ -918,7 +891,7 @@ const SettingsCategories = () => {
           return apiClient.post("categories", { name: c.name, maxScore: c.maxScore, sortOrder: c.sortOrder, scoreType: upgradType, isDefault: false, programId });
         })
       );
-      toast({ title: `คัดลอก ${renewCats.length} หมวดต่ออายุเป็นหมวดอัพเกรดสำเร็จ` });
+      toast({ title: `คัดลอก ${renewCats.length} หมวดต่ออายุเป็นหมวดอัพเกรดสำเร็จ`, variant: "success" });
       fetchData();
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });

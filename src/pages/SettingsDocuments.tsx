@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, FileUp, ExternalLink, FileText } from "lucide-react";
+import { Plus, Pencil, FileUp, ExternalLink, FileText } from "lucide-react";
+import { AlertActionPopup } from "@/components/AlertActionPopup";
 
 interface Program { id: string; name: string; }
 interface DocTemplate {
@@ -107,12 +108,12 @@ export default function SettingsDocuments() {
       if (editing) {
         // Use backend API to update (bypasses RLS)
         await apiClient.patch(`/document-templates/${editing.id}`, formData, uploadConfig);
-        toast({ title: "บันทึกสำเร็จ" });
+        toast({ title: "บันทึกสำเร็จ", variant: "success" });
       } else {
         // Use backend API to create (bypasses RLS)
         formData.append("sortOrder", String(docs.length));
         await apiClient.post("/document-templates", formData, uploadConfig);
-        toast({ title: "เพิ่มเอกสารสำเร็จ" });
+        toast({ title: "เพิ่มเอกสารสำเร็จ", variant: "success" });
       }
 
       setDialogOpen(false);
@@ -133,7 +134,7 @@ export default function SettingsDocuments() {
     try {
       await apiClient.delete(`/document-templates/${doc.id}`);
       setDocs((prev) => prev.filter((d) => d.id !== doc.id));
-      toast({ title: "ลบสำเร็จ" });
+      toast({ title: "ลบสำเร็จ", variant: "success" });
     } catch (error: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: error.message, variant: "destructive" });
     }
@@ -223,12 +224,20 @@ export default function SettingsDocuments() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => openEdit(doc)}>
+                          <Button
+                            variant="ghost"
+                            size="icon" 
+                            className="edit-button"
+                            onClick={() => openEdit(doc)}
+                          >
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(doc)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          <AlertActionPopup
+                            action={() => handleDelete(doc)}
+                            type="delete"
+                            title="ยืนยันการลบรายการ"
+                            description={`ต้องการลบเอกสาร "${doc.name}" หรือไม่?`}
+                          />
                         </div>
                       </TableCell>
                     </TableRow>

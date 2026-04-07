@@ -381,3 +381,12 @@
     animation: sp-diamond 1.1s ease-in-out infinite;
   }
 }
+
+.edit-button {
+  flex-shrink: 0;
+  color: hsl(var(--muted-foreground));
+}
+.edit-button:hover {
+  background-color: hsl(var(--primary) / 0.1) !important;
+  color: hsl(var(--primary)) !important;
+}

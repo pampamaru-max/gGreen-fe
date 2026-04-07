@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Award, Trophy, Medal, Plus, Trash2, Loader2, Save, Pencil, GripVertical, ChevronRight, CheckCircle2, XCircle } from "lucide-react";
+import { Award, Trophy, Medal, Plus, Loader2, Save, Pencil, GripVertical, ChevronRight, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,10 +8,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader,
-  AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel,
-} from "@/components/ui/alert-dialog";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -21,6 +17,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import apiClient from "@/lib/axios";
+import { AlertActionPopup } from "@/components/AlertActionPopup";
 
 interface ScoringLevel {
   id: number;
@@ -57,9 +54,18 @@ interface LevelFormProps {
   onSubmit: (data: Omit<ScoringLevel, "id" | "sortOrder" | "programId">) => void;
   trigger: React.ReactNode;
   title: string;
+  programLevels: ScoringLevel[];
+  levelId?: number;
 }
 
-const LevelFormDialog = ({ initial, onSubmit, trigger, title }: LevelFormProps) => {
+const LevelFormDialog = ({
+  initial,
+  onSubmit,
+  trigger,
+  title,
+  programLevels,
+  levelId
+}: LevelFormProps) => {
   const { toast } = useToast();
   const [name, setName] = useState(initial?.name || "");
   const [minScore, setMinScore] = useState(String(initial?.minScore ?? ""));
@@ -79,9 +85,38 @@ const LevelFormDialog = ({ initial, onSubmit, trigger, title }: LevelFormProps) 
   }, [open, initial]);
 
   const handleSubmit = () => {
+    const min = parseFloat(minScore);
+    const max = parseFloat(maxScore);
     if (!name.trim() || minScore === "" || maxScore === "") {
       toast({ title: "กรุณากรอกข้อมูลให้ครบ", variant: "destructive" });
       return;
+    } else if (max > 100 || min > 100) {
+      toast({
+        title: "ไม่สามารถใส่คะแนนมากกว่า 100 ได้",
+        variant: "destructive",
+      });
+      return;
+    } else if (min > max) {
+      toast({
+        title: "คะแนนต่ำสุดต้องน้อยกว่าคะแนนสูงสุด",
+        variant: "destructive",
+      });
+      return;
+    } else if (programLevels.length) {
+      const IsInRange = programLevels.find(
+        (e) => e.id != levelId &&
+          ((e.minScore <= min && min <= e.maxScore) ||
+          (e.minScore <= max && max <= e.maxScore) ||
+          (min <= e.minScore && e.maxScore <= max)),
+      );
+      
+      if (IsInRange) {
+        toast({
+          title: `ช่วงคะแนนทับซ้อนกับช่วงคะแนน ${IsInRange.minScore} - ${IsInRange.maxScore}`,
+          variant: "destructive",
+        });
+        return;
+      }
     }
     onSubmit({
       name: name.trim(),
@@ -168,7 +203,17 @@ const LevelFormDialog = ({ initial, onSubmit, trigger, title }: LevelFormProps) 
   );
 };
 
-const SortableLevelCard = ({ level, onEdit, onDelete }: { level: ScoringLevel; onEdit: (id: number, data: any) => void; onDelete: (id: number) => void }) => {
+const SortableLevelCard = ({
+  level,
+  onEdit,
+  onDelete,
+  programLevels,
+}: {
+  level: ScoringLevel;
+  onEdit: (id: number, data: any) => void;
+  onDelete: (id: number) => void;
+  programLevels: ScoringLevel[];
+}) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: level.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
   const IconComp = getIconComponent(level.icon);
@@ -194,28 +239,19 @@ const SortableLevelCard = ({ level, onEdit, onDelete }: { level: ScoringLevel; o
         initial={level}
         onSubmit={(data) => onEdit(level.id, data)}
         trigger={
-          <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-foreground">
+          <Button variant="ghost" size="icon" className="edit-button">
             <Pencil className="h-4 w-4" />
           </Button>
         }
+        programLevels={programLevels}
+        levelId={level.id}
       />
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>ยืนยันการลบ</AlertDialogTitle>
-            <AlertDialogDescription>คุณต้องการลบระดับ "{level.name}" ใช่หรือไม่?</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => onDelete(level.id)}>ลบ</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <AlertActionPopup
+        action={() => onDelete(level.id)}
+        type="delete"
+        title="ยืนยันการลบระดับ"
+        description={`คุณต้องการลบระดับ "${level.name}" ใช่หรือไม่?`}
+      />
     </div>
   );
 };
@@ -231,7 +267,7 @@ const ScoreBar = ({ levels }: { levels: ScoringLevel[] }) => (
       ) : (
         levels.map((level) => {
           const left = level.minScore;
-          const width = Math.max(0, level.maxScore - level.minScore);
+          const width = Math.max(0, level.maxScore - level.minScore + 1);
           return (
             <div
               key={level.id}
@@ -249,12 +285,25 @@ const ScoreBar = ({ levels }: { levels: ScoringLevel[] }) => (
         })
       )}
     </div>
-    <div className="flex justify-between mt-1 text-[10px] text-muted-foreground">
-      <span>0%</span>
-      <span>25%</span>
-      <span>50%</span>
-      <span>75%</span>
-      <span>100%</span>
+    <div className="relative mt-1 h-4">
+      {levels.map((level) => {
+        const left = level.minScore;
+        const width = Math.max(0, level.maxScore - level.minScore + 1);
+
+        return (
+          <div
+            key={level.id}
+            className="absolute text-[10px] text-muted-foreground flex justify-between px-1"
+            style={{
+              left: `${left}%`,
+              width: `${width}%`,
+            }}
+          >
+            <span>{level.minScore}%</span>
+            <span>{level.maxScore}%</span>
+          </div>
+        );
+      })}
     </div>
   </div>
 );
@@ -303,6 +352,7 @@ const SettingsScoringCriteria = () => {
       toast({
         title: "บันทึกสำเร็จ",
         description: `เปลี่ยนรูปแบบเกณฑ์การประเมินเป็น ${type === 'score' ? 'เกณฑ์คะแนน' : 'สอดคล้อง / ไม่สอดคล้อง'} เรียบร้อยแล้ว`,
+        variant: "success",
       });
     } catch (error: any) {
       console.error("Failed to update program scoring type:", error);
@@ -353,7 +403,7 @@ const SettingsScoringCriteria = () => {
         sortOrder: nextOrder,
       });
 
-      toast({ title: "เพิ่มระดับสำเร็จ" });
+      toast({ title: "เพิ่มระดับสำเร็จ", variant: "success" });
       fetchAll();
     } catch (error: any) {
       toast({
@@ -370,7 +420,7 @@ const SettingsScoringCriteria = () => {
   ) => {
     try {
       await apiClient.patch(`scoring-levels/${id}`, data);
-      toast({ title: "แก้ไขระดับสำเร็จ" });
+      toast({ title: "แก้ไขระดับสำเร็จ", variant: "success" });
       fetchAll();
     } catch (error: any) {
       toast({
@@ -384,7 +434,7 @@ const SettingsScoringCriteria = () => {
   const handleDelete = async (id: number) => {
     try {
       await apiClient.delete(`scoring-levels/${id}`);
-      toast({ title: "ลบระดับสำเร็จ" });
+      toast({ title: "ลบระดับสำเร็จ", variant: "success" });
       fetchAll();
     } catch (error: any) {
       toast({
@@ -504,7 +554,13 @@ const SettingsScoringCriteria = () => {
                           <SortableContext items={programLevels.map((l) => l.id)} strategy={verticalListSortingStrategy}>
                             <div className="space-y-3">
                               {programLevels.map((level) => (
-                                <SortableLevelCard key={level.id} level={level} onEdit={handleEdit} onDelete={handleDelete} />
+                                <SortableLevelCard
+                                  key={level.id}
+                                  level={level}
+                                  onEdit={handleEdit}
+                                  onDelete={handleDelete}
+                                  programLevels={programLevels}
+                                />
                               ))}
                             </div>
                           </SortableContext>
@@ -526,6 +582,7 @@ const SettingsScoringCriteria = () => {
                               <Plus className="h-4 w-4" /> เพิ่มระดับ
                             </Button>
                           }
+                          programLevels={programLevels}
                         />
                       </>
                     )}
@@ -535,14 +592,24 @@ const SettingsScoringCriteria = () => {
             </Collapsible>
           );
         })}
-
         {/* Unassigned levels */}
-        {levels.some(l => !l.programId) && (
+        {levels.some((l) => !l.programId) && (
           <div className="rounded-xl border border-dashed bg-muted/30 p-4 space-y-3">
-            <p className="font-semibold text-sm text-muted-foreground">ระดับที่ยังไม่ได้ผูกกับโครงการ</p>
-            {levels.filter(l => !l.programId).map((level) => (
-              <SortableLevelCard key={level.id} level={level} onEdit={handleEdit} onDelete={handleDelete} />
-            ))}
+            <p className="font-semibold text-sm text-muted-foreground">
+              ระดับที่ยังไม่ได้ผูกกับโครงการ
+            </p>
+            {(() => {
+              const unassignedLevels = levels.filter((l) => !l.programId);
+              return unassignedLevels.map((level) => (
+                <SortableLevelCard
+                  key={level.id}
+                  level={level}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  programLevels={unassignedLevels}
+                />
+              ));
+            })()}
           </div>
         )}
       </div>
