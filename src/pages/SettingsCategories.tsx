@@ -772,7 +772,10 @@ const SettingsCategories = () => {
         apiClient.get<ScoringLevel[]>("scoring-levels"),
       ]);
 
-      setCategories(catRes.data);
+      setCategories(catRes.data.map((c: DbCategory) => ({
+        ...c,
+        scoreType: (c.scoreType as string).replace(/-/g, "_") as DbScoreType,
+      })));
       setPrograms(progRes.data);
       setScoringLevels(levelRes.data);
 
