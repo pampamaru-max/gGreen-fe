@@ -1495,13 +1495,28 @@ const SettingsCertificate = () => {
       template: CertTemplate;
       updateAllSigners?: boolean;
     }) => {
+      const toApiPayload = (t: Omit<CertTemplate, "id">) => ({
+        scoringLevelId: t.scoring_level_id,
+        title: t.title,
+        subtitle: t.subtitle,
+        bodyText: t.body_text,
+        footerText: t.footer_text,
+        signerName: t.signer_name,
+        signerTitle: t.signer_title,
+        bgImageUrl: t.bg_image_url,
+        logoUrl: t.logo_url,
+        primaryColor: t.primary_color,
+        orientation: t.orientation,
+        layout: t.layout,
+      });
+
       const existing = templates[levelId];
       if (existing?.id) {
         const { id, ...rest } = template;
-        await apiClient.patch(`certificate-templates/${existing.id}`, rest);
+        await apiClient.patch(`certificate-templates/${existing.id}`, toApiPayload(rest));
       } else {
         const { id, ...rest } = template;
-        await apiClient.post("certificate-templates", rest);
+        await apiClient.post("certificate-templates", toApiPayload(rest));
       }
 
       if (updateAllSigners) {
