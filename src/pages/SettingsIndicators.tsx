@@ -285,11 +285,13 @@ function EditIndicatorDialog({
 
   const handlePrevClick = () => {
     if(!indicator) return;
+    if(isDirty) handleSave(false);
     setSelectedIndicator(data[Math.max(0, data.findIndex(d => d.id === indicator.id) - 1)]);
   };
 
   const handleNextClick = () => {
     if(!indicator) return;
+    if(isDirty) handleSave(false);
     setSelectedIndicator(data[Math.min(data.length - 1, data.findIndex(d => d.id === indicator.id) + 1)]);
   };
 
