@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { ListChecks, Plus, Pencil, Trash2, ChevronRight, Loader2, GripVertical } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { ListChecks, Plus, Pencil, Trash2, ChevronRight, Loader2, GripVertical, ChevronLeft } from "lucide-react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -96,16 +96,27 @@ function EditTopicDialog({ topic, onSave }: { topic: DbTopic; onSave: (name: str
   );
 }
 
-function AddIndicatorDialog({ onAdd, maxAllowed, scoreType = "score" }: { onAdd: (name: string, maxScore: number) => void; maxAllowed: number; scoreType?: DbScoreType }) {
-  const [open, setOpen] = useState(false);
+function AddIndicatorDialog({
+  onAdd,
+  maxAllowed,
+  scoreType = "score",
+  openAddIndDialog,
+  setOpenAddIndDialog,
+}: {
+  onAdd: (name: string, maxScore: number) => void;
+  maxAllowed: number;
+  scoreType?: DbScoreType;
+  openAddIndDialog: boolean;
+  setOpenAddIndDialog: React.Dispatch<React.SetStateAction<boolean>>;
+}) {
   const [name, setName] = useState("");
   const [maxScore, setMaxScore] = useState(Math.min(4, maxAllowed));
   const isYesNo = isYesNoType(scoreType);
   const reset = () => { setName(""); setMaxScore(Math.min(4, maxAllowed)); };
   const isOverLimit = !isYesNo && (maxScore > maxAllowed || maxAllowed <= 0);
   return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) reset(); }}>
-      <Button variant="ghost" size="sm" className="gap-1 text-xs h-7" onClick={() => setOpen(true)}>
+    <Dialog open={openAddIndDialog} onOpenChange={(v) => { setOpenAddIndDialog(v); if (!v) reset(); }}>
+      <Button variant="ghost" size="sm" className="gap-1 text-xs h-7" onClick={() => setOpenAddIndDialog(true)}>
         <Plus className="h-3 w-3" /> เพิ่มตัวชี้วัด
       </Button>
       <DialogContent className="max-w-sm">
@@ -143,16 +154,53 @@ function AddIndicatorDialog({ onAdd, maxAllowed, scoreType = "score" }: { onAdd:
         </div>
         <DialogFooter>
           <DialogClose asChild><Button variant="outline">ยกเลิก</Button></DialogClose>
-          <Button onClick={() => { onAdd(name.trim(), isYesNo ? 0 : maxScore); reset(); setOpen(false); }} disabled={!name.trim() || isOverLimit}>เพิ่ม</Button>
+          <Button
+            onClick={() => {
+              onAdd(name.trim(), isYesNo ? 0 : maxScore);
+              reset();
+              setOpenAddIndDialog(false);
+            }}
+            disabled={!name.trim() || isOverLimit}
+          >
+            เพิ่ม
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
-function EditIndicatorDialog({ indicator, onSave, maxAllowed, scoreType = "score" }: { indicator: DbIndicator; onSave: (data: { name: string; maxScore: number; description: string; detail: string; notes: string; evidenceDescription: string; scoringCriteria: ScoringCriterion[] }) => void; maxAllowed: number; scoreType?: DbScoreType }) {
+function EditIndicatorDialog({
+  data,
+  indicator,
+  onSave,
+  maxAllowed,
+  scoreType = "score",
+  setOpenAddIndDialog,
+  openEditIndDialog,
+  setOpenEditIndDialog,
+  setSelectedIndicator,
+}: {
+  data: DbIndicator[];
+  indicator: DbIndicator;
+  onSave: (data: {
+    id: string;
+    name: string;
+    maxScore: number;
+    description: string;
+    detail: string;
+    notes: string;
+    evidenceDescription: string;
+    scoringCriteria: ScoringCriterion[];
+  }) => void;
+  maxAllowed: number;
+  scoreType?: DbScoreType;
+  setOpenAddIndDialog: React.Dispatch<React.SetStateAction<boolean>>;
+  openEditIndDialog: boolean;
+  setOpenEditIndDialog: React.Dispatch<React.SetStateAction<boolean>>;
+  setSelectedIndicator: React.Dispatch<React.SetStateAction<DbIndicator | null>>;
+}) {
   const isYesNo = isYesNoType(scoreType);
-  const [open, setOpen] = useState(false);
   const [name, setName] = useState(indicator.name);
   const [maxScore, setMaxScore] = useState(indicator.maxScore);
   const [description, setDescription] = useState(indicator.description || "");
@@ -164,26 +212,46 @@ function EditIndicatorDialog({ indicator, onSave, maxAllowed, scoreType = "score
   const [passLabel, setPassLabel] = useState("");
   const [failLabel, setFailLabel] = useState("");
 
-  const resetFromIndicator = () => {
-    setName(indicator.name);
-    setMaxScore(indicator.maxScore);
-    setDescription(indicator.description || "");
-    setDetail(indicator.detail || "");
-    setNotes(indicator.notes || "");
-    setEvidenceDescription(indicator.evidenceDescription || "");
+  const [currentIndex, setCurrentIndex] = useState(data.findIndex(d => d.id === indicator.id));
+
+  useEffect(() => {
+    if (openEditIndDialog) {
+      const idx = data.findIndex(d => d.id === indicator.id);
+      setCurrentIndex(idx);
+      resetFormIndicator(data[idx]);
+    }
+  }, [openEditIndDialog, indicator]);
+
+  useEffect(() => {
+    if (!openEditIndDialog) return;
+
+    const newIndex = data.length - 1;
+    setCurrentIndex(newIndex);
+    setSelectedIndicator(data[newIndex]);
+  }, [data.length]);
+
+  const resetFormIndicator = (ind: DbIndicator = indicator) => {
+    setName(ind.name);
+    setMaxScore(ind.maxScore);
+    setDescription(ind.description || "");
+    setDetail(ind.detail || "");
+    setNotes(ind.notes || "");
+    setEvidenceDescription(ind.evidenceDescription || "");
+
     if (isYesNo) {
-      const existing = indicator.scoringCriteria || [];
+      const existing = ind.scoringCriteria || [];
       setPassLabel(existing.find(c => c.score === 1)?.label ?? "สอดคล้อง");
       setFailLabel(existing.find(c => c.score === 0)?.label ?? "ไม่สอดคล้อง");
     } else {
-      const existing = indicator.scoringCriteria || [];
-      if (existing.length > 0) {
-        setScoringCriteria(existing);
-      } else {
-        setScoringCriteria(
-          Array.from({ length: indicator.maxScore }, (_, i) => ({ score: i + 1, label: "" }))
-        );
-      }
+      const existing = ind.scoringCriteria || [];
+      setScoringCriteria(
+        existing.length > 0
+          ? existing
+          : Array.from({ length: ind.maxScore }, (_, i) => ({
+              score: i + 1,
+              label: "",
+            }))
+      );
     }
   };
 
@@ -195,21 +263,42 @@ function EditIndicatorDialog({ indicator, onSave, maxAllowed, scoreType = "score
     setScoringCriteria(updated);
   };
 
-  const handleSave = () => {
+  const isDirty = useMemo(() => {
+    if(!indicator) return false;
+
+    return name !== indicator.name ||
+        maxScore !== indicator.maxScore ||
+        description !== (indicator.description || "") ||
+        detail !== (indicator.detail || "") ||
+        notes !== (indicator.notes || "") ||
+        evidenceDescription !== (indicator.evidenceDescription || "") ||
+        JSON.stringify(scoringCriteria) !== JSON.stringify(indicator.scoringCriteria);
+  }, [name, maxScore, description, detail, notes, evidenceDescription, scoringCriteria, indicator]);
+
+  const handleSave = (closeDialog: boolean = true) => {
     const criteria = isYesNo
       ? [{ score: 1, label: passLabel }, { score: 0, label: failLabel }]
       : scoringCriteria;
-    onSave({ name: name.trim(), maxScore: isYesNo ? 0 : maxScore, description, detail, notes, evidenceDescription, scoringCriteria: criteria });
-    setOpen(false);
+    onSave({ id: indicator.id, name: name.trim(), maxScore: isYesNo ? 0 : maxScore, description, detail, notes, evidenceDescription, scoringCriteria: criteria });
+    if(closeDialog) setOpenEditIndDialog(false);
+  };
+
+  const handlePrevClick = () => {
+    if(!indicator) return;
+    if(isDirty) handleSave(false);
+    setSelectedIndicator(data[Math.max(0, data.findIndex(d => d.id === indicator.id) - 1)]);
+  };
+
+  const handleNextClick = () => {
+    if(!indicator) return;
+    if(isDirty) handleSave(false);
+    setSelectedIndicator(data[Math.min(data.length - 1, data.findIndex(d => d.id === indicator.id) + 1)]);
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) resetFromIndicator(); }}>
-      <Button variant="ghost" size="icon" className="edit-button" onClick={() => { resetFromIndicator(); setOpen(true); }}>
-        <Pencil className="h-3 w-3" />
-      </Button>
+    <Dialog open={openEditIndDialog} onOpenChange={(v) => setOpenEditIndDialog(v)}>
       <DialogContent className="max-w-6xl w-[95vw] h-[90vh] flex flex-col overflow-hidden">
-        <DialogHeader className="shrink-0"><DialogTitle>แก้ไขตัวชี้วัด {indicator.id}</DialogTitle></DialogHeader>
+        <DialogHeader className="shrink-0"><DialogTitle>แก้ไขตัวชี้วัด {indicator?.id}</DialogTitle></DialogHeader>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 min-h-0 overflow-hidden py-2">
           {/* Left column - Details */}
           <div className="space-y-3 overflow-y-auto pr-1">
@@ -352,9 +441,48 @@ function EditIndicatorDialog({ indicator, onSave, maxAllowed, scoreType = "score
             )}
           </div>
         </div>
-        <DialogFooter>
-          <DialogClose asChild><Button variant="outline">ยกเลิก</Button></DialogClose>
-          <Button onClick={handleSave} disabled={!name.trim() || (!isYesNo && maxScore > maxAllowed)}>บันทึก</Button>
+        <DialogFooter className="gap-2">
+          <div className="flex flex-1 justify-between">
+            <div className="flex items-center gap-2 flex-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePrevClick}
+                disabled={currentIndex === 0}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                ก่อนหน้า
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNextClick}
+                disabled={currentIndex === data.length - 1}
+              >
+                ถัดไป
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+            <div className="flex justify-end items-center gap-2 flex-1">
+              <DialogClose asChild>
+                <Button variant="outline">ยกเลิก</Button>
+              </DialogClose>
+              <Button
+                onClick={() => handleSave(true)}
+                disabled={
+                  !name.trim() || (!isYesNo && maxScore > maxAllowed) || !isDirty
+                }
+              >
+                บันทึก
+              </Button>
+              <Button
+                className="gap-1"
+                onClick={() =>{ isDirty && handleSave(false); setOpenAddIndDialog(true); }}
+              >
+                <Plus /> <span className="max-sm:hidden">เพิ่มตัวชี้วัด</span>
+              </Button>
+            </div>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -363,7 +491,19 @@ function EditIndicatorDialog({ indicator, onSave, maxAllowed, scoreType = "score
 
 /* ─── Sortable Indicator Row ─── */
 
-function SortableIndicatorRow({ ind, color, onEdit, onDelete, maxAllowed, scoreType = "score" }: { ind: DbIndicator; color: string; onEdit: (data: any) => void; onDelete: () => void; maxAllowed: number; scoreType?: DbScoreType }) {
+function SortableIndicatorRow({
+  ind,
+  color,
+  onEdit,
+  onDelete,
+  scoreType = "score",
+}: {
+  ind: DbIndicator;
+  color: string;
+  onEdit: (data: any) => void;
+  onDelete: () => void;
+  scoreType?: DbScoreType;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: ind.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
   const isYesNo = isYesNoType(scoreType);
@@ -387,7 +527,9 @@ function SortableIndicatorRow({ ind, color, onEdit, onDelete, maxAllowed, scoreT
         </span>
       )}
       <div className="flex items-center gap-0.5 opacity-0 group-hover/ind:opacity-100 transition-opacity">
-        <EditIndicatorDialog indicator={ind} onSave={onEdit} maxAllowed={maxAllowed} scoreType={scoreType} />
+        <Button variant="ghost" size="icon" className="edit-button" onClick={onEdit}>
+          <Pencil className="h-3 w-3" />
+        </Button>
         <AlertActionPopup action={onDelete} type="delete" title="ยืนยันการลบตัวชี้วัด" description={`ต้องการลบตัวชี้วัด "${ind.name}" หรือไม่?`}/>
       </div>
     </div>
@@ -403,6 +545,10 @@ const SettingsIndicators = () => {
   const [indicators, setIndicators] = useState<DbIndicator[]>([]);
   const [loading, setLoading] = useState(true);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  const [openAddIndDialog, setOpenAddIndDialog] = useState(false);
+  const [openEditIndDialog, setOpenEditIndDialog] = useState(false);
+  const [selectedIndicator, setSelectedIndicator] = useState<DbIndicator | null>(null);
 
   const fetchAll = async () => {
     try {
@@ -505,12 +651,15 @@ const SettingsIndicators = () => {
   };
 
   const handleDeleteTopic = async (topicId: string) => {
+    setLoading(true);
     try {
       await apiClient.delete(`topics/${topicId}`);
       toast({ title: "ลบประเด็นสำเร็จ", variant: "success" });
       fetchAll();
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -616,16 +765,13 @@ const SettingsIndicators = () => {
     ));
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[300px]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-full bg-background">
+      {loading && (
+        <div className="h-screen w-screen fixed top-0 left-0 bg-black bg-opacity-20 z-[10000] flex justify-center items-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      )}
       <div className="border-b bg-card/50 px-6 py-4">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
@@ -702,7 +848,6 @@ const SettingsIndicators = () => {
                                 const topicInds = indicators.filter((i) => i.topicId === topic.id).sort((a, b) => a.sortOrder - b.sortOrder);
                                 return (
                                   <Collapsible key={topic.id} defaultOpen={false} className="group/topic border-b last:border-b-0">
-                                    {/* อาจจะแก้ */}
                                     <div
                                       className="flex items-center gap-2 px-4 py-2.5"
                                       style={{ backgroundColor: `hsl(${color} / 0.06)` }}
@@ -726,12 +871,24 @@ const SettingsIndicators = () => {
                                                 key={ind.id}
                                                 ind={ind}
                                                 color={color}
-                                                onEdit={(data) => handleEditIndicator(ind.id, data)}
+                                                onEdit={() => { setSelectedIndicator(ind); setOpenEditIndDialog(true); }}
                                                 onDelete={() => handleDeleteIndicator(ind.id)}
-                                                maxAllowed={isYesNoCat ? Infinity : catRemaining + ind.maxScore}
                                                 scoreType={cat.scoreType}
                                               />
                                             ))}
+                                            {selectedIndicator && 
+                                              <EditIndicatorDialog
+                                                data={topicInds}
+                                                indicator={selectedIndicator}
+                                                onSave={(data) => handleEditIndicator(data.id, data)}
+                                                maxAllowed={isYesNoCat ? Infinity : catRemaining + selectedIndicator.maxScore}
+                                                scoreType={cat.scoreType}
+                                                setOpenAddIndDialog={setOpenAddIndDialog}
+                                                openEditIndDialog={openEditIndDialog}
+                                                setOpenEditIndDialog={setOpenEditIndDialog}
+                                                setSelectedIndicator={setSelectedIndicator}
+                                              />
+                                            }
                                           </div>
                                         </SortableContext>
                                       </DndContext>
@@ -740,6 +897,8 @@ const SettingsIndicators = () => {
                                           onAdd={(name, ms) => handleAddIndicator(topic.id, name, ms)}
                                           maxAllowed={isYesNoCat ? Infinity : catRemaining}
                                           scoreType={cat.scoreType}
+                                          openAddIndDialog={openAddIndDialog}
+                                          setOpenAddIndDialog={setOpenAddIndDialog}
                                         />
                                       </div>
                                     </CollapsibleContent>
