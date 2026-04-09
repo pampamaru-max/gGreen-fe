@@ -3,13 +3,13 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import apiClient from "@/lib/axios";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { LogIn } from "lucide-react";
 import gLogo from "@/assets/g-logo.png";
+import loginBg from "@/assets/login2.jpg";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -47,50 +47,70 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center space-y-4">
-          <div className="mx-auto h-20 w-20">
-            <img src={gLogo} alt="G-Green" className="h-full w-full object-contain" />
+    <div
+      className="min-h-screen flex items-center justify-center p-4 bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: `url(${loginBg})` }}
+    >
+      {/* Glassmorphism card */}
+      <div className="w-full max-w-sm rounded-3xl p-8 space-y-6"
+        style={{
+          background: "rgba(240, 230, 190, 0.55)",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
+          border: "1px solid rgba(255,255,255,0.4)",
+        }}
+      >
+        {/* Header */}
+        <div className="text-center space-y-3">
+          <div className="mx-auto h-24 w-24">
+            <img src={gLogo} alt="G-Green" className="h-full w-full object-contain drop-shadow-md" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-foreground">ระบบประเมินผล G-Green</h1>
-            <p className="text-sm text-muted-foreground mt-1">เข้าสู่ระบบเพื่อดำเนินการ</p>
+            <h1 className="text-2xl font-bold" style={{ color: "#2d5a1b" }}>ระบบประเมินผล G-Green</h1>
+            <p className="text-sm mt-1" style={{ color: "#4a7a2e" }}>เข้าสู่ระบบเพื่อดำเนินการ</p>
           </div>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">อีเมล</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="your@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">รหัสผ่าน</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "กำลังดำเนินการ..." : (
-                <><LogIn className="mr-2 h-4 w-4" /> เข้าสู่ระบบ</>
-              )}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1">
+            <Label htmlFor="email" className="text-sm font-medium" style={{ color: "#2d5a1b" }}>อีเมล</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="your@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="bg-white/80 border-white/60 rounded-xl h-11 focus-visible:ring-green-600"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="password" className="text-sm font-medium" style={{ color: "#2d5a1b" }}>รหัสผ่าน</Label>
+            <Input
+              id="password"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+              className="bg-white/80 border-white/60 rounded-xl h-11 focus-visible:ring-green-600"
+            />
+          </div>
+          <Button
+            type="submit"
+            className="w-full h-11 rounded-xl text-white font-semibold text-base mt-2"
+            style={{ background: "#3a7d2c" }}
+            disabled={loading}
+          >
+            {loading ? "กำลังดำเนินการ..." : (
+              <><LogIn className="mr-2 h-4 w-4" /> เข้าสู่ระบบ</>
+            )}
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }
