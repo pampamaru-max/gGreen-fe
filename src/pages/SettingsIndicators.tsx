@@ -26,6 +26,7 @@ import {
 import AddTopicWithIndicatorsDialog from "@/components/AddTopicWithIndicatorsDialog";
 import { AlertActionPopup } from "@/components/AlertActionPopup";
 import { formatNumber } from "@/helpers/functions";
+import { LoadingOverlay } from "@/components/loading/LoadingOverlay";
 
 interface DbProgram {
   id: string;
@@ -215,20 +216,12 @@ function EditIndicatorDialog({
   const [currentIndex, setCurrentIndex] = useState(data.findIndex(d => d.id === indicator.id));
 
   useEffect(() => {
-    if (openEditIndDialog) {
+    if (openEditIndDialog && indicator) {
       const idx = data.findIndex(d => d.id === indicator.id);
       setCurrentIndex(idx);
       resetFormIndicator(data[idx]);
     }
   }, [openEditIndDialog, indicator]);
-
-  useEffect(() => {
-    if (!openEditIndDialog) return;
-
-    const newIndex = data.length - 1;
-    setCurrentIndex(newIndex);
-    setSelectedIndicator(data[newIndex]);
-  }, [data.length]);
 
   const resetFormIndicator = (ind: DbIndicator = indicator) => {
     setName(ind.name);
@@ -280,7 +273,10 @@ function EditIndicatorDialog({
       ? [{ score: 1, label: passLabel }, { score: 0, label: failLabel }]
       : scoringCriteria;
     onSave({ id: indicator.id, name: name.trim(), maxScore: isYesNo ? 0 : maxScore, description, detail, notes, evidenceDescription, scoringCriteria: criteria });
-    if(closeDialog) setOpenEditIndDialog(false);
+    if(closeDialog) {
+      setOpenEditIndDialog(false);
+      setSelectedIndicator(null);
+    }
   };
 
   const handlePrevClick = () => {
@@ -573,6 +569,13 @@ const SettingsIndicators = () => {
   };
 
   useEffect(() => {
+    if(openEditIndDialog) {
+      const indTopics = indicators.filter((i)=>i.topicId === selectedIndicator.topicId).sort((a,b)=> a.sortOrder - b.sortOrder);
+      setSelectedIndicator(indTopics[indTopics.length - 1])
+    }
+  },[indicators])
+
+  useEffect(() => {
     fetchAll().finally(() => setLoading(false));
   }, []);
 
@@ -693,6 +696,7 @@ const SettingsIndicators = () => {
   };
 
   const handleEditIndicator = async (indId: string, data: { name: string; maxScore: number; description: string; detail: string; notes: string; evidenceDescription: string; scoringCriteria: ScoringCriterion[] }) => {
+    setLoading(true);
     const ind = indicators.find(i => i.id === indId);
     if (ind) {
       const topic = topics.find(t => t.id === ind.topicId);
@@ -725,16 +729,21 @@ const SettingsIndicators = () => {
       fetchAll();
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDeleteIndicator = async (indId: string) => {
+    setLoading(true);
     try {
       await apiClient.delete(`indicators/${indId}`);
       toast({ title: "ลบตัวชี้วัดสำเร็จ", variant: "success" });
       fetchAll();
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -767,11 +776,7 @@ const SettingsIndicators = () => {
 
   return (
     <div className="min-h-full bg-background">
-      {loading && (
-        <div className="h-screen w-screen fixed top-0 left-0 bg-black bg-opacity-20 z-[10000] flex justify-center items-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      )}
+      <LoadingOverlay visible={loading} />
       <div className="border-b bg-card/50 px-6 py-4">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
@@ -876,7 +881,7 @@ const SettingsIndicators = () => {
                                                 scoreType={cat.scoreType}
                                               />
                                             ))}
-                                            {selectedIndicator && 
+                                            {selectedIndicator && selectedIndicator.topicId === topic.id &&
                                               <EditIndicatorDialog
                                                 data={topicInds}
                                                 indicator={selectedIndicator}

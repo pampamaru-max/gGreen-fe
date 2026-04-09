@@ -777,23 +777,93 @@ const EditTemplateDialog = ({
     });
   };
 
-  const updateElement = (id: string, updates: Partial<CertElement>) => {
+ const updateElement = (id: string, updates: Partial<CertElement>) => {
+  setForm((f) => {
+    const currentOrientation = f.orientation || "landscape";
+    
+    // เตรียม Layout Object ให้พร้อม
+    let currentLayouts = { landscape: [] as CertElement[], portrait: [] as CertElement[] };
+    
+    if (f.layout && !Array.isArray(f.layout)) {
+      currentLayouts = { ...f.layout };
+    } else if (Array.isArray(f.layout)) {
+      // กรณีข้อมูลเก่าเป็น Array ให้ย้ายมาไว้ในช่องปัจจุบันก่อน
+      currentLayouts[currentOrientation] = f.layout;
+    }
+
+    // Update เฉพาะ Element ในช่อง Orientation ปัจจุบัน
+    const updatedList = (currentLayouts[currentOrientation] || []).map((el) =>
+      el.id === id ? { ...el, ...updates } : el
+    );
+
+    return {
+      ...f,
+      layout: {
+        ...currentLayouts,
+        [currentOrientation]: updatedList,
+      },
+    };
+  });
+ };
+
+  const changeOrientation = (newOrientation: "landscape" | "portrait") => {
+  setForm((f) => {
+    const oldOrientation = f.orientation || "landscape";
+    let layouts = { landscape: [] as CertElement[], portrait: [] as CertElement[] };
+    if (f.layout && !Array.isArray(f.layout)) {
+      layouts = { ...f.layout };
+    } else if (Array.isArray(f.layout)) {
+      layouts[oldOrientation] = f.layout;
+    }
+    // ถ้าหน้าใหม่ที่จะไป (เช่น portrait) ยังไม่มีข้อมูลเลย 
+    // ให้ทำการ Copy ข้อมูลจากหน้าเก่า (landscape) ไปเป็นต้นแบบ
+    if (!layouts[newOrientation] || layouts[newOrientation].length === 0) {
+      layouts[newOrientation] = (layouts[oldOrientation] || []).map(el => ({
+        ...el,
+        // ปรับตำแหน่ง Y นิดหน่อยให้เหมาะกับแนวตั้ง (Optional)
+        y: newOrientation === "portrait" ? Math.min(el.y * 1.1, 95) : el.y
+      }));
+    }
+
+    const next = { 
+      ...f, 
+      orientation: newOrientation,
+      layout: layouts 
+    };
+    
+    addToHistory(next);
+    return next;
+  });
+ };
+
+  const copyLayoutFrom = (source: "landscape" | "portrait") => {
     setForm((f) => {
+      let layouts = {
+        landscape: [] as CertElement[],
+        portrait: [] as CertElement[],
+      };
+      if (f.layout && !Array.isArray(f.layout)) {
+        layouts = { ...f.layout };
+      } else if (Array.isArray(f.layout)) {
+        layouts[f.orientation || "landscape"] = f.layout;
+      }
+
+      const sourceLayout = layouts[source] || [];
       const currentOrientation = f.orientation || "landscape";
-      const layouts =
-        f.layout && !Array.isArray(f.layout)
-          ? f.layout
-          : { landscape: [], portrait: [] };
-      return {
+
+      // Copying elements (keeping IDs is okay as they are in different orientation arrays)
+      const next = {
         ...f,
         layout: {
           ...layouts,
-          [currentOrientation]: (layouts[currentOrientation] || []).map((el) =>
-            el.id === id ? { ...el, ...updates } : el,
-          ),
+          [currentOrientation]: sourceLayout.map((el) => ({ ...el })),
         },
       };
+
+      addToHistory(next);
+      return next;
     });
+    toast({ title: "ดึงข้อมูลจาก" + (source === "landscape" ? "แนวนอน" : "แนวตั้ง") + "เรียบร้อยแล้ว", variant: "success" });
   };
 
   const removeElement = (id: string) => {
@@ -852,7 +922,7 @@ const EditTemplateDialog = ({
                       form.orientation === "landscape" ? "default" : "outline"
                     }
                     size="sm"
-                    onClick={() => set("orientation", "landscape")}
+                    onClick={() => changeOrientation("landscape")}
                   >
                     แนวนอน
                   </Button>
@@ -861,11 +931,39 @@ const EditTemplateDialog = ({
                       form.orientation === "portrait" ? "default" : "outline"
                     }
                     size="sm"
-                    onClick={() => set("orientation", "portrait")}
+                    onClick={() => changeOrientation("portrait")}
                   >
                     แนวตั้ง
                   </Button>
                 </div>
+                {form.orientation === "portrait" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-[10px] h-7 border-dashed"
+                    onClick={() => {
+                      if (confirm("คุณต้องการดึงข้อมูลจากหน้า 'แนวนอน' มาทับหน้าปัจจุบันใช่หรือไม่?")) {
+                        copyLayoutFrom("landscape");
+                      }
+                    }}
+                  >
+                    <Undo2 className="mr-1 h-3 w-3" /> ดึงข้อมูลจากแนวนอน
+                  </Button>
+                )}
+                {form.orientation === "landscape" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-[10px] h-7 border-dashed"
+                    onClick={() => {
+                      if (confirm("คุณต้องการดึงข้อมูลจากหน้า 'แนวตั้ง' มาทับหน้าปัจจุบันใช่หรือไม่?")) {
+                        copyLayoutFrom("portrait");
+                      }
+                    }}
+                  >
+                    <Undo2 className="mr-1 h-3 w-3" /> ดึงข้อมูลจากแนวตั้ง
+                  </Button>
+                )}
                 <label className="flex items-center gap-1 cursor-pointer hover:text-primary transition-colors ml-2">
                     <input
                       type="checkbox"
@@ -1252,6 +1350,66 @@ const EditTemplateDialog = ({
                   </div>
                 </div>
               )}
+
+              {/* รายการองค์ประกอบที่มีอยู่ (Collapsible) */}
+              <div className="pt-4 border-t">
+                <Collapsible defaultOpen={true}>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" className="w-full flex justify-between p-0 hover:bg-transparent group">
+                      <Label className="text-sm font-bold uppercase text-muted-foreground cursor-pointer">
+                        เลือกองค์ประกอบ ({getLayout(form).length})
+                      </Label>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-90" />
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="pt-2">
+                    <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-1">
+                      {getLayout(form).map((el) => (
+                        <div
+                          key={el.id}
+                          onClick={() => {
+                            setSelectedElId(el.id);
+                            setShowIndicator(true);
+                          }}
+                          className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all ${
+                            selectedElId === el.id 
+                              ? "bg-primary/5 border-primary ring-1 ring-primary/20" 
+                              : "bg-white hover:bg-accent border-slate-200"
+                          }`}
+                        >
+                          <div className="w-5 h-5 shrink-0 flex items-center justify-center">
+                            {el.type === 'image' ? <Upload className="w-3.5 h-3.5 text-primary"/> : 
+                             el.type === 'variable' ? <Pencil className="w-3.5 h-3.5 text-amber-500"/> : 
+                             <FileText className="w-3.5 h-3.5 text-blue-500"/>}
+                          </div>
+                          <span className="text-[11px] truncate flex-1 font-medium text-slate-700">
+                            {el.type === 'variable' 
+                              ? (el.content === "{recipient}" ? "ชื่อผู้ได้รับ" : el.content === "{level}" ? "ระดับรางวัล" : 
+                                 el.content === "{signer_name}" ? "ชื่อผู้ลงนาม" : el.content === "{signer_title}" ? "ตำแหน่ง" : el.content)
+                              : (el.type === 'image' ? 'รูปภาพ/โลโก้' : el.content)}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeElement(el.id);
+                            }}
+                          >
+                            <X className="h-3.5 w-3.5"/>
+                          </Button>
+                        </div>
+                      ))}
+                      {getLayout(form).length === 0 && (
+                        <div className="text-center py-6 bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                           <p className="text-[11px] text-muted-foreground italic">ยังไม่มีองค์ประกอบ</p>
+                        </div>
+                      )}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              </div>
             </div>
 
             {/* Canvas Area */}
