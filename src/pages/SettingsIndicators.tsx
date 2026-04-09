@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/collapsible";
 import AddTopicWithIndicatorsDialog from "@/components/AddTopicWithIndicatorsDialog";
 import { AlertActionPopup } from "@/components/AlertActionPopup";
-import { formatNumber } from "@/helpers/functions";
+import { formatNumber, mergeUniqueById } from "@/helpers/functions";
 import { LoadingOverlay } from "@/components/loading/LoadingOverlay";
 
 interface DbProgram {
@@ -33,6 +33,7 @@ interface DbProgram {
   name: string;
   icon: string;
   sortOrder: number;
+  categories: number;
 }
 
 type DbScoreType = "score" | "upgrade" | "yes_no" | "score_new" | "yes_no_new" | "score_upgrad" | "yes_no_upgrad" | "score_renew" | "yes_no_renew";
@@ -544,40 +545,108 @@ const SettingsIndicators = () => {
 
   const [openAddIndDialog, setOpenAddIndDialog] = useState(false);
   const [openEditIndDialog, setOpenEditIndDialog] = useState(false);
+
+  const [fetchedCategories, setFetchedCategories] = useState<Set<string>>(new Set());
+  const [fetchedTopics, setFetchedTopics] = useState<Set<number>>(new Set());
+  const [fetchedIndicators, setFetchedIndicators] = useState<Set<string>>(new Set());
+
+  const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
   const [selectedIndicator, setSelectedIndicator] = useState<DbIndicator | null>(null);
 
-  const fetchAll = async () => {
+  const fetchData = async (
+    { programs = false, categories = false, topics = false, indicators = false, categoryId, topicId }:
+    { programs?: boolean, categories?: boolean, topics?: boolean, indicators?: boolean, categoryId?: number, topicId?: string }
+  ) => {
     try {
       const [progRes, catRes, topicRes, indRes] = await Promise.all([
-        apiClient.get<DbProgram[]>("programs/names-with-sort"),
-        apiClient.get<DbCategory[]>("categories"),
-        apiClient.get<DbTopic[]>("topics"),
-        apiClient.get<DbIndicator[]>("indicators"),
+        programs
+          ? apiClient.get<DbProgram[]>("programs/names-with-sort", { params: { catCount: true } })
+          : Promise.resolve(null),
+        categories
+          ? apiClient.get<DbCategory[]>("categories", { params: { programId: selectedProgramId } })
+          : Promise.resolve(null),
+        topics
+          ? apiClient.get<DbTopic[]>("topics", { params: { categoryId: categoryId ?? selectedCategoryId } })
+          : Promise.resolve(null),
+        indicators
+          ? apiClient.get<DbIndicator[]>("indicators", { params: { topicId: topicId ?? selectedTopicId } })
+          : Promise.resolve(null),
       ]);
-      setPrograms(progRes.data);
-      setCategories(catRes.data);
-      setTopics(topicRes.data);
-      setIndicators(indRes.data.map(d => ({
-        ...d,
-        notes: d.notes || "",
-        evidenceDescription: d.evidenceDescription || "",
-        scoringCriteria: d.scoringCriteria || [],
-      })));
+
+      if (programs && progRes) setPrograms(progRes.data);
+      if (categories && catRes && selectedProgramId) {
+        setCategories(prev => mergeUniqueById(prev, catRes.data));
+        setFetchedCategories(prev => new Set(prev).add(selectedProgramId));
+      }
+      if (topics && topicRes && (categoryId ?? selectedCategoryId)) {
+        const cid = categoryId ?? selectedCategoryId!;
+        setTopics(prev => mergeUniqueById(prev, topicRes.data));
+        setFetchedTopics(prev => new Set(prev).add(cid));
+      }
+      if (indicators && indRes && (topicId ?? selectedTopicId)) {
+        const tid = topicId ?? selectedTopicId!;
+        const mapped = indRes.data.map(d => ({
+          ...d,
+          notes: d.notes || "",
+          evidenceDescription: d.evidenceDescription || "",
+          scoringCriteria: d.scoringCriteria || [],
+        }));
+        setIndicators(prev => mergeUniqueById(prev, mapped));
+        setFetchedIndicators(prev => new Set(prev).add(tid));
+      } 
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
     }
   };
 
+  const cleanData = (action: 'edit' | 'delete', update: 'topic' | 'indicator', catId?: number, topicId?: string) => {
+    if (update === 'topic' && catId !== undefined) {
+      setFetchedTopics(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(catId);
+        return newSet;
+      });
+      setTopics(prev => prev.filter(t => t.categoryId !== catId));
+      if(action === 'delete' && topicId !== undefined) {
+        setFetchedIndicators(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(topicId);
+          return newSet;
+        });
+      }
+    } else if (update === 'indicator' && topicId !== undefined) {
+      setFetchedIndicators(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(topicId);
+        return newSet;
+      });
+    }
+  }
+
+  useEffect(() => {
+      fetchData({programs: true}).finally(() => setLoading(false));
+  },[])
+
+  useEffect(() => { 
+    if(selectedProgramId && !fetchedCategories.has(selectedProgramId)) fetchData({ categories: true });
+  },[selectedProgramId])
+
+  useEffect(() => {
+    if(selectedCategoryId && !fetchedTopics.has(selectedCategoryId)) fetchData({ topics: true });
+  },[selectedCategoryId])
+
+  useEffect(() => {
+    if(selectedTopicId && !fetchedIndicators.has(selectedTopicId)) fetchData({ indicators: true });
+  },[selectedTopicId])
+
   useEffect(() => {
     if(openEditIndDialog) {
       const indTopics = indicators.filter((i)=>i.topicId === selectedIndicator.topicId).sort((a,b)=> a.sortOrder - b.sortOrder);
-      setSelectedIndicator(indTopics[indTopics.length - 1])
+      if (indTopics.length > 0) setSelectedIndicator(indTopics[indTopics.length - 1]);
     }
   },[indicators])
-
-  useEffect(() => {
-    fetchAll().finally(() => setLoading(false));
-  }, []);
 
   const getNextTopicNum = (catId: number) => {
     const catTopics = topics.filter((t) => t.categoryId === catId);
@@ -640,25 +709,29 @@ const SettingsIndicators = () => {
     }
 
     toast({ title: "เพิ่มประเด็นและตัวชี้วัดสำเร็จ", variant: "success" });
-    fetchAll();
+    fetchData({ categoryId: catId, topics: true, indicators: true });
   };
 
-  const handleEditTopic = async (topicId: string, name: string) => {
+  const handleEditTopic = async (catId: number, topicId: string, name: string) => {
     try {
       await apiClient.patch(`topics/${topicId}`, { name });
       toast({ title: "แก้ไขประเด็นสำเร็จ", variant: "success" });
-      fetchAll();
+      cleanData('edit', 'topic', catId);
+      setTopics(prev => prev.filter(t => t.categoryId !== catId));
+      fetchData({ categoryId: catId, topics: true });
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
     }
   };
 
-  const handleDeleteTopic = async (topicId: string) => {
+  const handleDeleteTopic = async (catId: number, topicId: string) => {
     setLoading(true);
     try {
       await apiClient.delete(`topics/${topicId}`);
       toast({ title: "ลบประเด็นสำเร็จ", variant: "success" });
-      fetchAll();
+      cleanData('delete', 'topic', catId, topicId)
+      setTopics(prev => prev.filter(t => t.id !== topicId));
+      setIndicators(prev => prev.filter(i => i.topicId !== topicId));
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
     } finally {
@@ -689,7 +762,7 @@ const SettingsIndicators = () => {
     try {
       await apiClient.post("indicators", { id, topicId, name, maxScore, sortOrder: nextNum });
       toast({ title: "เพิ่มตัวชี้วัดสำเร็จ", variant: "success" });
-      fetchAll();
+      fetchData({ topicId, indicators: true });
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
     }
@@ -726,7 +799,9 @@ const SettingsIndicators = () => {
         scoringCriteria: data.scoringCriteria,
       });
       toast({ title: "แก้ไขตัวชี้วัดสำเร็จ", variant: "success" });
-      fetchAll();
+      cleanData('edit', 'indicator', null, ind.topicId);
+      setIndicators(prev => prev.filter(i => i.id !== indId));
+      fetchData({ topicId: ind.topicId, indicators: true });
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
     } finally {
@@ -734,12 +809,13 @@ const SettingsIndicators = () => {
     }
   };
 
-  const handleDeleteIndicator = async (indId: string) => {
+  const handleDeleteIndicator = async (topicId: string, indId: string) => {
     setLoading(true);
     try {
       await apiClient.delete(`indicators/${indId}`);
       toast({ title: "ลบตัวชี้วัดสำเร็จ", variant: "success" });
-      fetchAll();
+      cleanData('delete', 'indicator', null, topicId);
+      setIndicators(prev => prev.filter(i => i.id !== indId));
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
     } finally {
@@ -795,17 +871,20 @@ const SettingsIndicators = () => {
           const programCategories = categories
             .filter(c => c.programId === program.id)
             .sort((a, b) => typeOrder(a.scoreType as string) - typeOrder(b.scoreType as string) || a.sortOrder - b.sortOrder);
-          if (programCategories.length === 0) return null;
+          if (programs.length === 0) return null;
 
           return (
             <Collapsible key={program.id} defaultOpen={false} className="group/prog">
               <div className="rounded-xl border border-accent/30 bg-accent/10 overflow-hidden shadow-sm">
                 <CollapsibleTrigger asChild>
-                  <button className="flex w-full items-center gap-3 px-5 py-4 hover:bg-accent/20 transition-colors">
+                  <button
+                    className="flex w-full items-center gap-3 px-5 py-4 hover:bg-accent/20 transition-colors"
+                    onClick={() => setSelectedProgramId(program.id)}
+                  >
                     <ChevronRight className="h-5 w-5 text-accent-foreground/70 transition-transform group-data-[state=open]/prog:rotate-90" />
                     <p className="font-bold text-foreground text-left flex-1 text-base">{program.name}</p>
                     <span className="text-xs text-muted-foreground">
-                      {programCategories.length} หมวด
+                      {program.categories} หมวด
                     </span>
                   </button>
                 </CollapsibleTrigger>
@@ -823,6 +902,7 @@ const SettingsIndicators = () => {
                               <button
                                 className="flex w-full items-center gap-3 px-4 py-3 border-b hover:bg-muted/30 transition-colors"
                                 style={{ backgroundColor: `hsl(${color} / 0.1)` }}
+                                onClick={() => setSelectedCategoryId(cat.id)}
                               >
                                 <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]/cat:rotate-90" />
                                 <p className="font-bold text-foreground text-left flex-1">{cat.name}</p>
@@ -858,13 +938,13 @@ const SettingsIndicators = () => {
                                       style={{ backgroundColor: `hsl(${color} / 0.06)` }}
                                     >
                                       <CollapsibleTrigger asChild>
-                                        <button className="shrink-0 p-0.5 hover:bg-muted/50 rounded">
+                                        <button className="shrink-0 p-0.5 hover:bg-muted/50 rounded" onClick={() => setSelectedTopicId(topic.id)}>
                                           <ChevronRight className="h-3.5 w-3.5 text-muted-foreground transition-transform group-data-[state=open]/topic:rotate-90" />
                                         </button>
                                       </CollapsibleTrigger>
                                       <span className="text-sm font-medium text-foreground flex-1">{topic.name}</span>
-                                      <EditTopicDialog topic={topic} onSave={(name) => handleEditTopic(topic.id, name)} />
-                                      <AlertActionPopup action={() => handleDeleteTopic(topic.id)} type="delete" title="ยืนยันการลบประเด็น" description={`ต้องการลบประเด็น "${topic.name}" หรือไม่?`}/>
+                                      <EditTopicDialog topic={topic} onSave={(name) => handleEditTopic(cat.id, topic.id, name)} />
+                                      <AlertActionPopup action={() => handleDeleteTopic(cat.id, topic.id)} type="delete" title="ยืนยันการลบประเด็น" description={`ต้องการลบประเด็น "${topic.name}" หรือไม่?`}/>
                                     </div>
 
                                     <CollapsibleContent>
@@ -877,7 +957,7 @@ const SettingsIndicators = () => {
                                                 ind={ind}
                                                 color={color}
                                                 onEdit={() => { setSelectedIndicator(ind); setOpenEditIndDialog(true); }}
-                                                onDelete={() => handleDeleteIndicator(ind.id)}
+                                                onDelete={() => handleDeleteIndicator(topic.id, ind.id)}
                                                 scoreType={cat.scoreType}
                                               />
                                             ))}
