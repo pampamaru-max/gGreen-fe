@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { ListChecks, Plus, Pencil, Trash2, ChevronRight, Loader2, GripVertical } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { ListChecks, Plus, Pencil, Trash2, ChevronRight, Loader2, GripVertical, ChevronLeft } from "lucide-react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -25,13 +25,15 @@ import {
 } from "@/components/ui/collapsible";
 import AddTopicWithIndicatorsDialog from "@/components/AddTopicWithIndicatorsDialog";
 import { AlertActionPopup } from "@/components/AlertActionPopup";
-import { formatNumber } from "@/helpers/functions";
+import { formatNumber, mergeUniqueById } from "@/helpers/functions";
+import { LoadingOverlay } from "@/components/loading/LoadingOverlay";
 
 interface DbProgram {
   id: string;
   name: string;
   icon: string;
   sortOrder: number;
+  categories: number;
 }
 
 type DbScoreType = "score" | "upgrade" | "yes_no" | "score_new" | "yes_no_new" | "score_upgrad" | "yes_no_upgrad" | "score_renew" | "yes_no_renew";
@@ -96,16 +98,27 @@ function EditTopicDialog({ topic, onSave }: { topic: DbTopic; onSave: (name: str
   );
 }
 
-function AddIndicatorDialog({ onAdd, maxAllowed, scoreType = "score" }: { onAdd: (name: string, maxScore: number) => void; maxAllowed: number; scoreType?: DbScoreType }) {
-  const [open, setOpen] = useState(false);
+function AddIndicatorDialog({
+  onAdd,
+  maxAllowed,
+  scoreType = "score",
+  openAddIndDialog,
+  setOpenAddIndDialog,
+}: {
+  onAdd: (name: string, maxScore: number) => void;
+  maxAllowed: number;
+  scoreType?: DbScoreType;
+  openAddIndDialog: boolean;
+  setOpenAddIndDialog: React.Dispatch<React.SetStateAction<boolean>>;
+}) {
   const [name, setName] = useState("");
   const [maxScore, setMaxScore] = useState(Math.min(4, maxAllowed));
   const isYesNo = isYesNoType(scoreType);
   const reset = () => { setName(""); setMaxScore(Math.min(4, maxAllowed)); };
   const isOverLimit = !isYesNo && (maxScore > maxAllowed || maxAllowed <= 0);
   return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) reset(); }}>
-      <Button variant="ghost" size="sm" className="gap-1 text-xs h-7" onClick={() => setOpen(true)}>
+    <Dialog open={openAddIndDialog} onOpenChange={(v) => { setOpenAddIndDialog(v); if (!v) reset(); }}>
+      <Button variant="ghost" size="sm" className="gap-1 text-xs h-7" onClick={() => setOpenAddIndDialog(true)}>
         <Plus className="h-3 w-3" /> เพิ่มตัวชี้วัด
       </Button>
       <DialogContent className="max-w-sm">
@@ -143,16 +156,53 @@ function AddIndicatorDialog({ onAdd, maxAllowed, scoreType = "score" }: { onAdd:
         </div>
         <DialogFooter>
           <DialogClose asChild><Button variant="outline">ยกเลิก</Button></DialogClose>
-          <Button onClick={() => { onAdd(name.trim(), isYesNo ? 0 : maxScore); reset(); setOpen(false); }} disabled={!name.trim() || isOverLimit}>เพิ่ม</Button>
+          <Button
+            onClick={() => {
+              onAdd(name.trim(), isYesNo ? 0 : maxScore);
+              reset();
+              setOpenAddIndDialog(false);
+            }}
+            disabled={!name.trim() || isOverLimit}
+          >
+            เพิ่ม
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
-function EditIndicatorDialog({ indicator, onSave, maxAllowed, scoreType = "score" }: { indicator: DbIndicator; onSave: (data: { name: string; maxScore: number; description: string; detail: string; notes: string; evidenceDescription: string; scoringCriteria: ScoringCriterion[] }) => void; maxAllowed: number; scoreType?: DbScoreType }) {
+function EditIndicatorDialog({
+  data,
+  indicator,
+  onSave,
+  maxAllowed,
+  scoreType = "score",
+  setOpenAddIndDialog,
+  openEditIndDialog,
+  setOpenEditIndDialog,
+  setSelectedIndicator,
+}: {
+  data: DbIndicator[];
+  indicator: DbIndicator;
+  onSave: (data: {
+    id: string;
+    name: string;
+    maxScore: number;
+    description: string;
+    detail: string;
+    notes: string;
+    evidenceDescription: string;
+    scoringCriteria: ScoringCriterion[];
+  }) => void;
+  maxAllowed: number;
+  scoreType?: DbScoreType;
+  setOpenAddIndDialog: React.Dispatch<React.SetStateAction<boolean>>;
+  openEditIndDialog: boolean;
+  setOpenEditIndDialog: React.Dispatch<React.SetStateAction<boolean>>;
+  setSelectedIndicator: React.Dispatch<React.SetStateAction<DbIndicator | null>>;
+}) {
   const isYesNo = isYesNoType(scoreType);
-  const [open, setOpen] = useState(false);
   const [name, setName] = useState(indicator.name);
   const [maxScore, setMaxScore] = useState(indicator.maxScore);
   const [description, setDescription] = useState(indicator.description || "");
@@ -164,26 +214,38 @@ function EditIndicatorDialog({ indicator, onSave, maxAllowed, scoreType = "score
   const [passLabel, setPassLabel] = useState("");
   const [failLabel, setFailLabel] = useState("");
 
-  const resetFromIndicator = () => {
-    setName(indicator.name);
-    setMaxScore(indicator.maxScore);
-    setDescription(indicator.description || "");
-    setDetail(indicator.detail || "");
-    setNotes(indicator.notes || "");
-    setEvidenceDescription(indicator.evidenceDescription || "");
+  const [currentIndex, setCurrentIndex] = useState(data.findIndex(d => d.id === indicator.id));
+
+  useEffect(() => {
+    if (openEditIndDialog && indicator) {
+      const idx = data.findIndex(d => d.id === indicator.id);
+      setCurrentIndex(idx);
+      resetFormIndicator(data[idx]);
+    }
+  }, [openEditIndDialog, indicator]);
+
+  const resetFormIndicator = (ind: DbIndicator = indicator) => {
+    setName(ind.name);
+    setMaxScore(ind.maxScore);
+    setDescription(ind.description || "");
+    setDetail(ind.detail || "");
+    setNotes(ind.notes || "");
+    setEvidenceDescription(ind.evidenceDescription || "");
+
     if (isYesNo) {
-      const existing = indicator.scoringCriteria || [];
+      const existing = ind.scoringCriteria || [];
       setPassLabel(existing.find(c => c.score === 1)?.label ?? "สอดคล้อง");
       setFailLabel(existing.find(c => c.score === 0)?.label ?? "ไม่สอดคล้อง");
     } else {
-      const existing = indicator.scoringCriteria || [];
-      if (existing.length > 0) {
-        setScoringCriteria(existing);
-      } else {
-        setScoringCriteria(
-          Array.from({ length: indicator.maxScore }, (_, i) => ({ score: i + 1, label: "" }))
-        );
-      }
+      const existing = ind.scoringCriteria || [];
+      setScoringCriteria(
+        existing.length > 0
+          ? existing
+          : Array.from({ length: ind.maxScore }, (_, i) => ({
+              score: i + 1,
+              label: "",
+            }))
+      );
     }
   };
 
@@ -195,21 +257,45 @@ function EditIndicatorDialog({ indicator, onSave, maxAllowed, scoreType = "score
     setScoringCriteria(updated);
   };
 
-  const handleSave = () => {
+  const isDirty = useMemo(() => {
+    if(!indicator) return false;
+
+    return name !== indicator.name ||
+        maxScore !== indicator.maxScore ||
+        description !== (indicator.description || "") ||
+        detail !== (indicator.detail || "") ||
+        notes !== (indicator.notes || "") ||
+        evidenceDescription !== (indicator.evidenceDescription || "") ||
+        JSON.stringify(scoringCriteria) !== JSON.stringify(indicator.scoringCriteria);
+  }, [name, maxScore, description, detail, notes, evidenceDescription, scoringCriteria, indicator]);
+
+  const handleSave = (closeDialog: boolean = true) => {
     const criteria = isYesNo
       ? [{ score: 1, label: passLabel }, { score: 0, label: failLabel }]
       : scoringCriteria;
-    onSave({ name: name.trim(), maxScore: isYesNo ? 0 : maxScore, description, detail, notes, evidenceDescription, scoringCriteria: criteria });
-    setOpen(false);
+    onSave({ id: indicator.id, name: name.trim(), maxScore: isYesNo ? 0 : maxScore, description, detail, notes, evidenceDescription, scoringCriteria: criteria });
+    if(closeDialog) {
+      setOpenEditIndDialog(false);
+      setSelectedIndicator(null);
+    }
+  };
+
+  const handlePrevClick = () => {
+    if(!indicator) return;
+    if(isDirty) handleSave(false);
+    setSelectedIndicator(data[Math.max(0, data.findIndex(d => d.id === indicator.id) - 1)]);
+  };
+
+  const handleNextClick = () => {
+    if(!indicator) return;
+    if(isDirty) handleSave(false);
+    setSelectedIndicator(data[Math.min(data.length - 1, data.findIndex(d => d.id === indicator.id) + 1)]);
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) resetFromIndicator(); }}>
-      <Button variant="ghost" size="icon" className="edit-button" onClick={() => { resetFromIndicator(); setOpen(true); }}>
-        <Pencil className="h-3 w-3" />
-      </Button>
+    <Dialog open={openEditIndDialog} onOpenChange={(v) => setOpenEditIndDialog(v)}>
       <DialogContent className="max-w-6xl w-[95vw] h-[90vh] flex flex-col overflow-hidden">
-        <DialogHeader className="shrink-0"><DialogTitle>แก้ไขตัวชี้วัด {indicator.id}</DialogTitle></DialogHeader>
+        <DialogHeader className="shrink-0"><DialogTitle>แก้ไขตัวชี้วัด {indicator?.id}</DialogTitle></DialogHeader>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 min-h-0 overflow-hidden py-2">
           {/* Left column - Details */}
           <div className="space-y-3 overflow-y-auto pr-1">
@@ -352,9 +438,48 @@ function EditIndicatorDialog({ indicator, onSave, maxAllowed, scoreType = "score
             )}
           </div>
         </div>
-        <DialogFooter>
-          <DialogClose asChild><Button variant="outline">ยกเลิก</Button></DialogClose>
-          <Button onClick={handleSave} disabled={!name.trim() || (!isYesNo && maxScore > maxAllowed)}>บันทึก</Button>
+        <DialogFooter className="gap-2">
+          <div className="flex flex-1 justify-between">
+            <div className="flex items-center gap-2 flex-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePrevClick}
+                disabled={currentIndex === 0}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                ก่อนหน้า
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNextClick}
+                disabled={currentIndex === data.length - 1}
+              >
+                ถัดไป
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+            <div className="flex justify-end items-center gap-2 flex-1">
+              <DialogClose asChild>
+                <Button variant="outline">ยกเลิก</Button>
+              </DialogClose>
+              <Button
+                onClick={() => handleSave(true)}
+                disabled={
+                  !name.trim() || (!isYesNo && maxScore > maxAllowed) || !isDirty
+                }
+              >
+                บันทึก
+              </Button>
+              <Button
+                className="gap-1"
+                onClick={() =>{ isDirty && handleSave(false); setOpenAddIndDialog(true); }}
+              >
+                <Plus /> <span className="max-sm:hidden">เพิ่มตัวชี้วัด</span>
+              </Button>
+            </div>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -363,7 +488,19 @@ function EditIndicatorDialog({ indicator, onSave, maxAllowed, scoreType = "score
 
 /* ─── Sortable Indicator Row ─── */
 
-function SortableIndicatorRow({ ind, color, onEdit, onDelete, maxAllowed, scoreType = "score" }: { ind: DbIndicator; color: string; onEdit: (data: any) => void; onDelete: () => void; maxAllowed: number; scoreType?: DbScoreType }) {
+function SortableIndicatorRow({
+  ind,
+  color,
+  onEdit,
+  onDelete,
+  scoreType = "score",
+}: {
+  ind: DbIndicator;
+  color: string;
+  onEdit: (data: any) => void;
+  onDelete: () => void;
+  scoreType?: DbScoreType;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: ind.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
   const isYesNo = isYesNoType(scoreType);
@@ -387,7 +524,9 @@ function SortableIndicatorRow({ ind, color, onEdit, onDelete, maxAllowed, scoreT
         </span>
       )}
       <div className="flex items-center gap-0.5 opacity-0 group-hover/ind:opacity-100 transition-opacity">
-        <EditIndicatorDialog indicator={ind} onSave={onEdit} maxAllowed={maxAllowed} scoreType={scoreType} />
+        <Button variant="ghost" size="icon" className="edit-button" onClick={onEdit}>
+          <Pencil className="h-3 w-3" />
+        </Button>
         <AlertActionPopup action={onDelete} type="delete" title="ยืนยันการลบตัวชี้วัด" description={`ต้องการลบตัวชี้วัด "${ind.name}" หรือไม่?`}/>
       </div>
     </div>
@@ -404,31 +543,110 @@ const SettingsIndicators = () => {
   const [loading, setLoading] = useState(true);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
-  const fetchAll = async () => {
+  const [openAddIndDialog, setOpenAddIndDialog] = useState(false);
+  const [openEditIndDialog, setOpenEditIndDialog] = useState(false);
+
+  const [fetchedCategories, setFetchedCategories] = useState<Set<string>>(new Set());
+  const [fetchedTopics, setFetchedTopics] = useState<Set<number>>(new Set());
+  const [fetchedIndicators, setFetchedIndicators] = useState<Set<string>>(new Set());
+
+  const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
+  const [selectedIndicator, setSelectedIndicator] = useState<DbIndicator | null>(null);
+
+  const fetchData = async (
+    { programs = false, categories = false, topics = false, indicators = false, categoryId, topicId }:
+    { programs?: boolean, categories?: boolean, topics?: boolean, indicators?: boolean, categoryId?: number, topicId?: string }
+  ) => {
     try {
       const [progRes, catRes, topicRes, indRes] = await Promise.all([
-        apiClient.get<DbProgram[]>("programs/names-with-sort"),
-        apiClient.get<DbCategory[]>("categories"),
-        apiClient.get<DbTopic[]>("topics"),
-        apiClient.get<DbIndicator[]>("indicators"),
+        programs
+          ? apiClient.get<DbProgram[]>("programs/names-with-sort", { params: { catCount: true } })
+          : Promise.resolve(null),
+        categories
+          ? apiClient.get<DbCategory[]>("categories", { params: { programId: selectedProgramId } })
+          : Promise.resolve(null),
+        topics
+          ? apiClient.get<DbTopic[]>("topics", { params: { categoryId: categoryId ?? selectedCategoryId } })
+          : Promise.resolve(null),
+        indicators
+          ? apiClient.get<DbIndicator[]>("indicators", { params: { topicId: topicId ?? selectedTopicId } })
+          : Promise.resolve(null),
       ]);
-      setPrograms(progRes.data);
-      setCategories(catRes.data);
-      setTopics(topicRes.data);
-      setIndicators(indRes.data.map(d => ({
-        ...d,
-        notes: d.notes || "",
-        evidenceDescription: d.evidenceDescription || "",
-        scoringCriteria: d.scoringCriteria || [],
-      })));
+
+      if (programs && progRes) setPrograms(progRes.data);
+      if (categories && catRes && selectedProgramId) {
+        setCategories(prev => mergeUniqueById(prev, catRes.data));
+        setFetchedCategories(prev => new Set(prev).add(selectedProgramId));
+      }
+      if (topics && topicRes && (categoryId ?? selectedCategoryId)) {
+        const cid = categoryId ?? selectedCategoryId!;
+        setTopics(prev => mergeUniqueById(prev, topicRes.data));
+        setFetchedTopics(prev => new Set(prev).add(cid));
+      }
+      if (indicators && indRes && (topicId ?? selectedTopicId)) {
+        const tid = topicId ?? selectedTopicId!;
+        const mapped = indRes.data.map(d => ({
+          ...d,
+          notes: d.notes || "",
+          evidenceDescription: d.evidenceDescription || "",
+          scoringCriteria: d.scoringCriteria || [],
+        }));
+        setIndicators(prev => mergeUniqueById(prev, mapped));
+        setFetchedIndicators(prev => new Set(prev).add(tid));
+      } 
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
     }
   };
 
+  const cleanData = (action: 'edit' | 'delete', update: 'topic' | 'indicator', catId?: number, topicId?: string) => {
+    if (update === 'topic' && catId !== undefined) {
+      setFetchedTopics(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(catId);
+        return newSet;
+      });
+      setTopics(prev => prev.filter(t => t.categoryId !== catId));
+      if(action === 'delete' && topicId !== undefined) {
+        setFetchedIndicators(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(topicId);
+          return newSet;
+        });
+      }
+    } else if (update === 'indicator' && topicId !== undefined) {
+      setFetchedIndicators(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(topicId);
+        return newSet;
+      });
+    }
+  }
+
   useEffect(() => {
-    fetchAll().finally(() => setLoading(false));
-  }, []);
+      fetchData({programs: true}).finally(() => setLoading(false));
+  },[])
+
+  useEffect(() => { 
+    if(selectedProgramId && !fetchedCategories.has(selectedProgramId)) fetchData({ categories: true });
+  },[selectedProgramId])
+
+  useEffect(() => {
+    if(selectedCategoryId && !fetchedTopics.has(selectedCategoryId)) fetchData({ topics: true });
+  },[selectedCategoryId])
+
+  useEffect(() => {
+    if(selectedTopicId && !fetchedIndicators.has(selectedTopicId)) fetchData({ indicators: true });
+  },[selectedTopicId])
+
+  useEffect(() => {
+    if(openEditIndDialog) {
+      const indTopics = indicators.filter((i)=>i.topicId === selectedIndicator.topicId).sort((a,b)=> a.sortOrder - b.sortOrder);
+      if (indTopics.length > 0) setSelectedIndicator(indTopics[indTopics.length - 1]);
+    }
+  },[indicators])
 
   const getNextTopicNum = (catId: number) => {
     const catTopics = topics.filter((t) => t.categoryId === catId);
@@ -491,26 +709,33 @@ const SettingsIndicators = () => {
     }
 
     toast({ title: "เพิ่มประเด็นและตัวชี้วัดสำเร็จ", variant: "success" });
-    fetchAll();
+    fetchData({ categoryId: catId, topics: true, indicators: true });
   };
 
-  const handleEditTopic = async (topicId: string, name: string) => {
+  const handleEditTopic = async (catId: number, topicId: string, name: string) => {
     try {
       await apiClient.patch(`topics/${topicId}`, { name });
       toast({ title: "แก้ไขประเด็นสำเร็จ", variant: "success" });
-      fetchAll();
+      cleanData('edit', 'topic', catId);
+      setTopics(prev => prev.filter(t => t.categoryId !== catId));
+      fetchData({ categoryId: catId, topics: true });
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
     }
   };
 
-  const handleDeleteTopic = async (topicId: string) => {
+  const handleDeleteTopic = async (catId: number, topicId: string) => {
+    setLoading(true);
     try {
       await apiClient.delete(`topics/${topicId}`);
       toast({ title: "ลบประเด็นสำเร็จ", variant: "success" });
-      fetchAll();
+      cleanData('delete', 'topic', catId, topicId)
+      setTopics(prev => prev.filter(t => t.id !== topicId));
+      setIndicators(prev => prev.filter(i => i.topicId !== topicId));
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -537,13 +762,14 @@ const SettingsIndicators = () => {
     try {
       await apiClient.post("indicators", { id, topicId, name, maxScore, sortOrder: nextNum });
       toast({ title: "เพิ่มตัวชี้วัดสำเร็จ", variant: "success" });
-      fetchAll();
+      fetchData({ topicId, indicators: true });
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
     }
   };
 
   const handleEditIndicator = async (indId: string, data: { name: string; maxScore: number; description: string; detail: string; notes: string; evidenceDescription: string; scoringCriteria: ScoringCriterion[] }) => {
+    setLoading(true);
     const ind = indicators.find(i => i.id === indId);
     if (ind) {
       const topic = topics.find(t => t.id === ind.topicId);
@@ -573,19 +799,27 @@ const SettingsIndicators = () => {
         scoringCriteria: data.scoringCriteria,
       });
       toast({ title: "แก้ไขตัวชี้วัดสำเร็จ", variant: "success" });
-      fetchAll();
+      cleanData('edit', 'indicator', null, ind.topicId);
+      setIndicators(prev => prev.filter(i => i.id !== indId));
+      fetchData({ topicId: ind.topicId, indicators: true });
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDeleteIndicator = async (indId: string) => {
+  const handleDeleteIndicator = async (topicId: string, indId: string) => {
+    setLoading(true);
     try {
       await apiClient.delete(`indicators/${indId}`);
       toast({ title: "ลบตัวชี้วัดสำเร็จ", variant: "success" });
-      fetchAll();
+      cleanData('delete', 'indicator', null, topicId);
+      setIndicators(prev => prev.filter(i => i.id !== indId));
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -616,16 +850,9 @@ const SettingsIndicators = () => {
     ));
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[300px]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-full bg-background">
+      <LoadingOverlay visible={loading} />
       <div className="border-b bg-card/50 px-6 py-4">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
@@ -644,17 +871,20 @@ const SettingsIndicators = () => {
           const programCategories = categories
             .filter(c => c.programId === program.id)
             .sort((a, b) => typeOrder(a.scoreType as string) - typeOrder(b.scoreType as string) || a.sortOrder - b.sortOrder);
-          if (programCategories.length === 0) return null;
+          if (programs.length === 0) return null;
 
           return (
             <Collapsible key={program.id} defaultOpen={false} className="group/prog">
               <div className="rounded-xl border border-accent/30 bg-accent/10 overflow-hidden shadow-sm">
                 <CollapsibleTrigger asChild>
-                  <button className="flex w-full items-center gap-3 px-5 py-4 hover:bg-accent/20 transition-colors">
+                  <button
+                    className="flex w-full items-center gap-3 px-5 py-4 hover:bg-accent/20 transition-colors"
+                    onClick={() => setSelectedProgramId(program.id)}
+                  >
                     <ChevronRight className="h-5 w-5 text-accent-foreground/70 transition-transform group-data-[state=open]/prog:rotate-90" />
                     <p className="font-bold text-foreground text-left flex-1 text-base">{program.name}</p>
                     <span className="text-xs text-muted-foreground">
-                      {programCategories.length} หมวด
+                      {program.categories} หมวด
                     </span>
                   </button>
                 </CollapsibleTrigger>
@@ -672,6 +902,7 @@ const SettingsIndicators = () => {
                               <button
                                 className="flex w-full items-center gap-3 px-4 py-3 border-b hover:bg-muted/30 transition-colors"
                                 style={{ backgroundColor: `hsl(${color} / 0.1)` }}
+                                onClick={() => setSelectedCategoryId(cat.id)}
                               >
                                 <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]/cat:rotate-90" />
                                 <p className="font-bold text-foreground text-left flex-1">{cat.name}</p>
@@ -702,19 +933,18 @@ const SettingsIndicators = () => {
                                 const topicInds = indicators.filter((i) => i.topicId === topic.id).sort((a, b) => a.sortOrder - b.sortOrder);
                                 return (
                                   <Collapsible key={topic.id} defaultOpen={false} className="group/topic border-b last:border-b-0">
-                                    {/* อาจจะแก้ */}
                                     <div
                                       className="flex items-center gap-2 px-4 py-2.5"
                                       style={{ backgroundColor: `hsl(${color} / 0.06)` }}
                                     >
                                       <CollapsibleTrigger asChild>
-                                        <button className="shrink-0 p-0.5 hover:bg-muted/50 rounded">
+                                        <button className="shrink-0 p-0.5 hover:bg-muted/50 rounded" onClick={() => setSelectedTopicId(topic.id)}>
                                           <ChevronRight className="h-3.5 w-3.5 text-muted-foreground transition-transform group-data-[state=open]/topic:rotate-90" />
                                         </button>
                                       </CollapsibleTrigger>
                                       <span className="text-sm font-medium text-foreground flex-1">{topic.name}</span>
-                                      <EditTopicDialog topic={topic} onSave={(name) => handleEditTopic(topic.id, name)} />
-                                      <AlertActionPopup action={() => handleDeleteTopic(topic.id)} type="delete" title="ยืนยันการลบประเด็น" description={`ต้องการลบประเด็น "${topic.name}" หรือไม่?`}/>
+                                      <EditTopicDialog topic={topic} onSave={(name) => handleEditTopic(cat.id, topic.id, name)} />
+                                      <AlertActionPopup action={() => handleDeleteTopic(cat.id, topic.id)} type="delete" title="ยืนยันการลบประเด็น" description={`ต้องการลบประเด็น "${topic.name}" หรือไม่?`}/>
                                     </div>
 
                                     <CollapsibleContent>
@@ -726,12 +956,24 @@ const SettingsIndicators = () => {
                                                 key={ind.id}
                                                 ind={ind}
                                                 color={color}
-                                                onEdit={(data) => handleEditIndicator(ind.id, data)}
-                                                onDelete={() => handleDeleteIndicator(ind.id)}
-                                                maxAllowed={isYesNoCat ? Infinity : catRemaining + ind.maxScore}
+                                                onEdit={() => { setSelectedIndicator(ind); setOpenEditIndDialog(true); }}
+                                                onDelete={() => handleDeleteIndicator(topic.id, ind.id)}
                                                 scoreType={cat.scoreType}
                                               />
                                             ))}
+                                            {selectedIndicator && selectedIndicator.topicId === topic.id &&
+                                              <EditIndicatorDialog
+                                                data={topicInds}
+                                                indicator={selectedIndicator}
+                                                onSave={(data) => handleEditIndicator(data.id, data)}
+                                                maxAllowed={isYesNoCat ? Infinity : catRemaining + selectedIndicator.maxScore}
+                                                scoreType={cat.scoreType}
+                                                setOpenAddIndDialog={setOpenAddIndDialog}
+                                                openEditIndDialog={openEditIndDialog}
+                                                setOpenEditIndDialog={setOpenEditIndDialog}
+                                                setSelectedIndicator={setSelectedIndicator}
+                                              />
+                                            }
                                           </div>
                                         </SortableContext>
                                       </DndContext>
@@ -740,6 +982,8 @@ const SettingsIndicators = () => {
                                           onAdd={(name, ms) => handleAddIndicator(topic.id, name, ms)}
                                           maxAllowed={isYesNoCat ? Infinity : catRemaining}
                                           scoreType={cat.scoreType}
+                                          openAddIndDialog={openAddIndDialog}
+                                          setOpenAddIndDialog={setOpenAddIndDialog}
                                         />
                                       </div>
                                     </CollapsibleContent>
