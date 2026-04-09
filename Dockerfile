@@ -32,6 +32,20 @@ RUN echo 'server { \
     listen 3000; \
     root /usr/share/nginx/html; \
     index index.html; \
+    \
+    # Static assets with hash in filename — cache 1 year \
+    location ~* \.(js|css|woff2?|ttf|eot|otf|ico|svg|png|jpg|jpeg|gif|webp|avif|mp4|wasm)$ { \
+        expires 1y; \
+        add_header Cache-Control "public, max-age=31536000, immutable"; \
+        access_log off; \
+    } \
+    \
+    # HTML — never cache (always fetch latest) \
+    location ~* \.html$ { \
+        expires -1; \
+        add_header Cache-Control "no-cache, no-store, must-revalidate"; \
+    } \
+    \
     location / { \
         try_files $uri $uri/ /index.html; \
     } \

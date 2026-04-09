@@ -26,4 +26,48 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          // React core
+          if (id.includes("node_modules/react/") || id.includes("node_modules/react-dom/") || id.includes("node_modules/react-router-dom/")) {
+            return "vendor-react";
+          }
+          // TipTap rich text editor (heavy)
+          if (id.includes("node_modules/@tiptap/")) {
+            return "vendor-tiptap";
+          }
+          // Recharts (heavy)
+          if (id.includes("node_modules/recharts/") || id.includes("node_modules/d3-")) {
+            return "vendor-recharts";
+          }
+          // XLSX (heavy)
+          if (id.includes("node_modules/xlsx/")) {
+            return "vendor-xlsx";
+          }
+          // Supabase
+          if (id.includes("node_modules/@supabase/")) {
+            return "vendor-supabase";
+          }
+          // Radix UI components
+          if (id.includes("node_modules/@radix-ui/")) {
+            return "vendor-radix";
+          }
+          // TanStack Query
+          if (id.includes("node_modules/@tanstack/")) {
+            return "vendor-tanstack";
+          }
+          // DnD Kit
+          if (id.includes("node_modules/@dnd-kit/")) {
+            return "vendor-dndkit";
+          }
+          // Other node_modules
+          if (id.includes("node_modules/")) {
+            return "vendor-misc";
+          }
+        },
+      },
+    },
+  },
 }));
