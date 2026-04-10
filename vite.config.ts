@@ -25,13 +25,20 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+    dedupe: ["react", "react-dom"],
   },
   build: {
     rollupOptions: {
       output: {
         manualChunks: (id) => {
-          // React core
-          if (id.includes("node_modules/react/") || id.includes("node_modules/react-dom/") || id.includes("node_modules/react-router-dom/")) {
+          // React core + Radix UI in same chunk to avoid forwardRef undefined error
+          if (
+            id.includes("node_modules/react/") ||
+            id.includes("node_modules/react-dom/") ||
+            id.includes("node_modules/react-router-dom/") ||
+            id.includes("node_modules/scheduler/") ||
+            id.includes("node_modules/@radix-ui/")
+          ) {
             return "vendor-react";
           }
           // TipTap rich text editor (heavy)
@@ -49,10 +56,6 @@ export default defineConfig(({ mode }) => ({
           // Supabase
           if (id.includes("node_modules/@supabase/")) {
             return "vendor-supabase";
-          }
-          // Radix UI components
-          if (id.includes("node_modules/@radix-ui/")) {
-            return "vendor-radix";
           }
           // TanStack Query
           if (id.includes("node_modules/@tanstack/")) {
