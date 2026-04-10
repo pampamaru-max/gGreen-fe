@@ -15,10 +15,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import apiClient from "@/lib/axios";
+// import apiClient from "@/lib/axios"; // TODO: ใช้เมื่อเปิด eligibility check กลับมา
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
+// TODO: ใช้ interface นี้เมื่อเปิด eligibility check กลับมา
 interface Eligibility {
   canNew: boolean;
   canRenew: boolean;
@@ -42,6 +43,14 @@ interface TypeOption {
   description: string;
   enabled: boolean;
   disabledReason?: string;
+  colors: {
+    border: string;
+    bg: string;
+    hover: string;
+    iconBg: string;
+    iconText: string;
+    text: string;
+  };
 }
 
 export default function EvaluationTypeDialog({
@@ -51,7 +60,8 @@ export default function EvaluationTypeDialog({
   usedYears = [],
 }: EvaluationTypeDialogProps) {
   const navigate = useNavigate();
-  const [eligibility, setEligibility] = useState<Eligibility | null>(null);
+  // TODO: ใช้ eligibility เพื่อควบคุมสิทธิ์การเลือกประเภทการประเมินในอนาคต
+  // const [eligibility, setEligibility] = useState<Eligibility | null>(null);
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<"type" | "year">("type");
   const currentYear = new Date().getFullYear();
@@ -70,52 +80,80 @@ export default function EvaluationTypeDialog({
       setSelectedYear(null);
       return;
     }
-    if (!programId) return;
-    setLoading(true);
-    apiClient
-      .get(`evaluation/eligibility?programId=${programId}`)
-      .then(({ data }) => {
-        // ถ้า API ยังไม่มี route นี้หรือ return null → ถือว่าผู้ใช้ใหม่
-        if (!data || typeof data.canNew !== "boolean") {
-          setEligibility({ canNew: true, canRenew: false, canUpgrade: false });
-        } else {
-          setEligibility(data);
-        }
-      })
-      .catch(() =>
-        setEligibility({ canNew: true, canRenew: false, canUpgrade: false }),
-      )
-      .finally(() => setLoading(false));
+    // TODO: เปิดใช้งาน eligibility check เมื่อพร้อม
+    // if (!programId) return;
+    // setLoading(true);
+    // apiClient
+    //   .get(`evaluation/eligibility?programId=${programId}`)
+    //   .then(({ data }) => {
+    //     // ถ้า API ยังไม่มี route นี้หรือ return null → ถือว่าผู้ใช้ใหม่
+    //     if (!data || typeof data.canNew !== "boolean") {
+    //       setEligibility({ canNew: true, canRenew: false, canUpgrade: false });
+    //     } else {
+    //       setEligibility(data);
+    //     }
+    //   })
+    //   .catch(() =>
+    //     setEligibility({ canNew: true, canRenew: false, canUpgrade: false }),
+    //   )
+    //   .finally(() => setLoading(false));
   }, [open, programId, currentYear]);
 
+  // TODO: เปิดใช้งาน eligibility เพื่อควบคุมสิทธิ์แต่ละประเภทในอนาคต
   const options: TypeOption[] = [
     {
       key: "new",
       icon: <FilePlus className="h-6 w-6" />,
-      label: "ประเมินใหม่",
+      label: "ขอการรับรองใหม่",
       description: "สำหรับหน่วยงานที่ยังไม่เคยประเมินในโปรแกรมนี้",
-      enabled: eligibility?.canNew ?? false,
+      enabled: true, // eligibility?.canNew ?? false,
       disabledReason: "ต้องไม่มีประวัติการประเมินก่อน",
-    },
-    {
-      key: "renew",
-      icon: <RefreshCw className="h-6 w-6" />,
-      label: "ต่ออายุใบประกาศนียบัตร",
-      description: eligibility?.expiryDate
-        ? `ใบรับรองหมดอายุแล้ว ต่ออายุได้ถึง ${new Date(eligibility.renewalDeadline!).toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric" })}`
-        : "สำหรับหน่วยงานที่ใบรับรองหมดอายุแล้วและยังอยู่ในช่วงต่ออายุ",
-      enabled: eligibility?.canRenew ?? false,
-      disabledReason: "ต้องประเมินใหม่ก่อน หรือยังไม่ถึงเวลาต่ออายุ",
+      colors: {
+        border: "border-blue-200",
+        bg: "bg-blue-50",
+        hover: "hover:bg-blue-100",
+        iconBg: "bg-blue-400",
+        iconText: "text-white",
+        text: "text-blue-700",
+      },
     },
     {
       key: "upgrade",
-      icon: <TrendingUp className="h-6 w-6" />,
-      label: "ยกระดับคะแนน",
-      description: eligibility?.scoringLevelName
-        ? `ระดับปัจจุบัน: ${eligibility.scoringLevelName} — ยกระดับเพื่อรับการรับรองสูงขึ้น`
-        : "สำหรับหน่วยงานระดับ Gold ที่ต้องการยกระดับและใบรับรองยังไม่หมดอายุ",
-      enabled: eligibility?.canUpgrade ?? false,
+      icon: <RefreshCw className="h-6 w-6" />,
+      label: "ขอยกระดับการรับรอง",
+      description: "สำหรับหน่วยงานระดับ Gold ที่ต้องการยกระดับและใบรับรองยังไม่หมดอายุ",
+      // description: eligibility?.scoringLevelName
+      //   ? `ระดับปัจจุบัน: ${eligibility.scoringLevelName} — ยกระดับเพื่อรับการรับรองสูงขึ้น`
+      //   : "สำหรับหน่วยงานระดับ Gold ที่ต้องการยกระดับและใบรับรองยังไม่หมดอายุ",
+      enabled: true, // eligibility?.canUpgrade ?? false,
       disabledReason: "ต้องมีผลประเมินระดับ Gold และใบรับรองยังไม่หมดอายุ",
+      colors: {
+        border: "border-orange-200",
+        bg: "bg-orange-50",
+        hover: "hover:bg-orange-100",
+        iconBg: "bg-orange-300",
+        iconText: "text-white",
+        text: "text-orange-600",
+      },
+    },
+    {
+      key: "renew",
+      icon: <TrendingUp className="h-6 w-6" />,
+      label: "ขอต่ออายุการรับรอง",
+      description: "สำหรับหน่วยงานที่ใบรับรองหมดอายุแล้วและยังอยู่ในช่วงต่ออายุ",
+      // description: eligibility?.expiryDate
+      //   ? `ใบรับรองหมดอายุแล้ว ต่ออายุได้ถึง ${new Date(eligibility.renewalDeadline!).toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric" })}`
+      //   : "สำหรับหน่วยงานที่ใบรับรองหมดอายุแล้วและยังอยู่ในช่วงต่ออายุ",
+      enabled: true, // eligibility?.canRenew ?? false,
+      disabledReason: "ต้องประเมินใหม่ก่อน หรือยังไม่ถึงเวลาต่ออายุ",
+      colors: {
+        border: "border-purple-200",
+        bg: "bg-purple-50",
+        hover: "hover:bg-purple-100",
+        iconBg: "bg-purple-400",
+        iconText: "text-white",
+        text: "text-purple-700",
+      },
     },
   ];
 
@@ -164,14 +202,14 @@ export default function EvaluationTypeDialog({
                 disabled={!opt.enabled}
                 className={`flex items-center gap-4 rounded-xl border p-4 text-left transition-all ${
                   opt.enabled
-                    ? "border-blue-200 bg-blue-50 hover:bg-blue-100 cursor-pointer"
+                    ? `${opt.colors.border} ${opt.colors.bg} ${opt.colors.hover} cursor-pointer`
                     : "border-slate-100 bg-white cursor-not-allowed opacity-50"
                 }`}
               >
                 <div
                   className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${
                     opt.enabled
-                      ? "bg-blue-600 text-white"
+                      ? `${opt.colors.iconBg} ${opt.colors.iconText}`
                       : "bg-slate-100 text-slate-400"
                   }`}
                 >
@@ -180,7 +218,7 @@ export default function EvaluationTypeDialog({
                 <div className="min-w-0">
                   <p
                     className={`font-semibold ${
-                      opt.enabled ? "text-slate-800" : "text-slate-400"
+                      opt.enabled ? opt.colors.text : "text-slate-400"
                     }`}
                   >
                     {opt.label}
