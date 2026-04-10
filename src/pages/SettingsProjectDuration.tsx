@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -15,7 +16,12 @@ interface ProgramDuration {
   id: string;
   programId: string;
   durationYears: number;
-  renewalMonths: number;
+  renewalMonths: number | null;
+}
+
+enum RenewType {
+  NOM = 'normal',
+  NULL = 'null'
 }
 
 export default function SettingsProjectDuration() {
@@ -27,7 +33,8 @@ export default function SettingsProjectDuration() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [formDurationYears, setFormDurationYears] = useState<string>("3");
-  const [formRenewalMonths, setFormRenewalMonths] = useState<string>("3");
+  const [formRenewalMonths, setFormRenewalMonths] = useState<string | null>("3");
+  const [selectedRenewType, setSelectedRenewType] = useState<string>(RenewType.NOM);
   const [saving, setSaving] = useState(false);
 
   const [deleting, setDeleting] = useState(false);
@@ -68,12 +75,12 @@ export default function SettingsProjectDuration() {
 
   const handleSave = async () => {
     const years = parseInt(formDurationYears);
-    const months = parseInt(formRenewalMonths);
+    const months = selectedRenewType === RenewType.NOM ? parseInt(formRenewalMonths) : null;
     if (!years || years < 1) {
       toast({ title: "กรุณากรอกระยะเวลาอายุการรับรองที่ถูกต้อง", variant: "destructive" });
       return;
     }
-    if (!months || months < 1) {
+    if (selectedRenewType === RenewType.NOM && months < 1) {
       toast({ title: "กรุณากรอกระยะเวลาต่ออายุที่ถูกต้อง", variant: "destructive" });
       return;
     }
@@ -158,10 +165,14 @@ export default function SettingsProjectDuration() {
                     <p className="text-2xl font-bold text-primary">{duration.durationYears} <span className="text-base font-normal text-foreground">ปี</span></p>
                     <p className="text-xs text-muted-foreground">หลังจากผ่านการประเมิน ใบรับรองจะมีอายุ {duration.durationYears} ปี</p>
                   </div>
-                  <div className="rounded-lg border bg-muted/40 p-4 space-y-1">
+                  <div className={`rounded-lg border bg-muted/40 p-4 ${ duration.renewalMonths ? 'space-y-1' : 'space-y-2.5'}`}>
                     <p className="text-xs text-muted-foreground">ระยะเวลาต่ออายุหลังหมดอายุ</p>
-                    <p className="text-2xl font-bold text-amber-600">{duration.renewalMonths} <span className="text-base font-normal text-foreground">เดือน</span></p>
-                    <p className="text-xs text-muted-foreground">ต้องยื่นขอต่ออายุภายใน {duration.renewalMonths} เดือนหลังจากหมดอายุ</p>
+                    {duration.renewalMonths ?
+                      <>
+                        <p className="text-2xl font-bold text-amber-600">{duration.renewalMonths} <span className="text-base font-normal text-foreground">เดือน</span></p>
+                        <p className="text-xs text-muted-foreground">ต้องยื่นขอต่ออายุภายใน {duration.renewalMonths} เดือนหลังจากหมดอายุ</p>
+                      </> : <p className="text-2xl font-bold text-amber-600">ไม่จำกัด</p>
+                    }
                   </div>
                 </div>
                 <div className="flex justify-end">
@@ -218,16 +229,34 @@ export default function SettingsProjectDuration() {
             </div>
             <div className="space-y-2">
               <Label>ระยะเวลาต้องต่ออายุหลังหมดอายุ (เดือน) *</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  min={1}
-                  value={formRenewalMonths}
-                  onChange={(e) => setFormRenewalMonths(e.target.value)}
-                  className="w-32"
-                  placeholder="เช่น 3"
-                />
-                <span className="text-sm text-muted-foreground">เดือน</span>
+              <div className="flex flex-col space-y-4">
+                <RadioGroup
+                  className="flex items-center gap-8"
+                  value={selectedRenewType}
+                  onValueChange={setSelectedRenewType}
+                >
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value={RenewType.NOM} />
+                    <Label>กำหนดระยะเวลา</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value={RenewType.NULL} />
+                    <Label>ไม่จำกัดระยะเวลา</Label>
+                  </div>
+                </RadioGroup>
+                {selectedRenewType === RenewType.NOM &&
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={1}
+                      value={formRenewalMonths}
+                      onChange={(e) => setFormRenewalMonths(e.target.value)}
+                      className="w-32"
+                      placeholder="เช่น 3"
+                    />
+                    <span className="text-sm text-muted-foreground">เดือน</span>
+                  </div>
+                }
               </div>
               <p className="text-xs text-muted-foreground">ระยะเวลาผ่อนผันที่ต้องยื่นขอต่ออายุหลังใบรับรองหมดอายุ</p>
             </div>
