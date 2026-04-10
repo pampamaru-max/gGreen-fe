@@ -311,7 +311,7 @@ function EditIndicatorDialog({
                 <Input value={name} onChange={(e) => setName(e.target.value)} />
               </div>
             ) : (
-              <div className="grid grid-cols-[1fr_120px] gap-3">
+              <div className="grid grid-cols-[1fr_120px] gap-3 items-end">
                 <div className="space-y-1.5">
                   <Label>ชื่อตัวชี้วัด</Label>
                   <Input value={name} onChange={(e) => setName(e.target.value)} />
