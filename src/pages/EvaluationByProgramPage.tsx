@@ -80,103 +80,91 @@ const EvaluationByProgramPage = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-      // Fetch program name
-      const { data: prog } = await apiClient.get(`programs/${programId}`);
-      setProgramName(prog?.name || "");
-      if (prog?.scoringType) setProgramScoringType(prog.scoringType);
+        // 1. Form structure + program info (single endpoint)
+        const { data: formData } = await apiClient.get(`programs/${programId}/evaluation-form`);
+        const prog = formData?.program;
+        setProgramName(prog?.name ?? "");
+        if (prog?.scoringType) setProgramScoringType(prog.scoringType);
 
-      // Scoring levels
-      try {
-        const { data: levData } = await apiClient.get(`scoring-levels?programId=${programId}`);
-        setScoringLevels((levData ?? []).sort((a: ScoringLevel, b: ScoringLevel) => a.sortOrder - b.sortOrder));
-      } catch { /* no scoring levels */ }
-
-      const [catRes, topicRes, indRes] = await Promise.all([
-        apiClient.get(`categories?programId=${programId}`),
-        apiClient.get(`topics`),
-        apiClient.get(`indicators`),
-      ]);
-
-      const catData = catRes.data || [];
-      const topicData = topicRes.data || [];
-      const indData = indRes.data || [];
-
-      if (catData && topicData && indData) {
-        const cats: Category[] = catData.map((c: any) => {
-          const topics = topicData
-            .filter((t: any) => t.categoryId === c.id)
-            .map((t: any) => ({
-              id: t.id,
-              name: t.name,
-              indicators: indData
-                .filter((i: any) => i.topicId === t.id)
-                .map((i: any) => ({
-                  id: i.id,
-                  name: i.name,
-                  maxScore: i.maxScore,
-                  scoreType: c.scoreType || 'score',
-                  description: i.description || "",
-                  detail: i.detail || "",
-                  notes: i.notes || "",
-                  evidenceDescription: i.evidenceDescription || "",
-                  scoringCriteria: Array.isArray(i.scoringCriteria)
-                    ? (i.scoringCriteria as { score: number; label: string }[])
-                    : [],
-                })),
-            }));
-          return { id: c.id, name: c.name, maxScore: c.maxScore, scoreType: c.scoreType ?? "score", upgradeMode: c.upgradeMode ?? null, renewMode: c.renewMode ?? null, topics };
-        });
+        const cats: EvalCategory[] = (formData?.categories ?? []).map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          maxScore: c.maxScore,
+          scoreType: c.scoreType ?? "score",
+          upgradeMode: c.upgradeMode ?? null,
+          renewMode: c.renewMode ?? null,
+          topics: (c.topics ?? []).map((t: any) => ({
+            id: t.id,
+            name: t.name,
+            indicators: (t.indicators ?? []).map((i: any) => ({
+              id: i.id,
+              name: i.name,
+              maxScore: i.maxScore,
+              scoreType: c.scoreType || 'score',
+              description: i.description ?? "",
+              detail: i.detail ?? "",
+              notes: i.notes ?? "",
+              evidenceDescription: i.evidenceDescription ?? "",
+              scoringCriteria: Array.isArray(i.scoringCriteria) ? i.scoringCriteria : [],
+            })),
+          })),
+        }));
         setCategories(cats);
 
-        // Load evaluation by id
-        const { data: evalData } = await apiClient.get(`evaluation/${evaluationIdParam}`);
-        if (evalData?.userId) setEvaluateeId(evalData.userId);
+        // 2. Scoring levels + evaluation data (parallel)
+        const [levResult, evalResult] = await Promise.allSettled([
+          apiClient.get(`scoring-levels?programId=${programId}`),
+          apiClient.get(`evaluation/${evaluationIdParam}`),
+        ]);
 
-        if (evalData) {
-          setEvaluationId(evalData.id);
-          setEvaluationStatus(evalData.status);
-          if (evalData.evaluationType) setEvaluationType(evalData.evaluationType);
-          if (evalData.year) setYear(evalData.year);
-          const scoresData = evalData.evaluationScores || [];
+        if (levResult.status === "fulfilled") {
+          setScoringLevels((levResult.value.data ?? []).sort((a: ScoringLevel, b: ScoringLevel) => a.sortOrder - b.sortOrder));
+        }
 
-          const loaded: Record<string, number> = {};
-          const loadedDetails: Record<string, string> = {};
-          const loadedCommittee: Record<string, number> = {};
-          const loadedComments: Record<string, string> = {};
-          const loadedFiles: Record<string, any[]> = {};
+        if (evalResult.status === "fulfilled") {
+          const evalData = evalResult.value.data;
+          if (evalData?.userId) setEvaluateeId(evalData.userId);
+          if (evalData) {
+            setEvaluationId(evalData.id);
+            setEvaluationStatus(evalData.status);
+            if (evalData.evaluationType) setEvaluationType(evalData.evaluationType);
+            if (evalData.year) setYear(evalData.year);
 
-          scoresData.forEach((s: any) => {
-            loaded[s.indicatorId] = Number(s.score);
-            if (s.notes) loadedDetails[s.indicatorId] = s.notes;
-            if (s.committeeScore !== null && s.committeeScore !== undefined) loadedCommittee[s.indicatorId] = Number(s.committeeScore);
-            if (s.evidenceUrl) loadedComments[s.indicatorId] = s.evidenceUrl;
-            if (Array.isArray(s.fileUrls) && s.fileUrls.length > 0) loadedFiles[s.indicatorId] = s.fileUrls;
-          });
+            const loaded: Record<string, number> = {};
+            const loadedDetails: Record<string, string> = {};
+            const loadedCommittee: Record<string, number> = {};
+            const loadedComments: Record<string, string> = {};
+            const loadedFiles: Record<string, any[]> = {};
 
-          setScores(loaded);
-          setImplementationDetails(loadedDetails);
-          setCommitteeScores(loadedCommittee);
-          setCommitteeComments(loadedComments);
-          setUploadedFiles(loadedFiles);
+            (evalData.evaluationScores ?? []).forEach((s: any) => {
+              loaded[s.indicatorId] = Number(s.score);
+              if (s.notes) loadedDetails[s.indicatorId] = s.notes;
+              if (s.committeeScore !== null && s.committeeScore !== undefined) loadedCommittee[s.indicatorId] = Number(s.committeeScore);
+              if (s.evidenceUrl) loadedComments[s.indicatorId] = s.evidenceUrl;
+              if (Array.isArray(s.fileUrls) && s.fileUrls.length > 0) loadedFiles[s.indicatorId] = s.fileUrls;
+            });
 
-          // โหลด notification จากผู้ถูกประเมิน (สำหรับกรรมการ)
-          if (role !== "user" && evalData.id) {
-            try {
-              const { data: notifs } = await apiClient.get(
-                `evaluation/${evalData.id}/notifications?direction=evaluatee_to_committee`
-              );
-              const notifMap = new Map<string, { prevScore: number | null; newScore: number | null }>();
-              (notifs as { indicatorId: string; isRead: boolean; evaluateeScore: number | null; prevEvaluateeScore: number | null }[])
-                .filter((n) => !n.isRead)
-                .forEach((n) => notifMap.set(n.indicatorId, {
-                  prevScore: n.prevEvaluateeScore,
-                  newScore: n.evaluateeScore,
-                }));
-              setNewEvaluateeIndicatorIds(notifMap);
-            } catch { /* ไม่มี notification */ }
+            setScores(loaded);
+            setImplementationDetails(loadedDetails);
+            setCommitteeScores(loadedCommittee);
+            setCommitteeComments(loadedComments);
+            setUploadedFiles(loadedFiles);
+
+            // โหลด notification จากผู้ถูกประเมิน (สำหรับกรรมการ)
+            if (role !== "user" && evalData.id) {
+              try {
+                const { data: notifs } = await apiClient.get(
+                  `evaluation/${evalData.id}/notifications?direction=evaluatee_to_committee`
+                );
+                const notifMap = new Map<string, { prevScore: number | null; newScore: number | null }>();
+                (notifs as { indicatorId: string; isRead: boolean; evaluateeScore: number | null; prevEvaluateeScore: number | null }[])
+                  .filter((n) => !n.isRead)
+                  .forEach((n) => notifMap.set(n.indicatorId, { prevScore: n.prevEvaluateeScore, newScore: n.evaluateeScore }));
+                setNewEvaluateeIndicatorIds(notifMap);
+              } catch { /* ไม่มี notification */ }
+            }
           }
         }
-      }
       } catch (err) {
         console.error("fetchData error:", err);
         toast.error("โหลดข้อมูลไม่สำเร็จ");
@@ -391,6 +379,13 @@ const EvaluationByProgramPage = () => {
   }, [flatIndicators, committeeScores, role]);
 
   const handleFillMode = async (mode: "full" | "good" | "mid" | "bad" | "clear") => {
+    const pickYesNo = (): number => {
+      if (mode === "full") return 1;
+      if (mode === "good") return Math.random() < 0.85 ? 1 : 0;
+      if (mode === "mid")  return Math.random() < 0.5  ? 1 : 0;
+      if (mode === "bad")  return Math.random() < 0.2  ? 1 : 0;
+      return -1; // clear
+    };
     const pickScore = (maxScore: number, criteria: { score: number; label: string }[]) => {
       const sorted = [...(criteria.length > 0 ? criteria.map(c => c.score) : Array.from({ length: maxScore + 1 }, (_, i) => i))].sort((a, b) => a - b);
       const n = sorted.length;
@@ -402,7 +397,8 @@ const EvaluationByProgramPage = () => {
     };
     const newScores: Record<string, number> = {};
     for (const { indicator } of flatIndicators) {
-      newScores[indicator.id] = mode === "clear" ? 0 : pickScore(indicator.maxScore, indicator.scoringCriteria ?? []);
+      const isYesNo = indicator.scoreType?.includes('yes_no');
+      newScores[indicator.id] = isYesNo ? pickYesNo() : (mode === "clear" ? 0 : pickScore(indicator.maxScore, indicator.scoringCriteria ?? []));
     }
     setCommitteeScores((prev) => ({ ...prev, ...newScores }));
 
@@ -467,8 +463,9 @@ const EvaluationByProgramPage = () => {
 
   if (loading || roleLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background">
+        <Loader2 className="h-10 w-10 animate-spin text-primary mb-3" />
+        <p className="text-sm text-muted-foreground">กำลังโหลดข้อมูล...</p>
       </div>
     );
   }
