@@ -46,6 +46,8 @@ interface DbCategory {
   sortOrder: number;
   programId: string | null;
   scoreType: DbScoreType;
+  topics: number;
+  indicators: number;
 }
 
 interface DbTopic {
@@ -250,6 +252,7 @@ function EditIndicatorDialog({
   };
 
   const addCriterion = () => setScoringCriteria([...scoringCriteria, { score: 0, label: "" }]);
+  const clearCriterion = () => setScoringCriteria([]);
   const removeCriterion = (idx: number) => setScoringCriteria(scoringCriteria.filter((_, i) => i !== idx));
   const updateCriterion = (idx: number, field: keyof ScoringCriterion, value: string | number) => {
     const updated = [...scoringCriteria];
@@ -396,6 +399,9 @@ function EditIndicatorDialog({
                   title="สร้างเกณฑ์คะแนน 0 ถึงคะแนนเต็ม"
                 >
                   0–{maxScore}
+                </Button>
+                <Button type="button" variant="outline" size="sm" className="gap-1 text-xs h-7" onClick={clearCriterion}>
+                  ล้างคะแนน
                 </Button>
                 <Button type="button" variant="outline" size="sm" className="gap-1 text-xs h-7" onClick={addCriterion}>
                   <Plus className="h-3 w-3" /> เพิ่มเกณฑ์
@@ -565,7 +571,7 @@ const SettingsIndicators = () => {
           ? apiClient.get<DbProgram[]>("programs/names-with-sort", { params: { catCount: true } })
           : Promise.resolve(null),
         categories
-          ? apiClient.get<DbCategory[]>("categories", { params: { programId: selectedProgramId } })
+          ? apiClient.get<DbCategory[]>("categories", { params: { programId: selectedProgramId, topicCount: true, indCount: true } })
           : Promise.resolve(null),
         topics
           ? apiClient.get<DbTopic[]>("topics", { params: { categoryId: categoryId ?? selectedCategoryId } })
@@ -915,7 +921,7 @@ const SettingsIndicators = () => {
                                     if (isRenew) return <span className="text-emerald-600 font-medium">ต่ออายุ</span>;
                                     return <span className="text-blue-600 font-medium">ปกติ</span>;
                                   })()}
-                                  {" · "}{catTopics.length} ประเด็น · {indicators.filter(i => catTopics.some(t => t.id === i.topicId)).length} ตัวชี้วัด
+                                  {" · "}{cat.topics} ประเด็น · {cat.indicators} ตัวชี้วัด
                                   {!isYesNoType(cat.scoreType) && ` · คะแนนเต็ม ${cat.maxScore}`}
                                   {isYesNoType(cat.scoreType) && <span className="ml-1 text-orange-600 font-medium">· ผ่าน/ไม่ผ่าน</span>}
                                 </span>
