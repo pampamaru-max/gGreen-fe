@@ -15,6 +15,10 @@ import {
   ListChecks,
   Printer,
   X,
+  Trash2,
+  FilePlus,
+  RefreshCw,
+  TrendingUp,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +34,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import apiClient from "@/lib/axios";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { AlertActionPopup } from "@/components/AlertActionPopup";
 
 interface Registration {
   id: string;
@@ -47,6 +52,12 @@ interface Registration {
   createdAt: string;
 }
 
+const EVAL_TYPE_CONFIG: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
+  new:     { label: "ประเมินใหม่",             icon: <FilePlus   className="h-3 w-3" />, className: "bg-blue-50 text-blue-700 border-blue-200"     },
+  renew:   { label: "ต่ออายุใบประกาศนียบัตร", icon: <RefreshCw  className="h-3 w-3" />, className: "bg-amber-50 text-amber-700 border-amber-200"   },
+  upgrade: { label: "ยกระดับคะแนน",           icon: <TrendingUp className="h-3 w-3" />, className: "bg-purple-50 text-purple-700 border-purple-200" },
+};
+
 const statusMap: Record<
   string,
   {
@@ -62,9 +73,11 @@ const statusMap: Record<
 export default function EvaluateeHome() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [reg, setReg] = useState<Registration | null>(null);
   const [regLoading, setRegLoading] = useState(true);
   const [evalTypeDialogOpen, setEvalTypeDialogOpen] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   // Filter states
   const [filterYear, setFilterYear] = useState<string>("all");
@@ -98,6 +111,7 @@ export default function EvaluateeHome() {
         program_id: item.program_id,
         program_name: item.program_name,
         evaluation_status: item.self_status,
+        evaluation_type: item.evaluation_type ?? "new",
         total_score: item.self_total_score,
         total_max: item.total_max,
         total_committee_score: item.committee_total_score,
@@ -181,6 +195,18 @@ export default function EvaluateeHome() {
     setFilterYear("all");
     setFilterSelfStatus("all");
     setFilterCommitteeStatus("all");
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTargetId) return;
+    try {
+      await apiClient.delete(`evaluation/${deleteTargetId}`);
+      queryClient.invalidateQueries({ queryKey: ["evaluations", programId, user?.id] });
+    } catch {
+      // silent — toast could be added here if needed
+    } finally {
+      setDeleteTargetId(null);
+    }
   };
 
   const evaluationStatusMap: Record<
@@ -458,6 +484,9 @@ export default function EvaluateeHome() {
                     <TableHead className="text-center min-w-[80px] text-slate-400 font-bold uppercase text-[10px] tracking-[0.1em]">
                       ปี
                     </TableHead>
+                    <TableHead className="text-center min-w-[130px] text-slate-400 font-bold uppercase text-[10px] tracking-[0.1em]">
+                      ประเภทเอกสาร
+                    </TableHead>
                     <TableHead className="text-center min-w-[140px] text-slate-400 font-bold uppercase text-[10px] tracking-[0.1em]">
                       สถานะการประเมินตนเอง
                     </TableHead>
@@ -470,7 +499,7 @@ export default function EvaluateeHome() {
                     <TableHead className="text-center min-w-[100px] text-slate-400 font-bold uppercase text-[10px] tracking-[0.1em]">
                       คะแนนรวมกรรมการ
                     </TableHead>
-                    <TableHead className="text-center w-24 text-slate-400 font-bold uppercase text-[10px] tracking-[0.1em]">
+                    <TableHead className="text-center w-28 text-slate-400 font-bold uppercase text-[10px] tracking-[0.1em]">
                       จัดการ
                     </TableHead>
                   </TableRow>
@@ -479,7 +508,7 @@ export default function EvaluateeHome() {
                   {filteredEvaluations.length === 0 ? (
                     <TableRow>
                       <TableCell
-                        colSpan={8}
+                        colSpan={9}
                         className="text-center py-10 text-slate-400"
                       >
                         {allEvaluations.length === 0 ? "ไม่มีข้อมูลประวัติการประเมิน" : "ไม่พบรายการที่ตรงกับตัวกรอง"}
@@ -499,6 +528,19 @@ export default function EvaluateeHome() {
                         </TableCell>
                         <TableCell className="text-center font-medium">
                           {item.year ? item.year + 543 : "-"}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {(() => {
+                            const typeKey = item.evaluation_type ?? "new";
+                            const cfg = EVAL_TYPE_CONFIG[typeKey];
+                            if (!cfg) return <span className="text-slate-400 text-xs">{typeKey}</span>;
+                            return (
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${cfg.className}`}>
+                                {cfg.icon}
+                                {cfg.label}
+                              </span>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell className="text-center">
                           {getStatusBadge(item.evaluation_status)}
@@ -589,6 +631,18 @@ export default function EvaluateeHome() {
                                     <Printer className="h-5 w-5" />
                                   </Button>
                                 )}
+
+                                {!item.is_pending && item.evaluation_status === "draft" && (
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => setDeleteTargetId(item.id)}
+                                    className="h-10 w-10 rounded-xl border-red-100 bg-red-50/50 text-red-500 hover:bg-red-100 hover:text-red-700 transition-all shadow-sm"
+                                    title="ลบเอกสารร่าง"
+                                  >
+                                    <Trash2 className="h-5 w-5" />
+                                  </Button>
+                                )}
                               </div>
                             );
                           })()}
@@ -602,6 +656,16 @@ export default function EvaluateeHome() {
           </div>
         </section>
       </div>
+
+      <AlertActionPopup
+        open={!!deleteTargetId}
+        onOpenChange={(open) => { if (!open) setDeleteTargetId(null); }}
+        type="delete"
+        trigger={<span className="hidden" />}
+        title="ยืนยันการลบเอกสาร"
+        description="ต้องการลบเอกสารร่างนี้หรือไม่? ข้อมูลจะถูกลบและไม่แสดงในรายการ"
+        action={handleDeleteConfirm}
+      />
 
       {programId && (
         <EvaluationTypeDialog

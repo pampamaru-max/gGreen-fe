@@ -64,6 +64,7 @@ export default function EvaluationTypeDialog({
   // const [eligibility, setEligibility] = useState<Eligibility | null>(null);
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<"type" | "year">("type");
+  const [selectedType, setSelectedType] = useState<TypeOption["key"] | null>(null);
   const currentYear = new Date().getFullYear();
   const years = useMemo(() => {
     const list = [];
@@ -78,6 +79,7 @@ export default function EvaluationTypeDialog({
     if (!open) {
       setStep("type");
       setSelectedYear(null);
+      setSelectedType(null);
       return;
     }
     // TODO: เปิดใช้งาน eligibility check เมื่อพร้อม
@@ -158,12 +160,8 @@ export default function EvaluationTypeDialog({
   ];
 
   const handleSelect = (key: TypeOption["key"]) => {
-    if (key === "new") {
-      setStep("year");
-    } else {
-      onClose();
-      navigate(`/register/evaluate?type=${key}`);
-    }
+    setSelectedType(key);
+    setStep("year");
   };
 
   return (
@@ -233,7 +231,7 @@ export default function EvaluationTypeDialog({
         ) : (
           <div className="flex flex-col gap-3 py-2">
             <p className="text-sm text-slate-500">
-              กรุณาเลือกปีงบประมาณที่ต้องการเริ่มประเมินใหม่
+              กรุณาเลือกปีงบประมาณที่ต้องการประเมิน
             </p>
             {usedYears.length > 0 && (
               <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5">
@@ -263,7 +261,7 @@ export default function EvaluationTypeDialog({
                 disabled={!selectedYear}
                 onClick={() => {
                   onClose();
-                  navigate(`/register/evaluate?type=new&year=${selectedYear}`);
+                  navigate(`/register/evaluate?type=${selectedType}&year=${selectedYear}`);
                 }}
               >
                 ยืนยัน

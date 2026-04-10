@@ -100,6 +100,10 @@ export default function ProjectRegistration() {
   // notification ของ indicator ที่กรรมการ comment/ให้คะแนนใหม่
   const [newCommitteeIndicatorIds, setNewCommitteeIndicatorIds] = useState<Map<string, { prevScore: number | null; newScore: number | null }>>(new Map());
   const [expandedCategoryId, setExpandedCategoryId] = useState<string | number | null>(null);
+  // copy score
+  const [copyHistoryEvals, setCopyHistoryEvals] = useState<Array<{ evaluationId: string; year: number; status: string; evaluationType: string }>>([]);
+  const [copyHistoryLoaded, setCopyHistoryLoaded] = useState(false);
+  const [copyDropdownOpen, setCopyDropdownOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleCategoryClick = useCallback((categoryId: string | number) => {
@@ -108,6 +112,38 @@ export default function ProjectRegistration() {
       document.getElementById(`cat-${categoryId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 50);
   }, []);
+
+  // ── Copy score handlers ────────────────────────────────────────────────────
+  const handleCopyDropdownOpen = useCallback(async (open: boolean) => {
+    setCopyDropdownOpen(open);
+    if (open && programId) {
+      // always re-fetch to exclude current evaluationId correctly
+      try {
+        const { data } = await apiClient.get(`evaluation/my-history?programId=${programId}`);
+        const filtered = (data ?? []).filter((e: any) => e.evaluationId !== evaluationId);
+        setCopyHistoryEvals(filtered);
+      } catch { /* ไม่มีประวัติ */ }
+      setCopyHistoryLoaded(true);
+    }
+  }, [programId, evaluationId]);
+
+  const handleCopyScoreFromEval = useCallback(async (histEvaluationId: string) => {
+    setCopyDropdownOpen(false);
+    try {
+      const { data: evalData } = await apiClient.get(`evaluation/${histEvaluationId}`);
+      const newScores: Record<string, number> = {};
+      (evalData.evaluationScores ?? []).forEach((s: any) => {
+        if (s.score !== null && s.score !== undefined) {
+          newScores[s.indicatorId] = Number(s.score);
+        }
+      });
+      setScores(prev => ({ ...prev, ...newScores }));
+      toast.success("คัดลอกคะแนนเรียบร้อยแล้ว");
+    } catch {
+      toast.error("ไม่สามารถคัดลอกคะแนนได้");
+    }
+  }, []);
+
   // ── Fetch evaluation form + existing answers ───────────────────────────────
   useEffect(() => {
     if (!programId) return;
@@ -178,30 +214,22 @@ export default function ProjectRegistration() {
             );
           }
         } else if (!urlEvalId) {
-          // renew / upgrade — โหลด evaluation ล่าสุดของ program นั้น
-          // (กรณี isLastCompleted ก็ตรงนี้แล้ว)
-          try {
-            const { data: statusData } = await apiClient.get(
-              `evaluation/status?userId=${user?.id}&programId=${programId}`
+          // renew / upgrade — สร้างใบประเมินใหม่เสมอ
+          const { data: newEval } = await apiClient.post("evaluation", {
+            programId,
+            userId: user?.id,
+            evaluationType: urlEvalType,
+            year: selectedYear,
+          });
+          if (newEval?.id) {
+            setEvaluationId(newEval.id);
+            setEvaluationStatus("draft");
+            navigate(
+              `/register/evaluate?type=${urlEvalType}&year=${selectedYear}&id=${newEval.id}`,
+              { replace: true }
             );
-            if (statusData?.self_status === "completed") {
-              const { data: newEval } = await apiClient.post("evaluation", {
-                programId,
-                userId: user?.id,
-                evaluationType: urlEvalType,
-                year: selectedYear,
-              });
-              if (newEval?.id) {
-                setEvaluationId(newEval.id);
-                setEvaluationStatus("draft");
-                navigate(
-                  `/register/evaluate?type=${urlEvalType}&year=${selectedYear}&id=${newEval.id}`,
-                  { replace: true }
-                );
-              }
-              return;
-            }
-          } catch { /* no status yet */ }
+          }
+          return;
         }
 
         if (urlEvalId || (urlEvalType !== "new")) {
@@ -436,6 +464,13 @@ export default function ProjectRegistration() {
   // สุ่มคะแนนทุกตัวชี้วัดแล้วบันทึก
   const handleFillMode = async (mode: "full" | "good" | "mid" | "bad" | "clear") => {
     if (!programId) return;
+    const pickYesNo = (): number => {
+      if (mode === "full") return 1;
+      if (mode === "good") return Math.random() < 0.85 ? 1 : 0;
+      if (mode === "mid")  return Math.random() < 0.5  ? 1 : 0;
+      if (mode === "bad")  return Math.random() < 0.2  ? 1 : 0;
+      return -1; // clear
+    };
     const pickScore = (maxScore: number, criteria: { score: number; label: string }[]) => {
       const sorted = [...(criteria.length > 0 ? criteria.map(c => c.score) : Array.from({ length: maxScore + 1 }, (_, i) => i))].sort((a, b) => a - b);
       const n = sorted.length;
@@ -447,7 +482,8 @@ export default function ProjectRegistration() {
     };
     const newScores: Record<string, number> = {};
     for (const { indicator } of flatIndicators) {
-      newScores[indicator.id] = mode === "clear" ? 0 : pickScore(indicator.maxScore, indicator.scoringCriteria ?? []);
+      const isYesNo = indicator.scoreType?.includes('yes_no');
+      newScores[indicator.id] = isYesNo ? pickYesNo() : (mode === "clear" ? 0 : pickScore(indicator.maxScore, indicator.scoringCriteria ?? []));
     }
     setScores((prev) => ({ ...prev, ...newScores }));
     let currentEvalId = evaluationId;
@@ -545,6 +581,42 @@ export default function ProjectRegistration() {
                 <span className="text-xs font-normal text-muted-foreground">/{displayMax}</span>
               </p>
               {displayMax > 0 && <p className="text-[9px] text-muted-foreground">{displayPct}%</p>}
+              {!isEvalReadOnly && !evalLoading && (
+                <DropdownMenu open={copyDropdownOpen} onOpenChange={handleCopyDropdownOpen}>
+                  <DropdownMenuTrigger asChild>
+                    <button className="mt-0.5 text-[9px] text-blue-500 hover:text-blue-700 underline underline-offset-2 cursor-pointer bg-transparent border-0 p-0 leading-tight">
+                      คัดลอกคะแนน
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-[180px]">
+                    {!copyHistoryLoaded ? (
+                      <div className="px-3 py-2 text-xs text-muted-foreground">กำลังโหลด...</div>
+                    ) : copyHistoryEvals.length === 0 ? (
+                      <div className="px-3 py-2 text-xs text-muted-foreground">ไม่พบประวัติการประเมิน</div>
+                    ) : (
+                      <>
+                        <div className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider border-b">
+                          เลือกปีที่ต้องการคัดลอก
+                        </div>
+                        {copyHistoryEvals.map((e) => (
+                          <DropdownMenuItem
+                            key={e.evaluationId}
+                            onClick={() => handleCopyScoreFromEval(e.evaluationId)}
+                            className="gap-2 text-sm"
+                          >
+                            <span className="font-semibold">พ.ศ. {e.year + 543}</span>
+                            {e.evaluationType && EVAL_TYPE_CONFIG[e.evaluationType] && (
+                              <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${EVAL_TYPE_CONFIG[e.evaluationType].className}`}>
+                                {EVAL_TYPE_CONFIG[e.evaluationType].label}
+                              </span>
+                            )}
+                          </DropdownMenuItem>
+                        ))}
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
             {grandCommitteeTotal !== undefined && (
               <>

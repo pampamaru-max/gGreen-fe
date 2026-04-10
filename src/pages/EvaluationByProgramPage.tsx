@@ -391,6 +391,13 @@ const EvaluationByProgramPage = () => {
   }, [flatIndicators, committeeScores, role]);
 
   const handleFillMode = async (mode: "full" | "good" | "mid" | "bad" | "clear") => {
+    const pickYesNo = (): number => {
+      if (mode === "full") return 1;
+      if (mode === "good") return Math.random() < 0.85 ? 1 : 0;
+      if (mode === "mid")  return Math.random() < 0.5  ? 1 : 0;
+      if (mode === "bad")  return Math.random() < 0.2  ? 1 : 0;
+      return -1; // clear
+    };
     const pickScore = (maxScore: number, criteria: { score: number; label: string }[]) => {
       const sorted = [...(criteria.length > 0 ? criteria.map(c => c.score) : Array.from({ length: maxScore + 1 }, (_, i) => i))].sort((a, b) => a - b);
       const n = sorted.length;
@@ -402,7 +409,8 @@ const EvaluationByProgramPage = () => {
     };
     const newScores: Record<string, number> = {};
     for (const { indicator } of flatIndicators) {
-      newScores[indicator.id] = mode === "clear" ? 0 : pickScore(indicator.maxScore, indicator.scoringCriteria ?? []);
+      const isYesNo = indicator.scoreType?.includes('yes_no');
+      newScores[indicator.id] = isYesNo ? pickYesNo() : (mode === "clear" ? 0 : pickScore(indicator.maxScore, indicator.scoringCriteria ?? []));
     }
     setCommitteeScores((prev) => ({ ...prev, ...newScores }));
 
