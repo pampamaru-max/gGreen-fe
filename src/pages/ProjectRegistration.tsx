@@ -310,32 +310,10 @@ export default function ProjectRegistration() {
 
   // POST /evaluation/:id/submit — final submit
   const handleSubmitAll = async () => {
-    if (!programId) return;
+    if (!evaluationId) return;
     setSubmitting(true);
     try {
-      // Save any unsaved scores first
-      let currentEvalId = evaluationId;
-      for (const cat of visibleCategories) {
-        for (const topic of cat.topics) {
-          for (const ind of topic.indicators) {
-            const { data } = await apiClient.post("evaluation/score", {
-              programId,
-              indicatorId: ind.id,
-              score: scores[ind.id] ?? 0,
-              notes: implDetails[ind.id] ?? "",
-              ...(currentEvalId ? { evaluationId: currentEvalId } : { evaluationType, year }),
-            });
-            if (data?.evaluationId && !currentEvalId) {
-              currentEvalId = data.evaluationId;
-              setEvaluationId(currentEvalId);
-            }
-          }
-        }
-      }
-
-      // Submit
-      if (!currentEvalId) throw new Error("ไม่พบข้อมูลการประเมิน");
-      await apiClient.post(`evaluation/${currentEvalId}/submit`);
+      await apiClient.post(`evaluation/${evaluationId}/submit`);
       toast.success("ส่งแบบประเมินตนเองเรียบร้อยแล้ว", {
         description: "ทีมงานจะตรวจสอบและแจ้งผลให้ทราบในภายหลัง",
         duration: 5000,
@@ -555,6 +533,15 @@ export default function ProjectRegistration() {
     return (
       <div className="flex items-center justify-center min-h-full py-24">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (evalLoading) {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background">
+        <Loader2 className="h-10 w-10 animate-spin text-primary mb-3" />
+        <p className="text-sm text-muted-foreground">กำลังโหลดข้อมูล...</p>
       </div>
     );
   }

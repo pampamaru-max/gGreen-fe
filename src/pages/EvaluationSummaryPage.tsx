@@ -76,26 +76,48 @@ const EvaluationSummaryPage = () => {
         const data: EvaluationResult = res.data;
         setResult(data);
 
-        // ถ้า scoringLevel เป็น null และ totalScore/totalMaxScore เป็น 0 → น่าจะเป็น yes/no program
-        // ให้ดึง evaluation scores มาคำนวณ pass count เอง
-        if (!data.scoringLevel && data.totalScore === 0 && data.totalMaxScore === 0) {
+        // ถ้า scoringLevel เป็น null → ดึง scoring-levels มา match เอง
+        if (!data.scoringLevel) {
+          const isYesNoProgram = data.totalScore === 0 && data.totalMaxScore === 0;
           const [evalRes, levelsRes] = await Promise.all([
-            apiClient.get(`evaluation/${evaluationId}`),
+            isYesNoProgram ? apiClient.get(`evaluation/${evaluationId}`) : Promise.resolve(null),
             apiClient.get<{ id: number; name: string; minScore: number; maxScore: number; color: string; programId: string | null }[]>("scoring-levels"),
           ]);
-          const scores: any[] = evalRes.data?.evaluationScores ?? [];
-          const passCount = scores.filter(s => Number(s.committeeScore) === 1).length;
-          const totalIndicators = scores.length;
-          const passPct = totalIndicators > 0 ? Math.round((passCount / totalIndicators) * 100) : 0;
-          const programLevels = levelsRes.data.filter(l => l.programId === (data.programId ?? programId));
-          const matched = programLevels.find(l => passPct >= l.minScore && passPct <= l.maxScore);
-          setYesNoStats({
-            passCount,
-            totalIndicators,
-            passPct,
-            levelName: matched?.name ?? null,
-            levelColor: matched?.color ?? "#6b7280",
-          });
+          const programLevels = levelsRes.data.filter(
+            (l) => l.programId === (data.programId ?? programId)
+          );
+
+          if (isYesNoProgram && evalRes) {
+            const scores: any[] = evalRes.data?.evaluationScores ?? [];
+            const passCount = scores.filter(s => Number(s.committeeScore) === 1).length;
+            const totalIndicators = scores.length;
+            const passPct = totalIndicators > 0 ? Math.round((passCount / totalIndicators) * 100) : 0;
+            const matched = programLevels.find(l => passPct >= l.minScore && passPct <= l.maxScore);
+            setYesNoStats({
+              passCount,
+              totalIndicators,
+              passPct,
+              levelName: matched?.name ?? null,
+              levelColor: matched?.color ?? "#6b7280",
+            });
+          } else if (!isYesNoProgram && data.totalMaxScore > 0) {
+            // score-based: คำนวณ % จาก totalScore แล้ว match level
+            const pct = Math.round((data.totalScore / data.totalMaxScore) * 100);
+            const matched = programLevels.find(l => pct >= l.minScore && pct <= l.maxScore);
+            if (matched) {
+              setResult(prev => prev ? {
+                ...prev,
+                scoringLevel: {
+                  id: matched.id,
+                  name: matched.name,
+                  color: matched.color,
+                  icon: "",
+                  minScore: matched.minScore,
+                  maxScore: matched.maxScore,
+                },
+              } : prev);
+            }
+          }
         }
       } catch {
         setError("ไม่สามารถโหลดผลการประเมินได้");
@@ -163,7 +185,7 @@ const EvaluationSummaryPage = () => {
           ) : (
             <>
               <p className="text-4xl font-bold mb-1">
-                <span style={{ color: levelColor }}>{totalScore.toFixed(3)}</span>
+                <span style={{ color: levelColor }}>{Number.isInteger(totalScore) ? totalScore : totalScore.toFixed(2)}</span>
                 <span className="text-xl font-normal text-muted-foreground">/{totalMaxScore}</span>
               </p>
               <p className="text-2xl font-semibold mb-2" style={{ color: levelColor }}>{pct}%</p>
