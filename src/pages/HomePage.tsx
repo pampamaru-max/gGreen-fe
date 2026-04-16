@@ -35,9 +35,9 @@ export default function HomePage() {
   });
 
   return (
-    <><div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+    <><div className="h-screen flex flex-col gap-3 sm:gap-4 p-4 sm:p-5 max-w-7xl mx-auto w-full">
       {/* Hero Text Section */}
-      <div className="relative overflow-hidden rounded-2xl border border-border/60 p-5 sm:p-8 lg:p-12" style={{ backgroundColor: '#dfe8e6' }}>
+      <div className="relative overflow-hidden rounded-2xl border border-border/60 p-4 sm:p-6 shrink-0" style={{ backgroundColor: '#dfe8e6' }}>
         <img
           src={gLogo}
           alt=""
@@ -55,7 +55,7 @@ export default function HomePage() {
           <h1 className="text-lg sm:text-2xl lg:text-4xl font-bold text-foreground leading-tight mb-3 max-w-[calc(100%-120px)] sm:max-w-[calc(100%-220px)] lg:max-w-[calc(100%-260px)]">
             โครงการพัฒนาระบบบริการข้อมูลการผลิต การบริการและการบริโภคที่เป็นมิตรกับสิ่งแวดล้อม
           </h1>
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-4 sm:mt-6">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-3 sm:mt-4">
             <button
               onClick={() => setRegOpen(true)}
               className="inline-flex items-center justify-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl bg-accent text-accent-foreground text-sm sm:text-base font-bold shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
@@ -71,12 +71,12 @@ export default function HomePage() {
       </div>
 
       {/* Tabs Section */}
-      <Tabs defaultValue="programs">
+      <Tabs defaultValue="programs" className="flex-1 flex flex-col min-h-0">
         <TabsList className="w-full justify-start">
           <TabsTrigger value="programs" className="text-xs sm:text-sm">โครงการภายใต้ G-Green</TabsTrigger>
           <TabsTrigger value="reports" className="text-xs sm:text-sm">รายงาน</TabsTrigger>
         </TabsList>
-        <TabsContent value="programs">
+        <TabsContent value="programs" className="flex-1 overflow-auto mt-2">
           {programsLoading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -111,7 +111,7 @@ export default function HomePage() {
             </div>
           )}
         </TabsContent>
-        <TabsContent value="reports">
+        <TabsContent value="reports" className="flex-1 overflow-auto mt-2">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Card
               className="group hover:shadow-lg transition-shadow border-border/60 cursor-pointer"
@@ -150,34 +150,25 @@ export default function HomePage() {
 
 
       {/* Footer */}
-      <footer className="border-t border-border/60 mt-4 sm:mt-8 pt-6 sm:pt-8 pb-4">
-        <div className="flex flex-col md:flex-row gap-8 items-start justify-between">
-          <div className="flex-1 space-y-4">
-            <h3 className="text-lg font-bold text-accent">
-              กรมการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม
-            </h3>
-            <p className="text-sm font-semibold text-accent">
-              กระทรวงทรัพยากรธรรมชาติและสิ่งแวดล้อม
-            </p>
-            <p className="text-sm text-muted-foreground mt-3">
-              DEPARTMENT OF CLIMATE CHANGE AND ENVIRONMENT (DCCE)
-            </p>
-            <div className="space-y-2 text-sm text-muted-foreground mt-4">
-              <div className="flex items-start gap-2">
-                <MapPin className="h-4 w-4 mt-0.5 text-accent shrink-0" />
-                <span>เลขที่ 49 ซอย 30 ถนนพระราม 6 แขวงพญาไท เขตพญาไท กรุงเทพมหานคร 10400</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-accent shrink-0" />
-                <span>จันทร์-ศุกร์ เวลา 08.30 – 16.30 น.</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Phone className="h-4 w-4 text-accent shrink-0" />
-                <span>0-2278-8400-19</span>
-                <span> เวอร์ชั่น 1.5</span>
-                <span>เวอร์ชัน {health?.version ?? "..."}</span>
-              </div>
-            </div>
+      <footer className="border-t border-border/60 pt-4 pb-2 shrink-0">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-sm font-bold text-accent">กรมการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม</h3>
+          <p className="text-xs font-semibold text-accent/80">กระทรวงทรัพยากรธรรมชาติและสิ่งแวดล้อม</p>
+          <p className="text-xs text-muted-foreground">DEPARTMENT OF CLIMATE CHANGE AND ENVIRONMENT (DCCE)</p>
+          <div className="flex flex-wrap gap-x-5 gap-y-1 mt-1 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <MapPin className="h-3.5 w-3.5 text-accent shrink-0" />
+              เลขที่ 49 ซอย 30 ถนนพระราม 6 แขวงพญาไท เขตพญาไท กรุงเทพมหานคร 10400
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5 text-accent shrink-0" />
+              จันทร์-ศุกร์ เวลา 08.30 – 16.30 น.
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Phone className="h-3.5 w-3.5 text-accent shrink-0" />
+              0-2278-8400-19
+              <span className="text-muted-foreground/50 ml-2">เวอร์ชัน {health?.version ?? "1.5"}</span>
+            </span>
           </div>
         </div>
       </footer>
