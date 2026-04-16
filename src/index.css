@@ -388,12 +388,16 @@
   backdrop-filter: blur(16px) !important;
   -webkit-backdrop-filter: blur(16px) !important;
   border-right: none !important;
-  border-radius: 0 1rem 1rem 0 !important;
+  border-radius: 1rem !important;
 }
 
-/* Remove border from the fixed wrapper div that contains the sidebar */
-:has(> [data-sidebar="sidebar"]) {
+/* Offset fixed container so sidebar floats with equal spacing */
+div:has(> [data-sidebar="sidebar"]) {
   border: none !important;
+  top: 0.5rem !important;
+  bottom: 0.5rem !important;
+  left: 0.5rem !important;
+  height: calc(100svh - 1rem) !important;
 }
 
 .edit-button {

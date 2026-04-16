@@ -3,6 +3,7 @@ import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useState } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -42,7 +43,7 @@ const settingsSubItems = [
 ];
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state, setOpen } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
   const currentPath = location.pathname;
@@ -52,6 +53,8 @@ export function AppSidebar() {
 
   const isSettingsActive = currentPath.startsWith("/settings");
   const isReportsActive = currentPath.startsWith("/reports");
+
+  const [settingsOpen, setSettingsOpen] = useState(isSettingsActive);
   return (
     <Sidebar collapsible="icon">
       <SidebarContent>
@@ -86,10 +89,20 @@ export function AppSidebar() {
 
               {/* การตั้งค่า - admin only */}
               {isAdmin && (
-                <Collapsible defaultOpen={isSettingsActive} className="group/collapsible">
+                <Collapsible
+                  open={!collapsed && settingsOpen}
+                  onOpenChange={setSettingsOpen}
+                  className="group/collapsible"
+                >
                   <SidebarMenuItem>
                     <CollapsibleTrigger asChild>
                       <SidebarMenuButton
+                        onClick={() => {
+                          if (collapsed) {
+                            setOpen(true);
+                            setSettingsOpen(true);
+                          }
+                        }}
                         className={`hover:bg-muted/50 ${isSettingsActive ? "bg-muted text-primary font-medium" : ""}`}>
                         <Settings className="mr-2 h-4 w-4" />
                         {!collapsed &&
@@ -100,22 +113,20 @@ export function AppSidebar() {
                         }
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
-                    {!collapsed &&
                     <CollapsibleContent>
-                        <SidebarMenuSub>
-                          {settingsSubItems.map((item) =>
-                        <SidebarMenuSubItem key={item.url}>
-                              <SidebarMenuSubButton asChild>
-                                <NavLink to={item.url} className="hover:bg-muted/50" activeClassName="bg-muted text-primary font-medium">
-                                  <item.icon className="mr-2 h-3.5 w-3.5" />
-                                  <span>{item.title}</span>
-                                </NavLink>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
+                      <SidebarMenuSub>
+                        {settingsSubItems.map((item) =>
+                          <SidebarMenuSubItem key={item.url}>
+                            <SidebarMenuSubButton asChild>
+                              <NavLink to={item.url} className="hover:bg-muted/50" activeClassName="bg-muted text-primary font-medium">
+                                <item.icon className="mr-2 h-3.5 w-3.5" />
+                                <span>{item.title}</span>
+                              </NavLink>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
                         )}
-                        </SidebarMenuSub>
-                      </CollapsibleContent>
-                    }
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
                   </SidebarMenuItem>
                 </Collapsible>
               )}
@@ -128,10 +139,10 @@ export function AppSidebar() {
           {!collapsed && (
             <SidebarMenuItem>
               <div className="flex items-center gap-2 px-2 py-1.5">
-                <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                  <User className="h-3.5 w-3.5 text-primary" />
+                <div className="h-7 w-7 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(58,125,44,0.15)" }}>
+                  <User className="h-3.5 w-3.5" style={{ color: "#3a7d2c" }} />
                 </div>
-                <span className="text-xs text-muted-foreground truncate">
+                <span className="text-xs font-medium truncate" style={{ color: "#1a3d0f" }}>
                   {user?.email ?? ""}
                 </span>
               </div>
@@ -140,7 +151,8 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={async () => { await signOut(); navigate("/"); }}
-              className="hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+              className="hover:bg-destructive/10 hover:text-destructive"
+              style={{ color: "#1a3d0f" }}
             >
               <LogOut className="mr-2 h-4 w-4" />
               {!collapsed && <span>ออกจากระบบ</span>}
