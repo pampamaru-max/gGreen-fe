@@ -99,11 +99,10 @@ export default function PrintCertificate() {
   };
 
   const isPortrait = template.orientation === "portrait";
-  const layout = template.layout 
-    ? (Array.isArray(template.layout) 
-        ? template.layout 
-        : (template.layout[template.orientation || "landscape"] || []))
-    : [];
+  const rawLayout = typeof template.layout === "string"
+    ? (() => { try { return JSON.parse(template.layout as string); } catch { return []; } })()
+    : template.layout;
+  const layout = Array.isArray(rawLayout) ? rawLayout : [];
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col items-center py-10 print:py-0 print:bg-white">
