@@ -105,6 +105,7 @@ export default function EvaluateeHome() {
       const filtered = data.filter(
         (item: any) => !item.user_id || item.user_id === user?.id,
       );
+      console.log("Data from API",filtered)
       // Map RegistrationRow to the format used in this component
       return filtered.map((item: any) => ({
         id: item.evaluation_id,
@@ -112,9 +113,11 @@ export default function EvaluateeHome() {
         program_name: item.program_name,
         evaluation_status: item.self_status,
         evaluation_type: item.evaluation_type ?? "new",
+
         total_score: item.self_total_score,
-        total_max: item.total_max,
+        max_self_score : item.self_max_score,
         total_committee_score: item.committee_total_score,
+        max_committee_score: item.committee_max_score,
         has_committee_score: item.has_committee_score,
         has_self_score: item.has_self_score,
         year: item.year || new Date().getFullYear(),
@@ -546,9 +549,8 @@ export default function EvaluateeHome() {
                           {getStatusBadge(item.evaluation_status)}
                         </TableCell>
                         <TableCell className="text-center font-bold text-slate-600">
-                          {item.total_score !== undefined &&
-                          item.total_score !== null
-                            ? `${item.total_score}/${item.total_max || 0}`
+                          {item.total_score !== null
+                            ? `${item.total_score}/${item.max_self_score}`
                             : "-"}
                         </TableCell>
                         <TableCell className="text-center">
@@ -558,9 +560,8 @@ export default function EvaluateeHome() {
                           )}
                         </TableCell>
                         <TableCell className="text-center font-bold text-slate-600">
-                          {item.total_committee_score !== undefined &&
-                          item.total_committee_score !== null
-                            ? `${item.total_committee_score}/${item.total_max || 0}`
+                          {item.total_committee_score !== null
+                            ? `${item.total_committee_score}/${item.max_committee_score}`
                             : "-"}
                         </TableCell>
                         <TableCell className="text-center">
