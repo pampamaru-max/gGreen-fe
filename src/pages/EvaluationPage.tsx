@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ClipboardCheck, Plus, Pencil, Search, X, Eye, BarChart2 } from "lucide-react";
+import { ClipboardCheck, Plus, Pencil, Search, X, Eye, BarChart2, Printer } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -284,21 +284,33 @@ const EvaluationPage = () => {
                       )}
                     </TableCell>
                     <TableCell className="text-center">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => navigate(`/evaluation/${row.program_id}?evaluationId=${row.evaluation_id}`)}
-                        title={row.self_status === "completed" ? "ดูผลการประเมิน" : row.evaluation_id ? "แก้ไขการประเมิน" : "เพิ่มการประเมิน"}
-                        className="edit-button"
-                      >
-                        {row.self_status === "completed" ? (
-                          <Eye className="h-4 w-4 text-muted-foreground" />
-                        ) : row.evaluation_id ? (
-                          <Pencil className="h-4 w-4 text-primary" />
-                        ) : (
-                          <Plus className="h-4 w-4 text-primary" />
+                      <div className="flex items-center justify-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => navigate(`/evaluation/${row.program_id}?evaluationId=${row.evaluation_id}`)}
+                          title={row.self_status === "completed" ? "ดูผลการประเมิน" : row.evaluation_id ? "แก้ไขการประเมิน" : "เพิ่มการประเมิน"}
+                          className="edit-button"
+                        >
+                          {row.self_status === "completed" ? (
+                            <Eye className="h-4 w-4 text-muted-foreground" />
+                          ) : row.evaluation_id ? (
+                            <Pencil className="h-4 w-4 text-primary" />
+                          ) : (
+                            <Plus className="h-4 w-4 text-primary" />
+                          )}
+                        </Button>
+                        {row.has_committee_score && row.evaluation_id && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => window.open(`/certificate/print/${row.evaluation_id}`, "_blank")}
+                            title="พิมพ์ใบประกาศ"
+                          >
+                            <Printer className="h-4 w-4 text-emerald-600" />
+                          </Button>
                         )}
-                      </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
