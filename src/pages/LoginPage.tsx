@@ -67,15 +67,15 @@ export default function LoginPage() {
             <img src={gLogo} alt="G-Green" className="h-full w-full object-contain drop-shadow-md" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold" style={{ color: "#2d5a1b" }}>ระบบประเมินผล G-Green</h1>
-            <p className="text-sm mt-1" style={{ color: "#4a7a2e" }}>เข้าสู่ระบบเพื่อดำเนินการ</p>
+            <h1 className="text-2xl font-bold" style={{ color: "var(--green-body)" }}>ระบบประเมินผล G-Green</h1>
+            <p className="text-sm mt-1" style={{ color: "var(--green-muted)" }}>เข้าสู่ระบบเพื่อดำเนินการ</p>
           </div>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1">
-            <Label htmlFor="email" className="text-sm font-medium" style={{ color: "#2d5a1b" }}>อีเมล</Label>
+            <Label htmlFor="email" className="text-sm font-medium" style={{ color: "var(--green-body)" }}>อีเมล</Label>
             <Input
               id="email"
               type="email"
@@ -87,7 +87,7 @@ export default function LoginPage() {
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="password" className="text-sm font-medium" style={{ color: "#2d5a1b" }}>รหัสผ่าน</Label>
+            <Label htmlFor="password" className="text-sm font-medium" style={{ color: "var(--green-body)" }}>รหัสผ่าน</Label>
             <Input
               id="password"
               type="password"

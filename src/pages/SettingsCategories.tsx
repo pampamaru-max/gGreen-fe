@@ -909,66 +909,78 @@ const SettingsCategories = () => {
     );
   }
 
+  const glassCard = {
+    background: "var(--glass-bg)",
+    backdropFilter: "blur(14px)",
+    WebkitBackdropFilter: "blur(14px)",
+    boxShadow: "var(--glass-shadow)",
+    border: "1px solid var(--glass-border)",
+  } as React.CSSProperties;
+
   return (
-    <div className="min-h-full bg-background">
-      <div className="border-b bg-card/50 px-6 py-4">
+    <div className="h-full flex flex-col gap-3 p-4">
+      {/* Header — frozen */}
+      <div className="px-6 py-4 rounded-2xl shrink-0" style={glassCard}>
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-            <FolderTree className="h-5 w-5 text-primary-foreground" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ background: "#3a7d2c" }}>
+            <FolderTree className="h-5 w-5 text-white" />
           </div>
           <div className="flex-1">
-            <h2 className="text-lg font-bold text-foreground">จัดการหมวด</h2>
-            <p className="text-xs text-muted-foreground">เพิ่ม ลบ หรือแก้ไขหมวดเกณฑ์การประเมินตามโครงการ</p>
+            <h2 className="text-lg font-bold" style={{ color: "var(--green-heading)" }}>จัดการหมวด</h2>
+            <p className="text-xs" style={{ color: "var(--green-muted)" }}>เพิ่ม ลบ หรือแก้ไขหมวดเกณฑ์การประเมินตามโครงการ</p>
           </div>
         </div>
       </div>
 
-      <div className="px-6 py-4 space-y-4">
-        {programs.length === 0 && (
-          <p className="text-sm text-muted-foreground text-center py-8">ยังไม่มีโครงการ กรุณาเพิ่มโครงการก่อน</p>
-        )}
-        {programs.map((program) => {
-          const programCategories = categories
-            .filter((c) => c.programId === program.id)
-            .sort((a, b) => a.sortOrder - b.sortOrder);
-          const programLevels = scoringLevels
-            .filter((l) => l.programId === program.id)
-            .sort((a, b) => a.sortOrder - b.sortOrder);
+      {/* Scrollable content */}
+      <div className="flex-1 min-h-0 rounded-2xl overflow-hidden" style={glassCard}>
+        <div className="h-full overflow-y-auto px-6 py-4 space-y-4">
+          {programs.length === 0 && (
+            <p className="text-sm text-center py-8" style={{ color: "var(--green-muted)" }}>ยังไม่มีโครงการ กรุณาเพิ่มโครงการก่อน</p>
+          )}
+          {programs.map((program) => {
+            const programCategories = categories
+              .filter((c) => c.programId === program.id)
+              .sort((a, b) => a.sortOrder - b.sortOrder);
+            const programLevels = scoringLevels
+              .filter((l) => l.programId === program.id)
+              .sort((a, b) => a.sortOrder - b.sortOrder);
 
-          return (
-            <ProgramCard
-              key={program.id}
-              program={program}
-              categories={programCategories}
-              scoringLevels={programLevels}
-              topicCounts={topicCounts}
-              indicatorCounts={indicatorCounts}
-              onAddCategory={handleAddCategory}
-              onEditCategory={handleEditCategory}
-              onDeleteCategory={handleDeleteCategory}
-              onSaveUpgradeForProgram={handleSaveUpgradeForProgram}
-              onSaveRenewForProgram={handleSaveRenewForProgram}
-              onCopyUpgradeToRenew={handleCopyUpgradeToRenew}
-              onCopyRenewToUpgrade={handleCopyRenewToUpgrade}
-            />
-          );
-        })}
-
-        {categories.some((c) => !c.programId) && (
-          <div className="rounded-xl border border-dashed bg-muted/30 p-4 space-y-2">
-            <p className="font-semibold text-sm text-muted-foreground">หมวดที่ยังไม่ได้ผูกกับโครงการ</p>
-            {categories.filter((c) => !c.programId).map((cat) => (
-              <CategoryItem
-                key={cat.id}
-                cat={cat}
-                topicCount={topicCounts[cat.id] || 0}
-                indicatorCount={indicatorCounts[cat.id] || 0}
-                onEdit={handleEditCategory}
-                onDelete={handleDeleteCategory}
+            return (
+              <ProgramCard
+                key={program.id}
+                program={program}
+                categories={programCategories}
+                scoringLevels={programLevels}
+                topicCounts={topicCounts}
+                indicatorCounts={indicatorCounts}
+                onAddCategory={handleAddCategory}
+                onEditCategory={handleEditCategory}
+                onDeleteCategory={handleDeleteCategory}
+                onSaveUpgradeForProgram={handleSaveUpgradeForProgram}
+                onSaveRenewForProgram={handleSaveRenewForProgram}
+                onCopyUpgradeToRenew={handleCopyUpgradeToRenew}
+                onCopyRenewToUpgrade={handleCopyRenewToUpgrade}
               />
-            ))}
-          </div>
-        )}
+            );
+          })}
+
+          {categories.some((c) => !c.programId) && (
+            <div className="rounded-xl border border-dashed bg-muted/30 p-4 space-y-2">
+              <p className="font-semibold text-sm text-muted-foreground">หมวดที่ยังไม่ได้ผูกกับโครงการ</p>
+              {categories.filter((c) => !c.programId).map((cat) => (
+                <CategoryItem
+                  key={cat.id}
+                  cat={cat}
+                  topicCount={topicCounts[cat.id] || 0}
+                  indicatorCount={indicatorCounts[cat.id] || 0}
+                  onEdit={handleEditCategory}
+                  onDelete={handleDeleteCategory}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -66,22 +66,22 @@ export function SelfEvalHeader({
 
       <div className="flex gap-6">
         <div className="text-right shrink-0">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">ประเมินตนเอง</p>
+          <p className="text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">ประเมินตนเอง</p>
           <p className="text-2xl font-bold text-primary leading-none">
             {grandTotal}
             <span className="text-xs font-normal text-muted-foreground">/{grandMax}</span>
           </p>
-          <p className="text-[10px] text-muted-foreground mt-1">{pct}%</p>
+          <p className="text-[0.625rem] text-muted-foreground mt-1">{pct}%</p>
         </div>
 
         {committeeTotal !== undefined && (
           <div className="text-right shrink-0">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">กรรมการ</p>
+            <p className="text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">กรรมการ</p>
             <p className="text-2xl font-bold text-emerald-600 leading-none">
               {committeeTotal}
               <span className="text-xs font-normal text-muted-foreground">/{grandMax}</span>
             </p>
-            <p className="text-[10px] text-muted-foreground mt-1">{committeePct}%</p>
+            <p className="text-[0.625rem] text-muted-foreground mt-1">{committeePct}%</p>
           </div>
         )}
       </div>

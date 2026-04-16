@@ -43,11 +43,11 @@ export function ScoreSummary({ data, committeeData, onCategoryClick }: Props) {
               className={`overflow-hidden rounded-xl bg-white border border-l-4 p-4 transition-shadow hover:shadow-md ${onCategoryClick ? "cursor-pointer" : ""}`}
               style={{ borderLeftColor: accentColor }}
             >
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">หมวดที่ {idx + 1}</p>
+              <p className="text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wider">หมวดที่ {idx + 1}</p>
               <p className="text-sm font-bold text-foreground mt-0.5 mb-4 leading-tight">{item.name}</p>
 
               <div className="space-y-1.5">
-                {isCommittee && <p className="text-[10px] font-semibold uppercase tracking-wider text-blue-600">ประเมินตนเอง</p>}
+                {isCommittee && <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-blue-600">ประเมินตนเอง</p>}
                 <div className="flex items-baseline gap-1">
                   <span className="text-3xl font-extrabold text-foreground leading-none">{pass}</span>
                   <span className="text-sm font-medium text-muted-foreground">/{total} ผ่าน</span>
@@ -65,7 +65,7 @@ export function ScoreSummary({ data, committeeData, onCategoryClick }: Props) {
                 <>
                   <div className="my-3 border-t border-dashed" />
                   <div className="space-y-1.5">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#0F766E" }}>กรรมการ</p>
+                    <p className="text-[0.625rem] font-semibold uppercase tracking-wider" style={{ color: "#0F766E" }}>กรรมการ</p>
                     <div className="flex items-baseline gap-1">
                       <span className="text-2xl font-bold text-foreground leading-none">{committeePass ?? 0}</span>
                       <span className="text-sm font-medium text-muted-foreground">/{total} ผ่าน</span>
@@ -96,11 +96,11 @@ export function ScoreSummary({ data, committeeData, onCategoryClick }: Props) {
             className={`overflow-hidden rounded-xl bg-white border border-l-4 p-4 transition-shadow hover:shadow-md ${onCategoryClick ? "cursor-pointer" : ""}`}
             style={{ borderLeftColor: accentColor }}
           >
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">หมวดที่ {idx + 1}</p>
+            <p className="text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wider">หมวดที่ {idx + 1}</p>
             <p className="text-sm font-bold text-foreground mt-0.5 mb-4 leading-tight">{item.name}</p>
 
             <div className="space-y-1.5">
-              {isCommittee && <p className="text-[10px] font-semibold uppercase tracking-wider text-blue-600">ประเมินตนเอง</p>}
+              {isCommittee && <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-blue-600">ประเมินตนเอง</p>}
               <div className="flex items-baseline gap-1">
                 <span className="text-3xl font-extrabold text-foreground leading-none">{item.score}</span>
                 <span className="text-sm font-medium text-muted-foreground">/{item.totalPossible}</span>
@@ -118,7 +118,7 @@ export function ScoreSummary({ data, committeeData, onCategoryClick }: Props) {
               <>
                 <div className="my-3 border-t border-dashed" />
                 <div className="space-y-1.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#0F766E" }}>กรรมการ</p>
+                  <p className="text-[0.625rem] font-semibold uppercase tracking-wider" style={{ color: "#0F766E" }}>กรรมการ</p>
                   <div className="flex items-baseline gap-1">
                     <span className="text-2xl font-bold text-foreground leading-none">{committee.score}</span>
                     <span className="text-sm font-medium text-muted-foreground">/{item.totalPossible}</span>

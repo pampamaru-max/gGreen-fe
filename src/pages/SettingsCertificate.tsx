@@ -1733,8 +1733,8 @@ const SettingsCertificate = () => {
   }
 
   return (
-    <div className="min-h-full bg-background">
-      <div className="border-b bg-card/50 px-6 py-4">
+    <div className="min-h-full p-4 space-y-3">
+      <div className="px-6 py-4 rounded-2xl" style={{ background: "var(--glass-bg-soft)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", boxShadow: "var(--glass-shadow)", border: "1px solid var(--glass-border)" }}>
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
             <FileText className="h-5 w-5 text-primary-foreground" />

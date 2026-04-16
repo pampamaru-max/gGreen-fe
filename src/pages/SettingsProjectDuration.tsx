@@ -118,20 +118,21 @@ export default function SettingsProjectDuration() {
   const programName = useMemo(() => programs.find((p) => p.id === selectedProgram)?.name ?? "", [programs, selectedProgram]);
 
   return (
-    <div className="min-h-full bg-background">
-      <div className="border-b bg-card/50 px-6 py-4">
+    <div className="h-full flex flex-col gap-3 p-4">
+      <div className="px-6 py-4 rounded-2xl shrink-0" style={{ background: "var(--glass-bg)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", boxShadow: "var(--glass-shadow)", border: "1px solid var(--glass-border)" }}>
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-            <Clock className="h-5 w-5 text-primary-foreground" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ background: "#3a7d2c" }}>
+            <Clock className="h-5 w-5 text-white" />
           </div>
           <div className="flex-1">
-            <h2 className="text-lg font-bold text-foreground">ระยะเวลาโครงการ</h2>
-            <p className="text-xs text-muted-foreground">กำหนดช่วงเวลาเปิด-ปิดรับสมัครในแต่ละโครงการ</p>
+            <h2 className="text-lg font-bold" style={{ color: "var(--green-heading)" }}>ระยะเวลาโครงการ</h2>
+            <p className="text-xs" style={{ color: "var(--green-muted)" }}>กำหนดช่วงเวลาเปิด-ปิดรับสมัครในแต่ละโครงการ</p>
           </div>
         </div>
       </div>
 
-      <div className="px-6 py-6 space-y-6">
+      <div className="flex-1 min-h-0 rounded-2xl overflow-hidden" style={{ background: "var(--glass-bg)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", boxShadow: "var(--glass-shadow)", border: "1px solid var(--glass-border)" }}>
+        <div className="h-full overflow-y-auto px-6 py-6 space-y-6">
       <div className="flex items-center gap-4">
         <Label>โครงการ</Label>
         <Select value={selectedProgram} onValueChange={setSelectedProgram}>
@@ -269,6 +270,7 @@ export default function SettingsProjectDuration() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        </div>
       </div>
     </div>
   );

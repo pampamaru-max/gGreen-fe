@@ -95,7 +95,7 @@ function NavStrip({ navItems, currentNavIndex, onJumpTo }: {
               key={item.id}
               onClick={() => onJumpTo(idx)}
               title={item.name}
-              className="flex-shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold transition-all border"
+              className="flex-shrink-0 rounded-md px-2 py-1 text-[0.6875rem] font-semibold transition-all border"
               style={
                 isActive
                   ? { backgroundColor: `hsl(${item.color} / 0.18)`, borderColor: `hsl(${item.color} / 0.6)`, color: `hsl(${item.color})` }
@@ -919,7 +919,7 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
           <div className="flex items-center gap-2">
             <p className="font-semibold text-foreground">{category.name}</p>
             {hasNewInCategory && (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-white leading-none">
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[0.625rem] font-bold bg-red-500 text-white leading-none">
                 ใหม่
               </span>
             )}
@@ -931,7 +931,7 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
             <div className="h-1 w-16 rounded-full bg-muted overflow-hidden">
               <div className="h-full rounded-full transition-all duration-300" style={{ width: `${fillPct}%`, backgroundColor: fillColor }} />
             </div>
-            <span className="text-[10px] font-medium" style={{ color: fillColor }}>
+            <span className="text-[0.625rem] font-medium" style={{ color: fillColor }}>
               {filledCount}/{totalIndCount}
             </span>
           </div>
