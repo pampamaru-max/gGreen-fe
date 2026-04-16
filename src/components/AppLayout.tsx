@@ -1,4 +1,5 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import natureBg from "@/assets/login2.jpg";
 import { AppSidebar } from "@/components/AppSidebar";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { Outlet, useLocation } from "react-router-dom";
@@ -40,11 +41,15 @@ export function AppLayout() {
 
   return (
     <SidebarProvider defaultOpen={sidebarDefaultOpen}>
-      <div className="min-h-screen flex w-full">
+      {/* Global background */}
+      <img src={natureBg} alt="" className="fixed inset-0 w-full h-full object-cover brightness-105 saturate-130 pointer-events-none select-none" style={{ zIndex: 0 }} />
+      <div className="fixed inset-0 bg-white/10 pointer-events-none" style={{ zIndex: 0 }} />
+
+      <div className="relative h-screen flex w-full overflow-hidden" style={{ zIndex: 1 }}>
         <AppSidebar />
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 min-h-0">
           {/* Header */}
-          <header className="h-12 md:h-12 flex items-center justify-between border-b bg-card/90 backdrop-blur-md px-3 sm:px-4 sticky top-0 z-50 shadow-sm">
+          <header className="flex items-center justify-between px-3 sm:px-4 sticky top-2 z-50 mx-4 rounded-2xl shadow-sm" style={{ height: "48px", background: "rgba(240,255,240,0.55)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", border: "1px solid rgba(255,255,255,0.55)" }}>
             <div className="flex items-center gap-2 sm:gap-3">
               <SidebarTrigger className="hidden md:flex" />
               <h1 className="text-sm font-bold text-foreground tracking-tight">
@@ -129,7 +134,7 @@ export function AppLayout() {
           </header>
 
           {/* Main content — เพิ่ม padding bottom บน mobile ให้ไม่ถูก bottom nav บัง */}
-          <main className="flex-1 pb-16 md:pb-0">
+          <main className="flex-1 overflow-hidden pb-16 md:pb-0">
             <Outlet />
           </main>
         </div>

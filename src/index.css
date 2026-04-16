@@ -382,6 +382,20 @@
   }
 }
 
+/* ── Glassmorphism sidebar ── */
+[data-sidebar="sidebar"] {
+  background: rgba(240, 255, 240, 0.55) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border-right: none !important;
+  border-radius: 0 1rem 1rem 0 !important;
+}
+
+/* Remove border from the fixed wrapper div that contains the sidebar */
+:has(> [data-sidebar="sidebar"]) {
+  border: none !important;
+}
+
 .edit-button {
   flex-shrink: 0;
   color: hsl(var(--muted-foreground));

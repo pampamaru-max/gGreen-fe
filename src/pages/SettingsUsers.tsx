@@ -122,20 +122,21 @@ const SettingsUsers = () => {
   }
 
   return (
-    <div className="min-h-full bg-background">
-      <div className="border-b bg-card/50 px-6 py-4">
+    <div className="h-full flex flex-col gap-3 p-4">
+      <div className="px-6 py-4 rounded-2xl shrink-0" style={{ background: "rgba(240,255,240,0.75)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", boxShadow: "0 4px 16px rgba(0,0,0,0.10)", border: "1px solid rgba(255,255,255,0.55)" }}>
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-            <Shield className="h-5 w-5 text-primary-foreground" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ background: "#3a7d2c" }}>
+            <Shield className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-foreground">จัดการผู้ใช้</h2>
-            <p className="text-xs text-muted-foreground">กำหนด role และสิทธิ์เข้าถึงโครงการ</p>
+            <h2 className="text-lg font-bold" style={{ color: "#1a3d0f" }}>จัดการผู้ใช้</h2>
+            <p className="text-xs" style={{ color: "#4a7a2e" }}>กำหนด role และสิทธิ์เข้าถึงโครงการ</p>
           </div>
         </div>
       </div>
 
-      <div className="px-6 py-6">
+      <div className="flex-1 min-h-0 rounded-2xl overflow-hidden" style={{ background: "rgba(240,255,240,0.75)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", boxShadow: "0 4px 16px rgba(0,0,0,0.10)", border: "1px solid rgba(255,255,255,0.55)" }}>
+        <div className="h-full overflow-y-auto px-6 py-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
@@ -219,6 +220,7 @@ const SettingsUsers = () => {
             </Table>
           </CardContent>
         </Card>
+        </div>
       </div>
 
       <Dialog open={!!assignDialog} onOpenChange={() => { setAssignDialog(null); setSelectedProgram(""); }}>

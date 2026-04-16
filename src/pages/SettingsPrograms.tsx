@@ -22,6 +22,13 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { AlertActionPopup } from "@/components/AlertActionPopup";
 import { MAX_FILE_SIZE } from "@/helpers/constants";
+const glassCard = {
+  background: "rgba(240, 255, 240, 0.75)",
+  backdropFilter: "blur(14px)",
+  WebkitBackdropFilter: "blur(14px)",
+  boxShadow: "0 4px 16px rgba(0,0,0,0.10)",
+  border: "1px solid rgba(255,255,255,0.55)",
+} as React.CSSProperties;
 
 /* ── Icon picker ── */
 const ICON_OPTIONS: { name: string; Icon: LucideIcon }[] = [
@@ -206,25 +213,20 @@ function SortableProgramCard({ program, onEdit, onDelete }: { program: Program; 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: program.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
   return (
-    <Card ref={setNodeRef} style={style} className="bg-accent/10 border-accent/30">
-      <CardContent className="p-4 flex items-center justify-between">
+    <div ref={setNodeRef} style={{ ...style, ...glassCard }} className="rounded-xl">
+      <div className="p-4 flex items-center justify-between">
         <div className="flex items-center gap-3 min-w-0">
-          <button type="button" className="cursor-grab touch-none text-muted-foreground hover:text-foreground" {...attributes} {...listeners}>
+          <button type="button" className="cursor-grab touch-none" style={{ color: "#3a7d2c" }} {...attributes} {...listeners}>
             <GripVertical className="h-4 w-4" />
           </button>
           <div className="min-w-0">
-            <p className="font-semibold text-sm">{program.name}</p>
-            <p className="text-xs text-muted-foreground truncate">{program.description}</p>
+            <p className="font-semibold text-sm" style={{ color: "#1a3d0f" }}>{program.name}</p>
+            <p className="text-xs truncate" style={{ color: "#4a7a2e" }}>{program.description}</p>
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="edit-button"
-            onClick={() => onEdit(program)}
-          >
-            <Pencil className="h-4 w-4" />
+          <Button variant="ghost" size="icon" className="edit-button hover:bg-white/50" onClick={() => onEdit(program)}>
+            <Pencil className="h-4 w-4" style={{ color: "#3a7d2c" }} />
           </Button>
           <AlertActionPopup
             type="delete"
@@ -233,8 +235,8 @@ function SortableProgramCard({ program, onEdit, onDelete }: { program: Program; 
             description={`ต้องการลบโครงการ "${program.name}" หรือไม่?`}
           />
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 export default function SettingsPrograms() {
@@ -515,43 +517,47 @@ export default function SettingsPrograms() {
   };
 
   return (
-    <div className="min-h-full bg-background">
-      <div className="border-b bg-card/50 px-6 py-4">
+    <div className="h-full flex flex-col gap-3 p-4">
+      {/* Page header — glass, frozen */}
+      <div className="px-6 py-4 rounded-2xl shrink-0" style={glassCard}>
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-            <Building2 className="h-5 w-5 text-primary-foreground" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ background: "#3a7d2c" }}>
+            <Building2 className="h-5 w-5 text-white" />
           </div>
           <div className="flex-1">
-            <h2 className="text-lg font-bold text-foreground">จัดการโครงการ</h2>
-            <p className="text-xs text-muted-foreground">เพิ่ม แก้ไข หรือลบโครงการภายใต้ G-Green</p>
+            <h2 className="text-lg font-bold" style={{ color: "#1a3d0f" }}>จัดการโครงการ</h2>
+            <p className="text-xs" style={{ color: "#4a7a2e" }}>เพิ่ม แก้ไข หรือลบโครงการภายใต้ G-Green</p>
           </div>
-          <Button onClick={openAdd}>
+          <Button onClick={openAdd} style={{ background: "#3a7d2c", color: "#fff" }}>
             <Plus className="mr-2 h-4 w-4" /> เพิ่มโครงการ
           </Button>
         </div>
       </div>
 
-      <div className="px-6 py-4 space-y-4">
-        {isLoading ? (
-          <div className="flex items-center justify-center min-h-[300px]">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleProgramDragEnd}>
-            <SortableContext items={programs.map((p) => p.id)} strategy={verticalListSortingStrategy}>
-              <div className="grid gap-3">
-                {programs.map((p) => (
-                  <SortableProgramCard
-                    key={p.id}
-                    program={p}
-                    onEdit={openEdit}
-                    onDelete={(prog) => deleteMutation.mutate(prog.id)}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
-        )}
+      {/* Scrollable list */}
+      <div className="flex-1 min-h-0 rounded-2xl overflow-hidden" style={glassCard}>
+        <div className="h-full overflow-y-auto px-6 py-4 space-y-4">
+          {isLoading ? (
+            <div className="flex items-center justify-center min-h-[300px]">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleProgramDragEnd}>
+              <SortableContext items={programs.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+                <div className="grid gap-3">
+                  {programs.map((p) => (
+                    <SortableProgramCard
+                      key={p.id}
+                      program={p}
+                      onEdit={openEdit}
+                      onDelete={(prog) => deleteMutation.mutate(prog.id)}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          )}
+        </div>
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
