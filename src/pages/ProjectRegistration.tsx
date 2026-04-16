@@ -159,27 +159,62 @@ export default function ProjectRegistration() {
         const selectedYear = urlYear ? parseInt(urlYear) : new Date().getFullYear();
         setYear(selectedYear);
 
-        // 1. Form structure — GET /programs/:id/evaluation-form
-        const { data: formData } = await apiClient.get(`programs/${programId}/evaluation-form`);
+        // กรณีไม่มี urlEvalId — ต้องสร้างใหม่ก่อน (sequential ตามเดิม)
+        if (!urlEvalId) {
+          const { data: formData } = await apiClient.get(`programs/${programId}/evaluation-form`);
+          const prog = formData?.program;
+          const cats: EvalCategory[] = (formData?.categories ?? []).map((c: any) => ({
+            id: c.id, name: c.name, maxScore: c.maxScore,
+            scoreType: c.scoreType ?? "score", upgradeMode: c.upgradeMode ?? null, renewMode: c.renewMode ?? null,
+            topics: (c.topics ?? []).map((t: any) => ({
+              id: t.id, name: t.name,
+              indicators: (t.indicators ?? []).map((i: any) => ({
+                id: i.id, name: i.name, maxScore: i.maxScore, scoreType: c.scoreType || 'score',
+                description: i.description ?? "", detail: i.detail ?? "", notes: i.notes ?? "",
+                evidenceDescription: i.evidenceDescription ?? "",
+                scoringCriteria: Array.isArray(i.scoringCriteria) ? i.scoringCriteria : [],
+              })),
+            })),
+          }));
+          setProgramName(prog?.name ?? "");
+          if (prog?.scoringType) setProgramScoringType(prog.scoringType);
+          setCategories(cats);
+
+          try {
+            const { data: levData } = await apiClient.get(`scoring-levels?programId=${programId}`);
+            setScoringLevels((levData ?? []).sort((a: ScoringLevel, b: ScoringLevel) => a.sortOrder - b.sortOrder));
+          } catch { /* no scoring levels */ }
+
+          const { data: newEval } = await apiClient.post("evaluation", {
+            programId, userId: user?.id, evaluationType: urlEvalType, year: selectedYear,
+          });
+          if (newEval?.id) {
+            setEvaluationId(newEval.id);
+            setEvaluationStatus("draft");
+            navigate(`/register/evaluate?type=${urlEvalType}&year=${selectedYear}&id=${newEval.id}`, { replace: true });
+          }
+          return;
+        }
+
+        // กรณีมี urlEvalId — โหลด form + scoring-levels + evaluation พร้อมกัน
+        const evalFetchUrl = `evaluation/${urlEvalId}`;
+        const [formRes, levRes, evalRes] = await Promise.all([
+          apiClient.get(`programs/${programId}/evaluation-form`),
+          apiClient.get(`scoring-levels?programId=${programId}`).catch(() => ({ data: [] })),
+          apiClient.get(evalFetchUrl).catch(() => ({ data: null })),
+        ]);
+
+        // ประมวลผล form structure
+        const formData = formRes.data;
         const prog = formData?.program;
         const cats: EvalCategory[] = (formData?.categories ?? []).map((c: any) => ({
-          id: c.id,
-          name: c.name,
-          maxScore: c.maxScore,
-          scoreType: c.scoreType ?? "score",
-          upgradeMode: c.upgradeMode ?? null,
-          renewMode: c.renewMode ?? null,
+          id: c.id, name: c.name, maxScore: c.maxScore,
+          scoreType: c.scoreType ?? "score", upgradeMode: c.upgradeMode ?? null, renewMode: c.renewMode ?? null,
           topics: (c.topics ?? []).map((t: any) => ({
-            id: t.id,
-            name: t.name,
+            id: t.id, name: t.name,
             indicators: (t.indicators ?? []).map((i: any) => ({
-              id: i.id,
-              name: i.name,
-              maxScore: i.maxScore,
-              scoreType: c.scoreType || 'score',
-              description: i.description ?? "",
-              detail: i.detail ?? "",
-              notes: i.notes ?? "",
+              id: i.id, name: i.name, maxScore: i.maxScore, scoreType: c.scoreType || 'score',
+              description: i.description ?? "", detail: i.detail ?? "", notes: i.notes ?? "",
               evidenceDescription: i.evidenceDescription ?? "",
               scoringCriteria: Array.isArray(i.scoringCriteria) ? i.scoringCriteria : [],
             })),
@@ -189,93 +224,46 @@ export default function ProjectRegistration() {
         if (prog?.scoringType) setProgramScoringType(prog.scoringType);
         setCategories(cats);
 
-        // 2. Scoring levels (optional — ignore if not available)
-        try {
-          const { data: levData } = await apiClient.get(`scoring-levels?programId=${programId}`);
-          setScoringLevels(
-            (levData ?? []).sort((a: ScoringLevel, b: ScoringLevel) => a.sortOrder - b.sortOrder)
-          );
-        } catch { /* no scoring levels configured */ }
+        // ประมวลผล scoring levels
+        setScoringLevels((levRes.data ?? []).sort((a: ScoringLevel, b: ScoringLevel) => a.sortOrder - b.sortOrder));
 
-        // 3. type=new → สร้างใหม่เสมอ แล้ว replace URL ด้วย id กันสร้าง duplicate ถ้า refresh
-        if (urlEvalType === "new" && !urlEvalId) {
-          const { data: newEval } = await apiClient.post("evaluation", {
-            programId,
-            userId: user?.id,
-            evaluationType: urlEvalType,
-            year: selectedYear,
+        // ประมวลผล existing evaluation
+        const evalData = evalRes.data;
+        if (evalData) {
+          setEvaluationId(evalData.id);
+          setEvaluationStatus(evalData.status);
+          if (evalData.evaluationType) setEvaluationType(evalData.evaluationType);
+          const loadedScores: Record<string, number> = {};
+          const loadedDetails: Record<string, string> = {};
+          const loadedCommittee: Record<string, number> = {};
+          const loadedCommitteeComments: Record<string, string> = {};
+          const loadedFiles: Record<string, any[]> = {};
+          (evalData.evaluationScores ?? []).forEach((s: any) => {
+            loadedScores[s.indicatorId] = Number(s.score);
+            if (s.notes) loadedDetails[s.indicatorId] = s.notes;
+            if (s.committeeScore !== null && s.committeeScore !== undefined) {
+              loadedCommittee[s.indicatorId] = Number(s.committeeScore);
+            }
+            if (s.evidenceUrl) loadedCommitteeComments[s.indicatorId] = s.evidenceUrl;
+            if (Array.isArray(s.fileUrls) && s.fileUrls.length > 0) loadedFiles[s.indicatorId] = s.fileUrls;
           });
-          if (newEval?.id) {
-            setEvaluationId(newEval.id);
-            setEvaluationStatus("draft");
-            navigate(
-              `/register/evaluate?type=${urlEvalType}&year=${selectedYear}&id=${newEval.id}`,
-              { replace: true }
-            );
-          }
-        } else if (!urlEvalId) {
-          // renew / upgrade — สร้างใบประเมินใหม่เสมอ
-          const { data: newEval } = await apiClient.post("evaluation", {
-            programId,
-            userId: user?.id,
-            evaluationType: urlEvalType,
-            year: selectedYear,
-          });
-          if (newEval?.id) {
-            setEvaluationId(newEval.id);
-            setEvaluationStatus("draft");
-            navigate(
-              `/register/evaluate?type=${urlEvalType}&year=${selectedYear}&id=${newEval.id}`,
-              { replace: true }
-            );
-          }
-          return;
-        }
+          setScores(loadedScores);
+          setImplDetails(loadedDetails);
+          setCommitteeScores(loadedCommittee);
+          setCommitteeComments(loadedCommitteeComments);
+          setUploadedFiles(loadedFiles);
 
-        if (urlEvalId || (urlEvalType !== "new")) {
-          // 4. Load existing evaluation
-          const fetchUrl = urlEvalId ? `evaluation/${urlEvalId}` : `evaluation/program/${programId}`;
-          const { data: evalData } = await apiClient.get(fetchUrl);
-          if (evalData) {
-            setEvaluationId(evalData.id);
-            setEvaluationStatus(evalData.status);
-            if (evalData.evaluationType) setEvaluationType(evalData.evaluationType);
-            const loadedScores: Record<string, number> = {};
-            const loadedDetails: Record<string, string> = {};
-            const loadedCommittee: Record<string, number> = {};
-            const loadedCommitteeComments: Record<string, string> = {};
-            const loadedFiles: Record<string, any[]> = {};
-            (evalData.evaluationScores ?? []).forEach((s: any) => {
-              loadedScores[s.indicatorId] = Number(s.score);
-              if (s.notes) loadedDetails[s.indicatorId] = s.notes;
-              if (s.committeeScore !== null && s.committeeScore !== undefined) {
-                loadedCommittee[s.indicatorId] = Number(s.committeeScore);
-              }
-              if (s.evidenceUrl) loadedCommitteeComments[s.indicatorId] = s.evidenceUrl;
-              if (Array.isArray(s.fileUrls) && s.fileUrls.length > 0) loadedFiles[s.indicatorId] = s.fileUrls;
-            });
-            setScores(loadedScores);
-            setImplDetails(loadedDetails);
-            setCommitteeScores(loadedCommittee);
-            setCommitteeComments(loadedCommitteeComments);
-            setUploadedFiles(loadedFiles);
-
-            // โหลด notification จากกรรมการ
-            if (evalData.id) {
-              try {
-                const { data: notifs } = await apiClient.get(
-                  `evaluation/${evalData.id}/notifications?direction=committee_to_evaluatee`
-                );
+          // โหลด notification แบบ non-blocking (ไม่ delay การแสดง UI หลัก)
+          if (evalData.id) {
+            apiClient.get(`evaluation/${evalData.id}/notifications?direction=committee_to_evaluatee`)
+              .then(({ data: notifs }) => {
                 const notifMap = new Map<string, { prevScore: number | null; newScore: number | null }>();
                 (notifs as { indicatorId: string; isRead: boolean; committeeScore: number | null; prevCommitteeScore: number | null }[])
                   .filter((n) => !n.isRead)
-                  .forEach((n) => notifMap.set(n.indicatorId, {
-                    prevScore: n.prevCommitteeScore,
-                    newScore: n.committeeScore,
-                  }));
+                  .forEach((n) => notifMap.set(n.indicatorId, { prevScore: n.prevCommitteeScore, newScore: n.committeeScore }));
                 setNewCommitteeIndicatorIds(notifMap);
-              } catch { /* ไม่มี notification ยังไม่เป็นไร */ }
-            }
+              })
+              .catch(() => { /* ไม่มี notification ยังไม่เป็นไร */ });
           }
         }
       } catch (err) {
