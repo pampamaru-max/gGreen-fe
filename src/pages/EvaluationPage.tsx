@@ -25,6 +25,8 @@ interface RegistrationRow {
   total_max?: number;
   self_total_score?: number;
   committee_total_score?: number;
+  self_max_score?: number;
+  committee_max_score?: number;
 }
 
 const EvaluationPage = () => {
@@ -261,12 +263,12 @@ const EvaluationPage = () => {
                     <TableCell className="text-center">{getCommitteeBadge(row.has_committee_score)}</TableCell>
                     <TableCell className="text-center text-sm">
                       {row.self_total_score != null
-                        ? <span>{row.self_total_score}{row.total_max != null ? <span className="text-muted-foreground">/{row.total_max}</span> : null}</span>
+                        ? <span>{row.self_total_score}{row.self_max_score != null ? <span className="text-muted-foreground">/{row.self_max_score}</span> : null}</span>
                         : <span className="text-muted-foreground">-</span>}
                     </TableCell>
                     <TableCell className="text-center text-sm">
                       {row.committee_total_score != null
-                        ? <span className="text-primary font-medium">{row.committee_total_score}{row.total_max != null ? <span className="text-muted-foreground font-normal">/{row.total_max}</span> : null}</span>
+                        ? <span className="text-primary font-medium">{row.committee_total_score}{row.committee_max_score != null ? <span className="text-muted-foreground font-normal">/{row.committee_max_score}</span> : null}</span>
                         : <span className="text-muted-foreground">-</span>}
                     </TableCell>
                     <TableCell className="text-center">
