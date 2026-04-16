@@ -910,11 +910,11 @@ const SettingsCategories = () => {
   }
 
   const glassCard = {
-    background: "rgba(240, 255, 240, 0.75)",
+    background: "var(--glass-bg)",
     backdropFilter: "blur(14px)",
     WebkitBackdropFilter: "blur(14px)",
-    boxShadow: "0 4px 16px rgba(0,0,0,0.10)",
-    border: "1px solid rgba(255,255,255,0.55)",
+    boxShadow: "var(--glass-shadow)",
+    border: "1px solid var(--glass-border)",
   } as React.CSSProperties;
 
   return (
@@ -926,8 +926,8 @@ const SettingsCategories = () => {
             <FolderTree className="h-5 w-5 text-white" />
           </div>
           <div className="flex-1">
-            <h2 className="text-lg font-bold" style={{ color: "#1a3d0f" }}>จัดการหมวด</h2>
-            <p className="text-xs" style={{ color: "#4a7a2e" }}>เพิ่ม ลบ หรือแก้ไขหมวดเกณฑ์การประเมินตามโครงการ</p>
+            <h2 className="text-lg font-bold" style={{ color: "var(--green-heading)" }}>จัดการหมวด</h2>
+            <p className="text-xs" style={{ color: "var(--green-muted)" }}>เพิ่ม ลบ หรือแก้ไขหมวดเกณฑ์การประเมินตามโครงการ</p>
           </div>
         </div>
       </div>
@@ -936,7 +936,7 @@ const SettingsCategories = () => {
       <div className="flex-1 min-h-0 rounded-2xl overflow-hidden" style={glassCard}>
         <div className="h-full overflow-y-auto px-6 py-4 space-y-4">
           {programs.length === 0 && (
-            <p className="text-sm text-center py-8" style={{ color: "#4a7a2e" }}>ยังไม่มีโครงการ กรุณาเพิ่มโครงการก่อน</p>
+            <p className="text-sm text-center py-8" style={{ color: "var(--green-muted)" }}>ยังไม่มีโครงการ กรุณาเพิ่มโครงการก่อน</p>
           )}
           {programs.map((program) => {
             const programCategories = categories

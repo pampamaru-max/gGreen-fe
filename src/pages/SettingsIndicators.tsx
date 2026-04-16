@@ -138,7 +138,7 @@ function AddIndicatorDialog({
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label>คะแนนเต็ม</Label>
-                <span className="text-xs" style={{ color: "#4a7a2e" }}>เหลือได้อีก {maxAllowed} คะแนน</span>
+                <span className="text-xs" style={{ color: "var(--green-muted)" }}>เหลือได้อีก {maxAllowed} คะแนน</span>
               </div>
               <Input
                 type="number"
@@ -859,19 +859,19 @@ const SettingsIndicators = () => {
   return (
     <div className="h-full flex flex-col gap-3 p-4">
       <LoadingOverlay visible={loading} />
-      <div className="px-6 py-4 rounded-2xl shrink-0" style={{ background: "rgba(240,255,240,0.75)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", boxShadow: "0 4px 16px rgba(0,0,0,0.10)", border: "1px solid rgba(255,255,255,0.55)" }}>
+      <div className="px-6 py-4 rounded-2xl shrink-0" style={{ background: "var(--glass-bg)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", boxShadow: "var(--glass-shadow)", border: "1px solid var(--glass-border)" }}>
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ background: "#3a7d2c" }}>
             <ListChecks className="h-5 w-5 text-white" />
           </div>
           <div className="flex-1">
-            <h2 className="text-lg font-bold" style={{ color: "#1a3d0f" }}>จัดการประเด็น / ตัวชี้วัด</h2>
+            <h2 className="text-lg font-bold" style={{ color: "var(--green-heading)" }}>จัดการประเด็น / ตัวชี้วัด</h2>
             <p className="text-xs text-muted-foreground">เพิ่ม แก้ไข หรือลบประเด็นและตัวชี้วัดในแต่ละหมวด</p>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 rounded-2xl overflow-hidden" style={{ background: "rgba(240,255,240,0.75)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", boxShadow: "0 4px 16px rgba(0,0,0,0.10)", border: "1px solid rgba(255,255,255,0.55)" }}>
+      <div className="flex-1 min-h-0 rounded-2xl overflow-hidden" style={{ background: "var(--glass-bg)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", boxShadow: "var(--glass-shadow)", border: "1px solid var(--glass-border)" }}>
         <div className="h-full overflow-y-auto px-6 py-6 space-y-6">
         {programs.map((program, progIdx) => {
           const typeOrder = (st: string) => (st.includes("_upgrad") || st === "upgrade") ? 1 : st.includes("_renew") ? 2 : 0;

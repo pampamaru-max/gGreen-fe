@@ -140,11 +140,11 @@ const EvaluationPage = () => {
   }
 
   const glass = {
-    background: "rgba(240,255,240,0.75)",
+    background: "var(--glass-bg)",
     backdropFilter: "blur(14px)",
     WebkitBackdropFilter: "blur(14px)",
-    boxShadow: "0 4px 16px rgba(0,0,0,0.10)",
-    border: "1px solid rgba(255,255,255,0.55)",
+    boxShadow: "var(--glass-shadow)",
+    border: "1px solid var(--glass-border)",
   } as React.CSSProperties;
 
   return (
@@ -157,8 +157,8 @@ const EvaluationPage = () => {
             <ClipboardCheck className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h2 className="text-lg font-bold" style={{ color: "#1a3d0f" }}>ประเมิน G-Green</h2>
-            <p className="text-xs" style={{ color: "#4a7a2e" }}>รายการหน่วยงานที่ผ่านการคัดเลือกเข้าร่วมโครงการ</p>
+            <h2 className="text-lg font-bold" style={{ color: "var(--green-heading)" }}>ประเมิน G-Green</h2>
+            <p className="text-xs" style={{ color: "var(--green-muted)" }}>รายการหน่วยงานที่ผ่านการคัดเลือกเข้าร่วมโครงการ</p>
           </div>
         </div>
       </div>
@@ -204,7 +204,7 @@ const EvaluationPage = () => {
         </div>
         {hasActiveFilters && (
           <div className="flex items-center gap-2 mt-2">
-            <span className="text-sm" style={{ color: "#4a7a2e" }}>แสดง {filteredRows.length} จาก {rows.length} รายการ</span>
+            <span className="text-sm" style={{ color: "var(--green-muted)" }}>แสดง {filteredRows.length} จาก {rows.length} รายการ</span>
             <Button variant="ghost" size="sm" onClick={clearFilters} className="h-7 px-2 text-xs">
               <X className="h-3 w-3 mr-1" />ล้างตัวกรอง
             </Button>
@@ -216,11 +216,11 @@ const EvaluationPage = () => {
       <div className="flex-1 min-h-0 rounded-2xl overflow-hidden" style={glass}>
         {filteredRows.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full">
-            <ClipboardCheck className="h-12 w-12 mx-auto mb-3" style={{ color: "#4a7a2e" }} />
-            <p style={{ color: "#4a7a2e" }}>
+            <ClipboardCheck className="h-12 w-12 mx-auto mb-3" style={{ color: "var(--green-muted)" }} />
+            <p style={{ color: "var(--green-muted)" }}>
               {rows.length === 0 ? "ไม่มีรายการที่คุณมีสิทธิ์เข้าถึง" : "ไม่พบรายการที่ตรงกับตัวกรอง"}
             </p>
-            {rows.length === 0 && <p className="text-xs mt-1" style={{ color: "#4a7a2e" }}>กรุณาติดต่อผู้ดูแลระบบ</p>}
+            {rows.length === 0 && <p className="text-xs mt-1" style={{ color: "var(--green-muted)" }}>กรุณาติดต่อผู้ดูแลระบบ</p>}
           </div>
         ) : (
           <div className="h-full overflow-auto">

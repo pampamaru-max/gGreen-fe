@@ -382,6 +382,53 @@
   }
 }
 
+/* ── Green text variables ── */
+:root {
+  --green-heading: #1a3d0f;
+  --green-body: #2d5a1b;
+  --green-muted: #4a7a2e;
+}
+.dark {
+  --green-heading: #c4eabc;
+  --green-body: #a0d095;
+  --green-muted: #7db87d;
+}
+
+/* ── Glass card variables ── */
+:root {
+  --glass-bg: rgba(240, 255, 240, 0.75);
+  --glass-bg-soft: rgba(240, 255, 240, 0.50);
+  --glass-border: rgba(255, 255, 255, 0.55);
+  --glass-shadow: 0 4px 16px rgba(0, 0, 0, 0.10);
+}
+.dark {
+  --glass-bg: rgba(10, 20, 14, 0.72);
+  --glass-bg-soft: rgba(10, 20, 14, 0.60);
+  --glass-border: rgba(255, 255, 255, 0.07);
+  --glass-shadow: 0 4px 20px rgba(0, 0, 0, 0.50);
+}
+
+/* ── Global scrollbar ── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--primary) / 0.35) transparent;
+}
+*::-webkit-scrollbar {
+  width: 16px;
+  height: 16px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--primary) / 0.35);
+  border-radius: 9999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--primary) / 0.65);
+}
+
+
 /* ── Glassmorphism sidebar ── */
 [data-sidebar="sidebar"] {
   background: rgba(240, 255, 240, 0.55) !important;
@@ -389,6 +436,12 @@
   -webkit-backdrop-filter: blur(16px) !important;
   border-right: none !important;
   border-radius: 1rem !important;
+  transition: background 0.4s ease;
+}
+
+.dark [data-sidebar="sidebar"] {
+  background: rgba(10, 20, 12, 0.70) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
 }
 
 /* Offset fixed container so sidebar floats with equal spacing */

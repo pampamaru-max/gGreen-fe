@@ -50,11 +50,11 @@ export default function HomePage() {
       <div
         className="relative overflow-hidden rounded-2xl p-4 sm:p-6 shrink-0"
         style={{
-          background: "rgba(240, 255, 240, 0.50)",
+          background: "var(--glass-bg-soft)",
           backdropFilter: "blur(16px)",
           WebkitBackdropFilter: "blur(16px)",
           boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-          border: "1px solid rgba(255,255,255,0.5)",
+          border: "1px solid var(--glass-border)",
         }}
       >
         <img
@@ -65,13 +65,13 @@ export default function HomePage() {
         <div className="relative z-10">
           <div className="flex items-center gap-2 sm:gap-3 mb-3">
             <img src={dcceLogo} alt="กรมการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม" className="h-9 w-9 sm:h-12 sm:w-12 object-contain shrink-0" />
-            <p className="leading-relaxed text-xs sm:text-sm font-medium" style={{ color: "#2d5a1b" }}>
+            <p className="leading-relaxed text-xs sm:text-sm font-medium" style={{ color: "var(--green-body)" }}>
               กรมการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม
               <br />
-              <span className="text-xs" style={{ color: "#4a7a2e" }}>Department of Climate Change and Environment</span>
+              <span className="text-xs" style={{ color: "var(--green-muted)" }}>Department of Climate Change and Environment</span>
             </p>
           </div>
-          <h1 className="text-lg sm:text-2xl lg:text-4xl font-bold leading-tight mb-3 max-w-[calc(100%-120px)] sm:max-w-[calc(100%-220px)] lg:max-w-[calc(100%-260px)]" style={{ color: "#1a3d0f" }}>
+          <h1 className="text-lg sm:text-2xl lg:text-4xl font-bold leading-tight mb-3 max-w-[calc(100%-120px)] sm:max-w-[calc(100%-220px)] lg:max-w-[calc(100%-260px)]" style={{ color: "var(--green-heading)" }}>
             โครงการพัฒนาระบบบริการข้อมูลการผลิต การบริการและการบริโภคที่เป็นมิตรกับสิ่งแวดล้อม
           </h1>
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-3 sm:mt-4">
@@ -84,7 +84,7 @@ export default function HomePage() {
             <button
               onClick={() => navigate("/register")}
               className="inline-flex items-center justify-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl text-sm sm:text-base font-bold shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
-              style={{ background: "rgba(255,255,255,0.55)", backdropFilter: "blur(8px)", color: "#2d5a1b", border: "1px solid rgba(255,255,255,0.6)" }}>
+              style={{ background: "rgba(255,255,255,0.85)", backdropFilter: "blur(8px)", color: "var(--green-body)", border: "1px solid rgba(255,255,255,0.6)" }}>
               เข้าประเมิน G-Green <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
           </div>
@@ -96,10 +96,10 @@ export default function HomePage() {
         <TabsList
           className="w-full justify-start"
           style={{
-            background: "rgba(240, 255, 240, 0.50)",
+            background: "var(--glass-bg-soft)",
             backdropFilter: "blur(16px)",
             WebkitBackdropFilter: "blur(16px)",
-            border: "1px solid rgba(255,255,255,0.5)",
+            border: "1px solid var(--glass-border)",
           }}
         >
           <TabsTrigger
@@ -120,7 +120,7 @@ export default function HomePage() {
           {programsLoading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
               {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="rounded-xl p-3 sm:p-4 flex flex-col items-center gap-2" style={{ background: "rgba(240,255,240,0.45)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.5)" }}>
+                <div key={i} className="rounded-xl p-3 sm:p-4 flex flex-col items-center gap-2" style={{ background: "var(--glass-bg-soft)", backdropFilter: "blur(12px)", border: "1px solid var(--glass-border)" }}>
                   <Skeleton className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl" />
                   <Skeleton className="h-4 w-24" />
                 </div>
@@ -135,18 +135,18 @@ export default function HomePage() {
                     key={p.id}
                     className="group flex flex-col items-center text-center gap-2 p-3 sm:p-4 rounded-xl cursor-pointer transition-all duration-200 hover:scale-[1.03] hover:shadow-lg"
                     style={{
-                      background: "rgba(240, 255, 240, 0.45)",
+                      background: "var(--glass-bg-soft)",
                       backdropFilter: "blur(12px)",
                       WebkitBackdropFilter: "blur(12px)",
-                      border: "1px solid rgba(255,255,255,0.5)",
+                      border: "1px solid var(--glass-border)",
                       boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
                     }}
                     onClick={() => navigate(`/program/${p.id}`)}>
                     <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl flex items-center justify-center transition-colors" style={{ background: "rgba(58,125,44,0.15)" }}>
                       <IconComp className="h-5 w-5 sm:h-6 sm:w-6" style={{ color: "#3a7d2c" }} />
                     </div>
-                    <span className="text-xs sm:text-sm font-semibold" style={{ color: "#1a3d0f" }}>{p.name}</span>
-                    <span className="text-xs leading-tight hidden sm:block" style={{ color: "#4a7a2e" }}>{p.description}</span>
+                    <span className="text-xs sm:text-sm font-semibold" style={{ color: "var(--green-heading)" }}>{p.name}</span>
+                    <span className="text-xs leading-tight hidden sm:block" style={{ color: "var(--green-muted)" }}>{p.description}</span>
                   </div>
                 );
               })}
@@ -164,10 +164,10 @@ export default function HomePage() {
                 key={path}
                 className="group flex items-center gap-4 p-5 rounded-xl cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
                 style={{
-                  background: "rgba(240, 255, 240, 0.45)",
+                  background: "var(--glass-bg-soft)",
                   backdropFilter: "blur(12px)",
                   WebkitBackdropFilter: "blur(12px)",
-                  border: "1px solid rgba(255,255,255,0.5)",
+                  border: "1px solid var(--glass-border)",
                   boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
                 }}
                 onClick={() => navigate(path)}
@@ -176,8 +176,8 @@ export default function HomePage() {
                   <Icon className="h-6 w-6" style={{ color: "#3a7d2c" }} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <span className="text-sm font-semibold" style={{ color: "#1a3d0f" }}>{label}</span>
-                  <p className="text-xs mt-0.5" style={{ color: "#4a7a2e" }}>{desc}</p>
+                  <span className="text-sm font-semibold" style={{ color: "var(--green-heading)" }}>{label}</span>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--green-muted)" }}>{desc}</p>
                 </div>
                 <ArrowRight className="h-5 w-5 shrink-0 transition-colors" style={{ color: "#3a7d2c" }} />
               </div>
@@ -190,17 +190,17 @@ export default function HomePage() {
       <footer
         className="rounded-xl px-5 py-3 shrink-0"
         style={{
-          background: "rgba(240, 255, 240, 0.50)",
+          background: "var(--glass-bg-soft)",
           backdropFilter: "blur(16px)",
           WebkitBackdropFilter: "blur(16px)",
-          border: "1px solid rgba(255,255,255,0.5)",
+          border: "1px solid var(--glass-border)",
           boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
         }}
       >
         <div className="flex flex-col gap-1">
-          <h3 className="text-sm font-bold" style={{ color: "#1a3d0f" }}>กรมการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม</h3>
-          <p className="text-xs font-semibold" style={{ color: "#2d5a1b" }}>กระทรวงทรัพยากรธรรมชาติและสิ่งแวดล้อม</p>
-          <p className="text-xs" style={{ color: "#4a7a2e" }}>DEPARTMENT OF CLIMATE CHANGE AND ENVIRONMENT (DCCE)</p>
+          <h3 className="text-sm font-bold" style={{ color: "var(--green-heading)" }}>กรมการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม</h3>
+          <p className="text-xs font-semibold" style={{ color: "var(--green-body)" }}>กระทรวงทรัพยากรธรรมชาติและสิ่งแวดล้อม</p>
+          <p className="text-xs" style={{ color: "var(--green-muted)" }}>DEPARTMENT OF CLIMATE CHANGE AND ENVIRONMENT (DCCE)</p>
           <div className="flex flex-wrap gap-x-5 gap-y-1 mt-1 text-xs" style={{ color: "#3a6b28" }}>
             <span className="flex items-center gap-1.5">
               <MapPin className="h-3.5 w-3.5 shrink-0" style={{ color: "#3a7d2c" }} />

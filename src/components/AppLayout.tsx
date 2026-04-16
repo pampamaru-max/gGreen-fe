@@ -1,6 +1,8 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import natureBg from "@/assets/login2.jpg";
+import nightBg from "@/assets/night-bg.jpg";
 import { AppSidebar } from "@/components/AppSidebar";
+import { useTheme } from "@/contexts/ThemeContext";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -8,6 +10,8 @@ import { useState, useEffect } from "react";
 import apiClient from "@/lib/axios";
 import { User, Mail, MapPin, ShieldCheck, Building2, KeyRound } from "lucide-react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+
+import { FONT_SIZE_KEY, applyFontSize } from "@/lib/fontsize";
 
 const ROLE_LABEL: Record<string, { label: string; color: string }> = {
   ADMIN:     { label: "ผู้ดูแลระบบ",   color: "bg-red-100 text-red-700 border-red-200" },
@@ -31,6 +35,16 @@ export function AppLayout() {
   const location = useLocation();
   const sidebarDefaultOpen = !location.pathname.startsWith("/evaluation") && !location.pathname.startsWith("/register");
 
+  const [fontSize, setFontSize] = useState<number>(() => {
+    const saved = localStorage.getItem(FONT_SIZE_KEY);
+    return saved ? parseInt(saved, 10) : 16;
+  });
+
+  useEffect(() => {
+    applyFontSize(fontSize);
+    localStorage.setItem(FONT_SIZE_KEY, String(fontSize));
+  }, [fontSize]);
+
   useEffect(() => {
     if (!user) return;
     apiClient.get("/auth/me")
@@ -38,18 +52,27 @@ export function AppLayout() {
   }, [user]);
 
   const roleConfig = me?.role ? (ROLE_LABEL[me.role] ?? { label: me.role, color: "bg-gray-100 text-gray-700 border-gray-200" }) : null;
+  const { isDark } = useTheme();
+
+  const headerBg = "var(--glass-bg-soft)";
+  const headerBorder = "1px solid var(--glass-border)";
 
   return (
     <SidebarProvider defaultOpen={sidebarDefaultOpen}>
       {/* Global background */}
-      <img src={natureBg} alt="" className="fixed inset-0 w-full h-full object-cover brightness-105 saturate-130 pointer-events-none select-none" style={{ zIndex: 0 }} />
-      <div className="fixed inset-0 bg-white/10 pointer-events-none" style={{ zIndex: 0 }} />
+      <img
+        src={isDark ? nightBg : natureBg}
+        alt=""
+        className="fixed inset-0 w-full h-full object-cover pointer-events-none select-none transition-opacity duration-500"
+        style={{ zIndex: 0, filter: isDark ? "brightness(0.6) saturate(0.8)" : "brightness(1.05) saturate(1.3)" }}
+      />
+      <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0, background: isDark ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.1)" }} />
 
       <div className="relative h-screen flex w-full overflow-hidden" style={{ zIndex: 1 }}>
-        <AppSidebar />
+        <AppSidebar fontSize={fontSize} setFontSize={setFontSize} />
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
           {/* Header */}
-          <header className="flex items-center justify-between px-3 sm:px-4 sticky top-2 z-50 mx-4 rounded-2xl shadow-sm" style={{ height: "48px", background: "rgba(240,255,240,0.55)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", border: "1px solid rgba(255,255,255,0.55)" }}>
+          <header className="flex items-center justify-between px-3 sm:px-4 sticky top-2 z-50 mx-4 rounded-2xl shadow-sm" style={{ height: "48px", background: headerBg, backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", border: headerBorder }}>
             <div className="flex items-center gap-2 sm:gap-3">
               <SidebarTrigger className="hidden md:flex" />
               <h1 className="text-sm font-bold text-foreground tracking-tight">
