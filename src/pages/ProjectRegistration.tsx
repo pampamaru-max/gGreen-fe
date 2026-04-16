@@ -558,16 +558,16 @@ export default function ProjectRegistration() {
           <h2 className="flex-1 min-w-0 text-sm font-bold text-foreground truncate">ประเมิน {programName}</h2>
           <div className="flex items-center gap-2 shrink-0">
             <div className="text-right">
-              <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">คะแนนรวม</p>
+              <p className="text-[0.5625rem] font-semibold text-muted-foreground uppercase tracking-wider">คะแนนรวม</p>
               <p className="text-base font-bold text-primary leading-tight">
-                {displayTotal}{displayUnit && <span className="text-[10px] font-normal ml-0.5">{displayUnit}</span>}
+                {displayTotal}{displayUnit && <span className="text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}
                 <span className="text-xs font-normal text-muted-foreground">/{displayMax}</span>
               </p>
-              {displayMax > 0 && <p className="text-[9px] text-muted-foreground">{displayPct}%</p>}
+              {displayMax > 0 && <p className="text-[0.5625rem] text-muted-foreground">{displayPct}%</p>}
               {!isEvalReadOnly && !evalLoading && (
                 <DropdownMenu open={copyDropdownOpen} onOpenChange={handleCopyDropdownOpen}>
                   <DropdownMenuTrigger asChild>
-                    <button className="mt-0.5 text-[9px] text-blue-500 hover:text-blue-700 underline underline-offset-2 cursor-pointer bg-transparent border-0 p-0 leading-tight">
+                    <button className="mt-0.5 text-[0.5625rem] text-blue-500 hover:text-blue-700 underline underline-offset-2 cursor-pointer bg-transparent border-0 p-0 leading-tight">
                       คัดลอกคะแนน
                     </button>
                   </DropdownMenuTrigger>
@@ -578,7 +578,7 @@ export default function ProjectRegistration() {
                       <div className="px-3 py-2 text-xs text-muted-foreground">ไม่พบประวัติการประเมิน</div>
                     ) : (
                       <>
-                        <div className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider border-b">
+                        <div className="px-3 py-1.5 text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wider border-b">
                           เลือกปีที่ต้องการคัดลอก
                         </div>
                         {copyHistoryEvals.map((e) => (
@@ -589,7 +589,7 @@ export default function ProjectRegistration() {
                           >
                             <span className="font-semibold">พ.ศ. {e.year + 543}</span>
                             {e.evaluationType && EVAL_TYPE_CONFIG[e.evaluationType] && (
-                              <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${EVAL_TYPE_CONFIG[e.evaluationType].className}`}>
+                              <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[0.625rem] font-medium border ${EVAL_TYPE_CONFIG[e.evaluationType].className}`}>
                                 {EVAL_TYPE_CONFIG[e.evaluationType].label}
                               </span>
                             )}
@@ -605,7 +605,7 @@ export default function ProjectRegistration() {
               <>
                 <div className="w-px h-7 bg-border shrink-0" />
                 <div className="text-right">
-                  <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">กรรมการ</p>
+                  <p className="text-[0.5625rem] font-semibold text-muted-foreground uppercase tracking-wider">กรรมการ</p>
                   <p className="text-base font-bold text-muted-foreground leading-tight">
                     {grandCommitteeTotal}<span className="text-xs font-normal text-muted-foreground">/{grandMax}</span>
                   </p>
@@ -634,21 +634,21 @@ export default function ProjectRegistration() {
         {/* badges + subinfo */}
         <div className="flex items-center gap-1.5 flex-wrap mt-1 ml-[44px]">
           {evaluationType && EVAL_TYPE_CONFIG[evaluationType] && (
-            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${EVAL_TYPE_CONFIG[evaluationType].className}`}>
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.625rem] font-semibold border ${EVAL_TYPE_CONFIG[evaluationType].className}`}>
               {EVAL_TYPE_CONFIG[evaluationType].icon}{EVAL_TYPE_CONFIG[evaluationType].label}
             </span>
           )}
           {currentEvalStatus && (
-            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${currentEvalStatus.badge}`}>
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.625rem] font-semibold border ${currentEvalStatus.badge}`}>
               {currentEvalStatus.icon}{currentEvalStatus.label}
             </span>
           )}
           {year && (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border border-border bg-muted/60 text-muted-foreground">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[0.625rem] font-medium border border-border bg-muted/60 text-muted-foreground">
               พ.ศ. {year + 543}
             </span>
           )}
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-[0.625rem] text-muted-foreground">
             {visibleCategories.length} หมวด · {totalTopics} ประเด็น · {totalIndicators} ตัวชี้วัด{!isYesNoProgram ? ` · เต็ม ${grandMax}` : ""}
           </span>
         </div>
@@ -683,14 +683,14 @@ export default function ProjectRegistration() {
                           style={{ background: `linear-gradient(135deg, ${activeLevel.color}cc 0%, ${activeLevel.color} 100%)`, boxShadow: `0 2px 10px ${activeLevel.color}40` }}>
                           <IconComp className="h-3.5 w-3.5 shrink-0" />
                           <span className="text-xs">{activeLevel.name}</span>
-                          <span className="text-[10px] font-normal opacity-85">({activeLevel.minScore}–{activeLevel.maxScore}%)</span>
+                          <span className="text-[0.625rem] font-normal opacity-85">({activeLevel.minScore}–{activeLevel.maxScore}%)</span>
                         </div>
                       );
                     })()}
                     {others.map(level => {
                       const IconComp = ICON_MAP[level.icon] ?? Trophy;
                       return (
-                        <div key={level.id} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] border"
+                        <div key={level.id} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.625rem] border"
                           style={{ borderColor: `${level.color}25`, color: `${level.color}60` }}>
                           <IconComp className="h-3 w-3 shrink-0" /><span>{level.name}</span>
                           <span className="opacity-70">({level.minScore}–{level.maxScore}%)</span>
@@ -703,12 +703,12 @@ export default function ProjectRegistration() {
             </div>
             {displayMax > 0 && (
               <div className="shrink-0 text-right">
-                <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-semibold">
+                <p className="text-[0.5625rem] text-muted-foreground uppercase tracking-wider font-semibold">
                   {programScoringType === 'yes_no' ? "วิธีคำนวณ (สอดคล้อง)" : isYesNoProgram ? "วิธีคำนวณ (ผ่าน/ไม่ผ่าน)" : "วิธีคำนวณ (คะแนน)"}
                 </p>
-                {programScoringType === 'yes_no' && <p className="text-[9px] font-bold text-red-600">*ต้องสอดคล้องครบทุกข้อ</p>}
+                {programScoringType === 'yes_no' && <p className="text-[0.5625rem] font-bold text-red-600">*ต้องสอดคล้องครบทุกข้อ</p>}
                 {programScoringType !== 'yes_no' && !isYesNoProgram && grandMax > 0 && (
-                  <p className="text-[9px] font-bold text-red-600">{grandMax === 100 ? "*คำนวนแบบคะแนนเต็มหมวด" : "*คำนวนแบบคะแนนไม่เต็มหมวด"}</p>
+                  <p className="text-[0.5625rem] font-bold text-red-600">{grandMax === 100 ? "*คำนวนแบบคะแนนเต็มหมวด" : "*คำนวนแบบคะแนนไม่เต็มหมวด"}</p>
                 )}
               </div>
             )}

@@ -495,23 +495,23 @@ const EvaluationByProgramPage = () => {
             <h2 className="text-sm font-bold leading-tight truncate" style={{ color: "var(--green-heading)" }}>{programName}</h2>
             <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
               {evaluationType && EVAL_TYPE_CONFIG[evaluationType] && (
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${EVAL_TYPE_CONFIG[evaluationType].className}`}>
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.625rem] font-semibold border ${EVAL_TYPE_CONFIG[evaluationType].className}`}>
                   {EVAL_TYPE_CONFIG[evaluationType].icon}
                   {EVAL_TYPE_CONFIG[evaluationType].label}
                 </span>
               )}
               {currentStatus && (
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${currentStatus.badge}`}>
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.625rem] font-semibold border ${currentStatus.badge}`}>
                   {currentStatus.icon}
                   {currentStatus.label}
                 </span>
               )}
               {year && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border border-border bg-muted/60 text-muted-foreground">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[0.625rem] font-medium border border-border bg-muted/60 text-muted-foreground">
                   พ.ศ. {year + 543}
                 </span>
               )}
-              <span className="text-[10px]" style={{ color: "var(--green-muted)" }}>
+              <span className="text-[0.625rem]" style={{ color: "var(--green-muted)" }}>
                 {visibleCategories.length} หมวด · {totalTopics} ประเด็น · {totalIndicators} ตัวชี้วัด{!isYesNoProgram ? ` · เต็ม ${grandMax}` : ""}
               </span>
             </div>
@@ -522,28 +522,28 @@ const EvaluationByProgramPage = () => {
             {role !== "user" ? (
               <>
                 <div className="text-right">
-                  <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">ตนเอง</p>
+                  <p className="text-[0.5625rem] font-semibold text-muted-foreground uppercase tracking-wider">ตนเอง</p>
                   <p className="text-base font-bold text-muted-foreground leading-tight">
-                    {displaySelfTotal}{displayUnit && <span className="text-[10px] font-normal ml-0.5">{displayUnit}</span>}
+                    {displaySelfTotal}{displayUnit && <span className="text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}
                     <span className="text-xs font-normal text-muted-foreground">/{displayMax}</span>
                   </p>
-                  {displayMax > 0 && <p className="text-[9px] text-muted-foreground">{Math.round((displaySelfTotal / displayMax) * 100)}%</p>}
+                  {displayMax > 0 && <p className="text-[0.5625rem] text-muted-foreground">{Math.round((displaySelfTotal / displayMax) * 100)}%</p>}
                 </div>
                 <div className="w-px h-7 bg-border" />
                 <div className="text-right">
-                  <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">กรรมการ</p>
+                  <p className="text-[0.5625rem] font-semibold text-muted-foreground uppercase tracking-wider">กรรมการ</p>
                   <p className="text-base font-bold text-primary leading-tight">
-                    {displayCommitteeTotal}{displayUnit && <span className="text-[10px] font-normal ml-0.5">{displayUnit}</span>}
+                    {displayCommitteeTotal}{displayUnit && <span className="text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}
                     <span className="text-xs font-normal text-muted-foreground">/{displayMax}</span>
                   </p>
-                  {displayMax > 0 && <p className="text-[9px] text-muted-foreground">{displayCommitteePct}%</p>}
+                  {displayMax > 0 && <p className="text-[0.5625rem] text-muted-foreground">{displayCommitteePct}%</p>}
                 </div>
               </>
             ) : (
               <div className="text-right">
-                <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">คะแนนรวม</p>
+                <p className="text-[0.5625rem] font-semibold text-muted-foreground uppercase tracking-wider">คะแนนรวม</p>
                 <p className="text-base font-bold text-primary leading-tight">
-                  {displaySelfTotal}{displayUnit && <span className="text-[10px] font-normal ml-0.5">{displayUnit}</span>}
+                  {displaySelfTotal}{displayUnit && <span className="text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}
                   <span className="text-xs font-normal text-muted-foreground">/{displayMax}</span>
                 </p>
               </div>
@@ -621,14 +621,14 @@ const EvaluationByProgramPage = () => {
                           style={{ background: `linear-gradient(135deg, ${activeLevel.color}cc 0%, ${activeLevel.color} 100%)`, boxShadow: `0 2px 10px ${activeLevel.color}40` }}>
                           <IconComp className="h-3.5 w-3.5 shrink-0" />
                           <span className="text-xs">{activeLevel.name}</span>
-                          <span className="text-[10px] font-normal opacity-85">({activeLevel.minScore}–{activeLevel.maxScore}%)</span>
+                          <span className="text-[0.625rem] font-normal opacity-85">({activeLevel.minScore}–{activeLevel.maxScore}%)</span>
                         </div>
                       );
                     })()}
                     {others.map(level => {
                       const IconComp = ICON_MAP[level.icon] ?? Trophy;
                       return (
-                        <div key={level.id} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] border"
+                        <div key={level.id} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.625rem] border"
                           style={{ borderColor: `${level.color}25`, color: `${level.color}60` }}>
                           <IconComp className="h-3 w-3 shrink-0" />
                           <span>{level.name}</span>
@@ -642,12 +642,12 @@ const EvaluationByProgramPage = () => {
             </div>
             {displayMax > 0 && (
               <div className="shrink-0 text-right">
-                <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-semibold">
+                <p className="text-[0.5625rem] text-muted-foreground uppercase tracking-wider font-semibold">
                   {programScoringType === 'yes_no' ? "วิธีคำนวณ (สอดคล้อง)" : isYesNoProgram ? "วิธีคำนวณ (ผ่าน/ไม่ผ่าน)" : "วิธีคำนวณ (คะแนน)"}
                 </p>
-                {programScoringType === 'yes_no' && <p className="text-[9px] font-bold text-red-600">*ต้องสอดคล้องครบทุกข้อ</p>}
+                {programScoringType === 'yes_no' && <p className="text-[0.5625rem] font-bold text-red-600">*ต้องสอดคล้องครบทุกข้อ</p>}
                 {programScoringType !== 'yes_no' && !isYesNoProgram && grandMax > 0 && (
-                  <p className="text-[9px] font-bold text-red-600">{grandMax === 100 ? "*คำนวนแบบคะแนนเต็มหมวด" : "*คำนวนแบบคะแนนไม่เต็มหมวด"}</p>
+                  <p className="text-[0.5625rem] font-bold text-red-600">{grandMax === 100 ? "*คำนวนแบบคะแนนเต็มหมวด" : "*คำนวนแบบคะแนนไม่เต็มหมวด"}</p>
                 )}
               </div>
             )}
