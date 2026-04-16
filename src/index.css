@@ -519,3 +519,91 @@ div:has(> [data-sidebar="sidebar"]) {
   background-color: hsl(var(--primary) / 0.1) !important;
   color: hsl(var(--primary)) !important;
 }
+
+/* ── Score Level Badge Animations ─────────────────────────────────────────── */
+@keyframes score-breathe {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.055); }
+}
+@keyframes score-shimmer-slide {
+  0%   { transform: translateX(-220%) skewX(-18deg); }
+  100% { transform: translateX(320%)  skewX(-18deg); }
+}
+@keyframes score-icon-wiggle {
+  0%, 65%, 100% { transform: rotate(0deg) scale(1); }
+  10%           { transform: rotate(-20deg) scale(1.25); }
+  22%           { transform: rotate(14deg)  scale(1.18); }
+  33%           { transform: rotate(-9deg)  scale(1.1); }
+  44%           { transform: rotate(5deg)   scale(1.04); }
+  55%           { transform: rotate(-2deg)  scale(1.01); }
+}
+@keyframes score-ring-ping {
+  0%   { transform: scale(1);   opacity: 0.75; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+@keyframes score-ring-ping-delay {
+  0%, 40%  { transform: scale(1);   opacity: 0; }
+  45%      { opacity: 0.5; }
+  100%     { transform: scale(1.9); opacity: 0; }
+}
+
+/* wrapper ที่ครอบ badge จริง (ไม่ถูก clip) */
+.score-active-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+/* ping rings */
+.score-active-wrap::before,
+.score-active-wrap::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 0.85rem;
+  border: 2px solid var(--badge-ring-color, rgba(255,255,255,0.6));
+  pointer-events: none;
+}
+.score-active-wrap::before {
+  animation: score-ring-ping 2s ease-out infinite;
+}
+.score-active-wrap::after {
+  animation: score-ring-ping-delay 2s ease-out infinite;
+}
+
+/* badge หลัก */
+.score-active-badge {
+  position: relative;
+  overflow: hidden;
+  animation: score-breathe 2.4s ease-in-out infinite;
+}
+/* shimmer sweep */
+.score-active-badge::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 38%,
+    rgba(255, 255, 255, 0.45) 50%,
+    transparent 62%
+  );
+  animation: score-shimmer-slide 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* icon */
+.score-active-icon {
+  display: inline-flex !important;
+  animation: score-icon-wiggle 2.4s ease-in-out infinite;
+}
+
+/* inactive badges */
+.score-inactive-badge {
+  transition: opacity 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+  cursor: default;
+}
+.score-inactive-badge:hover {
+  opacity: 1 !important;
+  transform: translateY(-2px) scale(1.06);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
