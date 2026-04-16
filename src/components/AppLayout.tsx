@@ -12,6 +12,7 @@ import { User, Mail, MapPin, ShieldCheck, Building2, KeyRound } from "lucide-rea
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 
 import { FONT_SIZE_KEY, applyFontSize } from "@/lib/fontsize";
+import { FirefliesLayer } from "@/components/FirefliesLayer";
 
 const ROLE_LABEL: Record<string, { label: string; color: string }> = {
   ADMIN:     { label: "ผู้ดูแลระบบ",   color: "bg-red-100 text-red-700 border-red-200" },
@@ -67,8 +68,9 @@ export function AppLayout() {
         style={{ zIndex: 0, filter: isDark ? "brightness(0.6) saturate(0.8)" : "brightness(1.05) saturate(1.3)" }}
       />
       <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0, background: isDark ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.1)" }} />
+      <FirefliesLayer />
 
-      <div className="relative h-screen flex w-full overflow-hidden" style={{ zIndex: 1 }}>
+      <div className="relative h-screen flex w-full overflow-hidden" style={{ zIndex: 2 }}>
         <AppSidebar fontSize={fontSize} setFontSize={setFontSize} />
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
           {/* Header */}

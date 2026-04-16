@@ -470,19 +470,54 @@ const EvaluationByProgramPage = () => {
     );
   }
 
+  const glassCard = {
+    background: "var(--glass-bg)",
+    backdropFilter: "blur(14px)",
+    WebkitBackdropFilter: "blur(14px)",
+    boxShadow: "var(--glass-shadow)",
+    border: "1px solid var(--glass-border)",
+  } as React.CSSProperties;
+
   return (
-    <div className="min-h-full bg-background">
-      <div className="border-b bg-card/50 px-4 sm:px-6 py-3">
-        {/* Row 1: back + icon + [spacer] + scores + actions */}
+    <div className="h-full flex flex-col gap-3 p-4">
+
+      {/* ── Header glass card ── */}
+      <div className="px-4 py-3 rounded-2xl shrink-0" style={glassCard}>
+        {/* Row 1 */}
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" onClick={() => navigate("/evaluation")} className="shrink-0 h-8 w-8">
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shrink-0">
-            <ClipboardCheck className="h-4 w-4 text-primary-foreground" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg shrink-0" style={{ background: "#3a7d2c" }}>
+            <ClipboardCheck className="h-4 w-4 text-white" />
           </div>
-          <div className="flex-1 min-w-0" />
-          {/* Scores + badge + actions */}
+          <div className="flex-1 min-w-0">
+            <h2 className="text-sm font-bold leading-tight truncate" style={{ color: "var(--green-heading)" }}>{programName}</h2>
+            <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+              {evaluationType && EVAL_TYPE_CONFIG[evaluationType] && (
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${EVAL_TYPE_CONFIG[evaluationType].className}`}>
+                  {EVAL_TYPE_CONFIG[evaluationType].icon}
+                  {EVAL_TYPE_CONFIG[evaluationType].label}
+                </span>
+              )}
+              {currentStatus && (
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${currentStatus.badge}`}>
+                  {currentStatus.icon}
+                  {currentStatus.label}
+                </span>
+              )}
+              {year && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border border-border bg-muted/60 text-muted-foreground">
+                  พ.ศ. {year + 543}
+                </span>
+              )}
+              <span className="text-[10px]" style={{ color: "var(--green-muted)" }}>
+                {visibleCategories.length} หมวด · {totalTopics} ประเด็น · {totalIndicators} ตัวชี้วัด{!isYesNoProgram ? ` · เต็ม ${grandMax}` : ""}
+              </span>
+            </div>
+          </div>
+
+          {/* Scores */}
           <div className="flex items-center gap-2 shrink-0">
             {role !== "user" ? (
               <>
@@ -514,179 +549,149 @@ const EvaluationByProgramPage = () => {
               </div>
             )}
             {role !== "user" && import.meta.env.DEV && !isCompleted && (
-              <div className="hidden sm:flex">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="gap-1 text-purple-600 border-purple-300 hover:bg-purple-50 text-xs h-8 px-2 shrink-0">
-                      🎲 <ChevronDown className="h-3 w-3" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-44">
-                    <DropdownMenuItem onClick={() => handleFillMode("full")}>⭐ สุ่มคะแนนเต็ม</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleFillMode("good")}>😊 สุ่มคะแนนดีแต่ไม่เต็ม</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleFillMode("mid")}>😐 สุ่มคะแนนกลางๆ</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleFillMode("bad")}>😕 สุ่มคะแนนแย่ๆ</DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => handleFillMode("clear")} className="text-destructive">🗑 ล้างคะแนน</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1 text-purple-600 border-purple-300 hover:bg-purple-50 text-xs h-8 px-2 shrink-0">
+                    🎲 <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                  <DropdownMenuItem onClick={() => handleFillMode("full")}>⭐ สุ่มคะแนนเต็ม</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleFillMode("good")}>😊 สุ่มคะแนนดีแต่ไม่เต็ม</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleFillMode("mid")}>😐 สุ่มคะแนนกลางๆ</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleFillMode("bad")}>😕 สุ่มคะแนนแย่ๆ</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => handleFillMode("clear")} className="text-destructive">🗑 ล้างคะแนน</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
             {isCompleted ? (
               <Button variant="outline" size="sm"
                 onClick={() => navigate(`/evaluation/${programId}/summary?evaluationId=${evaluationId || ""}`)}
-                className="gap-1 text-green-700 border-green-300 bg-green-50 hover:bg-green-100 h-8 px-2 text-xs shrink-0">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">ดูสรุป</span>
+                className="gap-1 text-green-700 border-green-300 bg-green-50 hover:bg-green-100 h-8 px-3 text-xs shrink-0">
+                <CheckCircle2 className="h-3.5 w-3.5" /> ดูสรุป
               </Button>
             ) : (
               role !== "user" && isSubmitted && (
                 <div className="flex items-center gap-1.5">
-                  <Button variant="outline" size="sm" onClick={handleReturn} disabled={!allCommitteeScored} title={!allCommitteeScored ? `ยังมีตัวชี้วัดที่ยังไม่ได้ประเมิน ${flatIndicators.filter(({ indicator }) => { const v = committeeScores[indicator.id]; return v === undefined || (indicator.scoreType?.includes('yes_no') && v === -1); }).length} ข้อ` : ""} className="gap-1 text-amber-600 border-amber-300 hover:bg-amber-50 disabled:opacity-50 h-8 px-2 text-xs shrink-0">
-                    <RotateCcw className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">ส่งกลับ</span>
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={handleComplete}
+                  <Button variant="outline" size="sm" onClick={handleReturn}
                     disabled={!allCommitteeScored}
                     title={!allCommitteeScored ? `ยังมีตัวชี้วัดที่ยังไม่ได้ประเมิน ${flatIndicators.filter(({ indicator }) => { const v = committeeScores[indicator.id]; return v === undefined || (indicator.scoreType?.includes('yes_no') && v === -1); }).length} ข้อ` : ""}
-                    className="gap-1 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 h-8 px-2 text-xs shrink-0"
-                  >
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">ยืนยันผล</span>
+                    className="gap-1 text-amber-600 border-amber-300 hover:bg-amber-50 disabled:opacity-50 h-8 px-2 text-xs shrink-0">
+                    <RotateCcw className="h-3.5 w-3.5" /><span className="hidden sm:inline">ส่งกลับ</span>
+                  </Button>
+                  <Button size="sm" onClick={handleComplete} disabled={!allCommitteeScored}
+                    title={!allCommitteeScored ? `ยังมีตัวชี้วัดที่ยังไม่ได้ประเมิน ${flatIndicators.filter(({ indicator }) => { const v = committeeScores[indicator.id]; return v === undefined || (indicator.scoreType?.includes('yes_no') && v === -1); }).length} ข้อ` : ""}
+                    className="gap-1 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 h-8 px-3 text-xs shrink-0">
+                    <CheckCircle2 className="h-3.5 w-3.5" /><span className="hidden sm:inline">ยืนยันผล</span>
                   </Button>
                 </div>
               )
             )}
           </div>
         </div>
-        {/* Row 2: program name + badges + subinfo */}
-        <div className="flex items-center gap-1.5 flex-wrap mt-1.5 ml-[40px]">
-          <h2 className="text-sm font-bold text-foreground w-full truncate">{programName}</h2>
-          {evaluationType && EVAL_TYPE_CONFIG[evaluationType] && (
-            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${EVAL_TYPE_CONFIG[evaluationType].className}`}>
-              {EVAL_TYPE_CONFIG[evaluationType].icon}
-              {EVAL_TYPE_CONFIG[evaluationType].label}
-            </span>
-          )}
-          {currentStatus && (
-            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${currentStatus.badge}`}>
-              {currentStatus.icon}
-              {currentStatus.label}
-            </span>
-          )}
-          {year && (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border border-border bg-muted/60 text-muted-foreground">
-              พ.ศ. {year + 543}
-            </span>
-          )}
-          <span className="text-[11px] text-muted-foreground">
-            {visibleCategories.length} หมวด · {totalTopics} ประเด็น · {totalIndicators} ตัวชี้วัด{isYesNoProgram ? "" : ` · คะแนนเต็ม ${grandMax}`}
-          </span>
-        </div>
-      </div>
 
-      {/* Scoring level strip */}
-      {role !== "user" && (scoringLevels.length > 0 || programScoringType === 'yes_no') && (
-        <div className="px-4 sm:px-6 py-2 border-b bg-card/30 flex flex-wrap items-center gap-x-3 gap-y-1">
-          <div className="flex-1 min-w-0">
-            {programScoringType === 'yes_no' ? (
-              (() => {
-                const allPass = displayMax > 0 && displayCommitteeTotal === displayMax;
-                const color = allPass ? "#059669" : "#E11D48";
+        {/* Scoring level strip */}
+        {role !== "user" && (scoringLevels.length > 0 || programScoringType === 'yes_no') && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2.5 pt-2.5 border-t border-border/40">
+            <div className="flex-1 min-w-0">
+              {programScoringType === 'yes_no' ? (
+                (() => {
+                  const allPass = displayMax > 0 && displayCommitteeTotal === displayMax;
+                  const color = allPass ? "#059669" : "#E11D48";
+                  return (
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-white font-bold shrink-0"
+                      style={{ background: `linear-gradient(135deg, ${color}cc 0%, ${color} 100%)`, boxShadow: `0 2px 10px ${color}40` }}>
+                      {allPass ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> : <XCircle className="h-3.5 w-3.5 shrink-0" />}
+                      <span className="text-xs">{allPass ? "สอดคล้อง" : "ไม่สอดคล้อง"}</span>
+                    </div>
+                  );
+                })()
+              ) : (() => {
+                const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = { Trophy, Medal, Award, Star };
+                const pct = displayMax > 0 ? Math.round((displayCommitteeTotal / displayMax) * 100) : 0;
+                const activeLevel = [...scoringLevels].reverse().find(l => pct >= l.minScore && pct <= l.maxScore);
+                const others = scoringLevels.filter(l => l.id !== activeLevel?.id);
                 return (
-                  <div
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-white font-bold shrink-0"
-                    style={{ background: `linear-gradient(135deg, ${color}cc 0%, ${color} 100%)`, boxShadow: `0 4px 14px ${color}50` }}
-                  >
-                    {allPass ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <XCircle className="h-4 w-4 shrink-0" />}
-                    <span className="text-sm">{allPass ? "สอดคล้อง" : "ไม่สอดคล้อง"}</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {activeLevel && (() => {
+                      const IconComp = ICON_MAP[activeLevel.icon] ?? Trophy;
+                      return (
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-white font-bold shrink-0"
+                          style={{ background: `linear-gradient(135deg, ${activeLevel.color}cc 0%, ${activeLevel.color} 100%)`, boxShadow: `0 2px 10px ${activeLevel.color}40` }}>
+                          <IconComp className="h-3.5 w-3.5 shrink-0" />
+                          <span className="text-xs">{activeLevel.name}</span>
+                          <span className="text-[10px] font-normal opacity-85">({activeLevel.minScore}–{activeLevel.maxScore}%)</span>
+                        </div>
+                      );
+                    })()}
+                    {others.map(level => {
+                      const IconComp = ICON_MAP[level.icon] ?? Trophy;
+                      return (
+                        <div key={level.id} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] border"
+                          style={{ borderColor: `${level.color}25`, color: `${level.color}60` }}>
+                          <IconComp className="h-3 w-3 shrink-0" />
+                          <span>{level.name}</span>
+                          <span className="opacity-70">({level.minScore}–{level.maxScore}%)</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 );
-              })()
-            ) : (() => {
-              const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = { Trophy, Medal, Award, Star };
-              const pct = displayMax > 0 ? Math.round((displayCommitteeTotal / displayMax) * 100) : 0;
-              const activeLevel = [...scoringLevels].reverse().find(l => pct >= l.minScore && pct <= l.maxScore);
-              const others = scoringLevels.filter(l => l.id !== activeLevel?.id);
-              return (
-                <div className="flex flex-wrap items-center gap-2">
-                  {activeLevel && (() => {
-                    const IconComp = ICON_MAP[activeLevel.icon] ?? Trophy;
-                    return (
-                      <div
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-white font-bold shrink-0"
-                        style={{ background: `linear-gradient(135deg, ${activeLevel.color}cc 0%, ${activeLevel.color} 100%)`, boxShadow: `0 4px 14px ${activeLevel.color}50` }}
-                      >
-                        <IconComp className="h-4 w-4 shrink-0" />
-                        <span className="text-sm">{activeLevel.name}</span>
-                        <span className="text-[11px] font-normal opacity-85">({activeLevel.minScore}–{activeLevel.maxScore}%)</span>
-                      </div>
-                    );
-                  })()}
-                  {others.map(level => {
-                    const IconComp = ICON_MAP[level.icon] ?? Trophy;
-                    return (
-                      <div key={level.id} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] border"
-                        style={{ borderColor: `${level.color}25`, color: `${level.color}60` }}>
-                        <IconComp className="h-3 w-3 shrink-0" />
-                        <span>{level.name}</span>
-                        <span className="opacity-70">({level.minScore}–{level.maxScore}%)</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
-          </div>
-          {displayMax > 0 && (
-            <div className="shrink-0 text-right">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
-                {programScoringType === 'yes_no' ? "วิธีคำนวณ (สอดคล้อง)" : isYesNoProgram ? "วิธีคำนวณ (ผ่าน/ไม่ผ่าน)" : "วิธีคำนวณ (คะแนน)"}
-              </p>
-              {programScoringType === 'yes_no' && <p className="text-[10px] font-bold text-red-600">*ต้องสอดคล้องครบทุกข้อ</p>}
-              {programScoringType !== 'yes_no' && !isYesNoProgram && grandMax > 0 && (
-                <p className="text-[10px] font-bold text-red-600">{grandMax === 100 ? "*คำนวนแบบคะแนนเต็มหมวด" : "*คำนวนแบบคะแนนไม่เต็มหมวด"}</p>
-              )}
+              })()}
             </div>
-          )}
-        </div>
-      )}
+            {displayMax > 0 && (
+              <div className="shrink-0 text-right">
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-semibold">
+                  {programScoringType === 'yes_no' ? "วิธีคำนวณ (สอดคล้อง)" : isYesNoProgram ? "วิธีคำนวณ (ผ่าน/ไม่ผ่าน)" : "วิธีคำนวณ (คะแนน)"}
+                </p>
+                {programScoringType === 'yes_no' && <p className="text-[9px] font-bold text-red-600">*ต้องสอดคล้องครบทุกข้อ</p>}
+                {programScoringType !== 'yes_no' && !isYesNoProgram && grandMax > 0 && (
+                  <p className="text-[9px] font-bold text-red-600">{grandMax === 100 ? "*คำนวนแบบคะแนนเต็มหมวด" : "*คำนวนแบบคะแนนไม่เต็มหมวด"}</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
-      {currentStatus?.banner && (
-        <div className={`flex items-center gap-2 px-6 py-2.5 border-b text-sm font-medium ${currentStatus.banner}`}>
-          {currentStatus.icon}
-          {evaluationStatus === "revision" && "เอกสารนี้ถูกส่งกลับเพื่อแก้ไข กรุณารอการแก้ไขจากผู้ถูกประเมิน"}
-          {evaluationStatus === "cancel" && "เอกสารนี้ถูกยกเลิกแล้ว"}
-        </div>
-      )}
+        {/* Banner */}
+        {currentStatus?.banner && (
+          <div className={`flex items-center gap-2 mt-2 px-3 py-2 rounded-xl text-xs font-medium ${currentStatus.banner}`}>
+            {currentStatus.icon}
+            {evaluationStatus === "revision" && "เอกสารนี้ถูกส่งกลับเพื่อแก้ไข กรุณารอการแก้ไขจากผู้ถูกประเมิน"}
+            {evaluationStatus === "cancel" && "เอกสารนี้ถูกยกเลิกแล้ว"}
+          </div>
+        )}
+      </div>
 
-      <div className="px-6 py-6 space-y-6">
-        <ScoreSummary data={summaryData} committeeData={committeeSummaryData} onCategoryClick={handleCategoryClick} />
-        {visibleCategories.map((category, idx) => (
-          <CategoryCard
-            key={category.id}
-            category={category}
-            colorIndex={idx}
-            scores={scores}
-            onScoreChange={handleScoreChange}
-            uploadedFiles={uploadedFiles}
-            onFilesChange={handleFilesChange}
-            onSave={handleSaveIndicator}
-            implementationDetails={implementationDetails}
-            onImplementationDetailChange={handleImplementationDetailChange}
-            committeeScores={committeeScores}
-            onCommitteeScoreChange={handleCommitteeScoreChange}
-            committeeComments={committeeComments}
-            onCommitteeCommentChange={handleCommitteeCommentChange}
-            userRole={role}
-            scoreView={scoreView}
-            onIndicatorClick={handleOpenWizard}
-            newIndicatorNotifs={role !== "user" ? newEvaluateeIndicatorIds : undefined}
-            forceOpen={expandedCategoryId === category.id}
-          />
-        ))}
+      {/* ── Scrollable content glass card ── */}
+      <div className="flex-1 min-h-0 rounded-2xl overflow-hidden" style={glassCard}>
+        <div className="h-full overflow-y-auto px-4 py-4 space-y-4">
+          <ScoreSummary data={summaryData} committeeData={committeeSummaryData} onCategoryClick={handleCategoryClick} />
+          {visibleCategories.map((category, idx) => (
+            <CategoryCard
+              key={category.id}
+              category={category}
+              colorIndex={idx}
+              scores={scores}
+              onScoreChange={handleScoreChange}
+              uploadedFiles={uploadedFiles}
+              onFilesChange={handleFilesChange}
+              onSave={handleSaveIndicator}
+              implementationDetails={implementationDetails}
+              onImplementationDetailChange={handleImplementationDetailChange}
+              committeeScores={committeeScores}
+              onCommitteeScoreChange={handleCommitteeScoreChange}
+              committeeComments={committeeComments}
+              onCommitteeCommentChange={handleCommitteeCommentChange}
+              userRole={role}
+              scoreView={scoreView}
+              onIndicatorClick={handleOpenWizard}
+              newIndicatorNotifs={role !== "user" ? newEvaluateeIndicatorIds : undefined}
+              forceOpen={expandedCategoryId === category.id}
+            />
+          ))}
+        </div>
       </div>
 
       {wizardItem && (
