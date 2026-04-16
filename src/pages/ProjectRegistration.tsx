@@ -534,11 +534,19 @@ export default function ProjectRegistration() {
     );
   }
 
-  return (
-    <div className="min-h-full bg-background">
+  const glassCard = {
+    background: "var(--glass-bg)",
+    backdropFilter: "blur(14px)",
+    WebkitBackdropFilter: "blur(14px)",
+    boxShadow: "var(--glass-shadow)",
+    border: "1px solid var(--glass-border)",
+  } as React.CSSProperties;
 
-      {/* ════ TOP ════ */}
-      <div className="border-b bg-card/50 px-4 sm:px-6 py-3">
+  return (
+    <div className="h-full flex flex-col gap-3 p-4">
+
+      {/* ════ Header glass card ════ */}
+      <div className="px-4 py-3 rounded-2xl shrink-0" style={glassCard}>
         {/* Row 1: back + icon + title + right actions */}
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" onClick={() => navigate("/register")} className="shrink-0 h-8 w-8">
@@ -623,109 +631,103 @@ export default function ProjectRegistration() {
             )}
           </div>
         </div>
-        {/* Row 2: badges + subinfo */}
-        <div className="flex items-center gap-1.5 flex-wrap mt-1.5 ml-[40px]">
+        {/* badges + subinfo */}
+        <div className="flex items-center gap-1.5 flex-wrap mt-1 ml-[44px]">
           {evaluationType && EVAL_TYPE_CONFIG[evaluationType] && (
-            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${EVAL_TYPE_CONFIG[evaluationType].className}`}>
-              {EVAL_TYPE_CONFIG[evaluationType].icon}
-              {EVAL_TYPE_CONFIG[evaluationType].label}
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${EVAL_TYPE_CONFIG[evaluationType].className}`}>
+              {EVAL_TYPE_CONFIG[evaluationType].icon}{EVAL_TYPE_CONFIG[evaluationType].label}
             </span>
           )}
           {currentEvalStatus && (
-            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${currentEvalStatus.badge}`}>
-              {currentEvalStatus.icon}
-              {currentEvalStatus.label}
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${currentEvalStatus.badge}`}>
+              {currentEvalStatus.icon}{currentEvalStatus.label}
             </span>
           )}
           {year && (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border border-border bg-muted/60 text-muted-foreground">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border border-border bg-muted/60 text-muted-foreground">
               พ.ศ. {year + 543}
             </span>
           )}
-          <span className="text-[11px] text-muted-foreground">
-            {visibleCategories.length} หมวด · {totalTopics} ประเด็น · {totalIndicators} ตัวชี้วัด · คะแนนเต็ม {grandMax}
+          <span className="text-[10px] text-muted-foreground">
+            {visibleCategories.length} หมวด · {totalTopics} ประเด็น · {totalIndicators} ตัวชี้วัด{!isYesNoProgram ? ` · เต็ม ${grandMax}` : ""}
           </span>
         </div>
-      </div>
 
-      {/* ════ SCORING LEVEL STRIP ════ */}
-      {!evalLoading && (scoringLevels.length > 0 || programScoringType === 'yes_no') && (
-        <div className="px-4 sm:px-6 py-2 border-b bg-card/30 flex flex-wrap items-center gap-x-3 gap-y-1">
-          <div className="flex-1 min-w-0">
-            {programScoringType === 'yes_no' ? (
-              (() => {
-                const allPass = displayMax > 0 && displayTotal === displayMax;
-                const color = allPass ? "#059669" : "#E11D48";
+        {/* Scoring level strip */}
+        {!evalLoading && (scoringLevels.length > 0 || programScoringType === 'yes_no') && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2.5 pt-2.5 border-t border-border/40">
+            <div className="flex-1 min-w-0">
+              {programScoringType === 'yes_no' ? (
+                (() => {
+                  const allPass = displayMax > 0 && displayTotal === displayMax;
+                  const color = allPass ? "#059669" : "#E11D48";
+                  return (
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-white font-bold shrink-0"
+                      style={{ background: `linear-gradient(135deg, ${color}cc 0%, ${color} 100%)`, boxShadow: `0 2px 10px ${color}40` }}>
+                      {allPass ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> : <XCircle className="h-3.5 w-3.5 shrink-0" />}
+                      <span className="text-xs">{allPass ? "สอดคล้อง" : "ไม่สอดคล้อง"}</span>
+                    </div>
+                  );
+                })()
+              ) : (() => {
+                const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = { Trophy, Medal, Award, Star };
+                const pct = displayMax > 0 ? Math.round((displayTotal / displayMax) * 100) : 0;
+                const activeLevel = [...scoringLevels].reverse().find(l => pct >= l.minScore && pct <= l.maxScore);
+                const others = scoringLevels.filter(l => l.id !== activeLevel?.id);
                 return (
-                  <div
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-white font-bold shrink-0"
-                    style={{ background: `linear-gradient(135deg, ${color}cc 0%, ${color} 100%)`, boxShadow: `0 4px 14px ${color}50` }}
-                  >
-                    {allPass ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <XCircle className="h-4 w-4 shrink-0" />}
-                    <span className="text-sm">{allPass ? "สอดคล้อง" : "ไม่สอดคล้อง"}</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {activeLevel && (() => {
+                      const IconComp = ICON_MAP[activeLevel.icon] ?? Trophy;
+                      return (
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-white font-bold shrink-0"
+                          style={{ background: `linear-gradient(135deg, ${activeLevel.color}cc 0%, ${activeLevel.color} 100%)`, boxShadow: `0 2px 10px ${activeLevel.color}40` }}>
+                          <IconComp className="h-3.5 w-3.5 shrink-0" />
+                          <span className="text-xs">{activeLevel.name}</span>
+                          <span className="text-[10px] font-normal opacity-85">({activeLevel.minScore}–{activeLevel.maxScore}%)</span>
+                        </div>
+                      );
+                    })()}
+                    {others.map(level => {
+                      const IconComp = ICON_MAP[level.icon] ?? Trophy;
+                      return (
+                        <div key={level.id} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] border"
+                          style={{ borderColor: `${level.color}25`, color: `${level.color}60` }}>
+                          <IconComp className="h-3 w-3 shrink-0" /><span>{level.name}</span>
+                          <span className="opacity-70">({level.minScore}–{level.maxScore}%)</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 );
-              })()
-            ) : (() => {
-              const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = { Trophy, Medal, Award, Star };
-              const pct = displayMax > 0 ? Math.round((displayTotal / displayMax) * 100) : 0;
-              const activeLevel = [...scoringLevels].reverse().find(l => pct >= l.minScore && pct <= l.maxScore);
-              const others = scoringLevels.filter(l => l.id !== activeLevel?.id);
-              return (
-                <div className="flex flex-wrap items-center gap-2">
-                  {activeLevel && (() => {
-                    const IconComp = ICON_MAP[activeLevel.icon] ?? Trophy;
-                    return (
-                      <div
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-white font-bold shrink-0"
-                        style={{ background: `linear-gradient(135deg, ${activeLevel.color}cc 0%, ${activeLevel.color} 100%)`, boxShadow: `0 4px 14px ${activeLevel.color}50` }}
-                      >
-                        <IconComp className="h-4 w-4 shrink-0" />
-                        <span className="text-sm">{activeLevel.name}</span>
-                        <span className="text-[11px] font-normal opacity-85">({activeLevel.minScore}–{activeLevel.maxScore}%)</span>
-                      </div>
-                    );
-                  })()}
-                  {others.map(level => {
-                    const IconComp = ICON_MAP[level.icon] ?? Trophy;
-                    return (
-                      <div key={level.id} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] border"
-                        style={{ borderColor: `${level.color}25`, color: `${level.color}60` }}>
-                        <IconComp className="h-3 w-3 shrink-0" />
-                        <span>{level.name}</span>
-                        <span className="opacity-70">({level.minScore}–{level.maxScore}%)</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
-          </div>
-          {displayMax > 0 && (
-            <div className="shrink-0 text-right">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
-                {programScoringType === 'yes_no' ? "วิธีคำนวณ (สอดคล้อง)" : isYesNoProgram ? "วิธีคำนวณ (ผ่าน/ไม่ผ่าน)" : "วิธีคำนวณ (คะแนน)"}
-              </p>
-              {programScoringType === 'yes_no' && <p className="text-[10px] font-bold text-red-600">*ต้องสอดคล้องครบทุกข้อ</p>}
-              {programScoringType !== 'yes_no' && !isYesNoProgram && grandMax > 0 && (
-                <p className="text-[10px] font-bold text-red-600">{grandMax === 100 ? "*คำนวนแบบคะแนนเต็มหมวด" : "*คำนวนแบบคะแนนไม่เต็มหมวด"}</p>
-              )}
+              })()}
             </div>
-          )}
-        </div>
-      )}
+            {displayMax > 0 && (
+              <div className="shrink-0 text-right">
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-semibold">
+                  {programScoringType === 'yes_no' ? "วิธีคำนวณ (สอดคล้อง)" : isYesNoProgram ? "วิธีคำนวณ (ผ่าน/ไม่ผ่าน)" : "วิธีคำนวณ (คะแนน)"}
+                </p>
+                {programScoringType === 'yes_no' && <p className="text-[9px] font-bold text-red-600">*ต้องสอดคล้องครบทุกข้อ</p>}
+                {programScoringType !== 'yes_no' && !isYesNoProgram && grandMax > 0 && (
+                  <p className="text-[9px] font-bold text-red-600">{grandMax === 100 ? "*คำนวนแบบคะแนนเต็มหมวด" : "*คำนวนแบบคะแนนไม่เต็มหมวด"}</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
-      {/* ════ EVALUATION STATUS BANNER ════ */}
-      {currentEvalStatus?.banner && (
-        <div className={`flex items-center gap-2 px-4 sm:px-6 py-2.5 border-b text-sm font-medium ${currentEvalStatus.banner}`}>
-          {currentEvalStatus.icon}
-          {evaluationStatus === "revision" && "เอกสารนี้ถูกส่งกลับเพื่อแก้ไข กรุณาตรวจสอบและส่งใหม่อีกครั้ง"}
-          {evaluationStatus === "cancel" && "เอกสารนี้ถูกยกเลิกแล้ว"}
-        </div>
-      )}
+        {/* Banner */}
+        {currentEvalStatus?.banner && (
+          <div className={`flex items-center gap-2 mt-2 px-3 py-2 rounded-xl text-xs font-medium ${currentEvalStatus.banner}`}>
+            {currentEvalStatus.icon}
+            {evaluationStatus === "revision" && "เอกสารนี้ถูกส่งกลับเพื่อแก้ไข กรุณาตรวจสอบและส่งใหม่อีกครั้ง"}
+            {evaluationStatus === "cancel" && "เอกสารนี้ถูกยกเลิกแล้ว"}
+          </div>
+        )}
+      </div>
 
-      {/* ════ EVALUATION FORM ════ */}
-      <div className="px-4 sm:px-6 py-6 space-y-6">
+      {/* ════ Scrollable content glass card ════ */}
+      <div className="flex-1 min-h-0 rounded-2xl overflow-hidden" style={glassCard}>
+        <div className="h-full overflow-y-auto px-4 py-4 space-y-4">
 
         {evalLoading ? (
           <div className="flex items-center justify-center py-24">
@@ -803,6 +805,7 @@ export default function ProjectRegistration() {
             )}
           </>
         )}
+        </div>
       </div>
 
       {/* ════ Global Wizard Dialog ════ */}
@@ -833,25 +836,6 @@ export default function ProjectRegistration() {
           onJumpTo={(idx) => setWizardIndex(idx)}
         />
       )}
-    </div>
-  );
-}
-
-// ─── Helper: InfoTile ─────────────────────────────────────────────────────────
-function InfoTile({
-  icon, label, children,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-start gap-2.5 bg-muted/40 rounded-xl p-3">
-      <span className="mt-0.5 shrink-0">{icon}</span>
-      <div className="flex flex-col gap-0.5 min-w-0">
-        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
-        {children}
-      </div>
     </div>
   );
 }

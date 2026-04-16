@@ -20,7 +20,6 @@ import {
   RefreshCw,
   TrendingUp,
 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageLoading } from "@/components/ui/page-loading";
@@ -308,115 +307,81 @@ export default function EvaluateeHome() {
     );
   }
 
+  const glassCard = {
+    background: "var(--glass-bg)",
+    backdropFilter: "blur(14px)",
+    WebkitBackdropFilter: "blur(14px)",
+    boxShadow: "var(--glass-shadow)",
+    border: "1px solid var(--glass-border)",
+  } as React.CSSProperties;
+
   return (
-    <div className="min-h-full bg-[#f8fafc]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-10">
-        {/* ════ SECTION 1: ข้อมูลหน่วยงาน ════ */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-2.5 px-1">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 shadow-sm">
-              <Building2 className="h-5.5 w-5.5" />
+    <div className="h-full flex flex-col gap-3 p-4">
+
+      {/* ════ Header glass card ════ */}
+      <div className="px-4 py-3 rounded-2xl shrink-0" style={glassCard}>
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg shrink-0" style={{ background: "#3a7d2c" }}>
+            <Building2 className="h-4 w-4 text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-sm font-bold truncate" style={{ color: "var(--green-heading)" }}>
+                {reg?.organizationName ?? user?.name ?? "-"}
+              </h2>
+              <Badge className="bg-primary hover:bg-primary/90 text-primary-foreground border-none px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0">
+                {regStatus.label}
+              </Badge>
             </div>
-            <h1 className="text-xl font-bold text-slate-800 tracking-tight">
-              ข้อมูลการเข้าร่วมโครงการ
-            </h1>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
+              {reg?.organizationType || "General Organization"}
+            </p>
           </div>
+          {(!reg || reg.status === "selected") && (
+            <Button onClick={() => setEvalTypeDialogOpen(true)}
+              className="gap-2 shrink-0 h-8 px-3 text-xs font-bold" style={{ background: "#3a7d2c", color: "#fff" }}>
+              <ClipboardCheck className="h-3.5 w-3.5" />
+              เริ่มประเมิน
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
 
-          <div className="rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-500 to-emerald-500 pr-[3px] pb-[3px]">
-            <Card className="overflow-hidden border-none shadow-sm bg-white rounded-xl h-full w-full">
-              <CardContent className="p-0">
-                {/* Org Header + Info compact row */}
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-br from-white to-slate-50/40">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 border border-emerald-100 shrink-0">
-                      <Building2 className="h-5 w-5 text-emerald-500" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h2 className="text-base font-bold text-slate-900 truncate">
-                          {reg?.organizationName ?? user?.name ?? "-"}
-                        </h2>
-                        <Badge className="bg-blue-600 hover:bg-blue-700 text-white border-none px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shrink-0">
-                          {regStatus.label}
-                        </Badge>
-                      </div>
-                      <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">
-                        {reg?.organizationType || "General Organization"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Info Tiles Grid — compact */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 border-b border-slate-100">
-                  <InfoTile icon={<ClipboardCheck className="h-4 w-4 text-emerald-500" />} label="โครงการ">
-                    <span className="text-sm font-bold text-slate-700 truncate">{reg?.programName ?? programId}</span>
-                  </InfoTile>
-                  <InfoTile icon={<MapPin className="h-4 w-4 text-emerald-500" />} label="จังหวัด">
-                    <span className="text-sm font-bold text-slate-700">
-                      {(() => {
-                        const pValue = reg?.province ?? user?.province;
-                        const found = provinces.find((p: any) => String(p.code) === pValue || p.name === pValue);
-                        return found ? found.name : (pValue ?? "-");
-                      })()}
-                    </span>
-                  </InfoTile>
-                  <InfoTile icon={<User className="h-4 w-4 text-emerald-500" />} label="ผู้ติดต่อ">
-                    <span className="text-sm font-bold text-slate-700 truncate">{reg?.contactName ?? user?.name ?? "-"}</span>
-                    <span className="text-[11px] text-slate-400 truncate">{reg?.contactEmail ?? user?.email ?? "-"}</span>
-                  </InfoTile>
-                  <InfoTile icon={<CalendarDays className="h-4 w-4 text-emerald-500" />} label="วันที่เข้าร่วม">
-                    <span className="text-sm font-bold text-slate-700">
-                      {reg
-                        ? new Date(reg.createdAt).toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric" })
-                        : new Date(user?.createdAt ?? Date.now()).toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric" })}
-                    </span>
-                  </InfoTile>
-                </div>
-
-                {/* CTA Section — compact */}
-                {(!reg || reg.status === "selected") && (
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-3">
-                    <div className="text-center sm:text-left">
-                      <p className="text-sm font-bold text-slate-700">พร้อมประเมินตนเองแล้วหรือยัง?</p>
-                      <p className="text-xs text-slate-400">
-                        {isDrafting
-                          ? "มีแบบประเมินค้างอยู่ — สามารถเริ่มปีใหม่ได้หากเลือกปีอื่น"
-                          : `กรอกแบบประเมินสำหรับโครงการ ${reg?.programName || programId}`}
-                      </p>
-                    </div>
-                    <Button
-                      onClick={() => setEvalTypeDialogOpen(true)}
-                      className="font-bold px-5 py-2 h-9 rounded-lg shadow transition-all gap-2 w-full sm:w-auto shrink-0 text-sm bg-blue-600 hover:bg-blue-700 text-white"
-                    >
-                      <ClipboardCheck className="h-4 w-4" />
-                      เริ่มประเมินตนเอง
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </section>
-
-        {/* ════ SECTION 2: ตารางรายการประเมิน ════ */}
-        <section className="space-y-5">
-          <div className="flex items-center gap-2.5 px-1">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600 border border-slate-200 shadow-sm">
-              <ListChecks className="h-5.5 w-5.5" />
+        {/* Info tiles */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 pt-3 border-t border-border/40">
+          {[
+            { icon: <ClipboardCheck className="h-3.5 w-3.5 text-primary" />, label: "โครงการ", value: reg?.programName ?? programId },
+            { icon: <MapPin className="h-3.5 w-3.5 text-primary" />, label: "จังหวัด", value: (() => { const pv = reg?.province ?? user?.province; const found = provinces.find((p: any) => String(p.code) === pv || p.name === pv); return found ? found.name : (pv ?? "-"); })() },
+            { icon: <User className="h-3.5 w-3.5 text-primary" />, label: "ผู้ติดต่อ", value: reg?.contactName ?? user?.name ?? "-" },
+            { icon: <CalendarDays className="h-3.5 w-3.5 text-primary" />, label: "วันที่เข้าร่วม", value: reg ? new Date(reg.createdAt).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" }) : new Date(user?.createdAt ?? Date.now()).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" }) },
+          ].map(({ icon, label, value }) => (
+            <div key={label} className="flex items-center gap-2 bg-muted/30 rounded-xl px-3 py-2 min-w-0">
+              {icon}
+              <div className="min-w-0">
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-semibold">{label}</p>
+                <p className="text-xs font-bold truncate" style={{ color: "var(--green-heading)" }}>{value}</p>
+              </div>
             </div>
-            <h2 className="text-xl font-bold text-slate-800 tracking-tight">
-              ประวัติการประเมิน
-            </h2>
-          </div>
+          ))}
+        </div>
+      </div>
 
-          {/* Filters */}
-          <div className="space-y-2">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+      {/* ════ Scrollable content glass card ════ */}
+      <div className="flex-1 min-h-0 rounded-2xl overflow-hidden" style={glassCard}>
+        <div className="h-full overflow-y-auto">
+          {/* Header row */}
+          <div className="flex items-center justify-between gap-3 px-4 pt-4 pb-2 flex-wrap">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                <ListChecks className="h-4 w-4 text-primary" />
+              </div>
+              <h2 className="text-sm font-bold" style={{ color: "var(--green-heading)" }}>ประวัติการประเมิน</h2>
+            </div>
+            {/* Filters */}
+            <div className="flex items-center gap-2 flex-wrap">
               <Select value={filterYear} onValueChange={setFilterYear}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="ปี" />
+                <SelectTrigger className="h-8 w-[110px] text-xs">
+                  <SelectValue placeholder="ทุกปี" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">ทุกปี</SelectItem>
@@ -425,13 +390,12 @@ export default function EvaluateeHome() {
                   ))}
                 </SelectContent>
               </Select>
-
               <Select value={filterSelfStatus} onValueChange={setFilterSelfStatus}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="สถานะประเมินตนเอง" />
+                <SelectTrigger className="h-8 w-[150px] text-xs">
+                  <SelectValue placeholder="สถานะตนเอง" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">สถานะประเมินตนเองทั้งหมด</SelectItem>
+                  <SelectItem value="all">สถานะตนเองทั้งหมด</SelectItem>
                   <SelectItem value="none">ยังไม่เริ่ม</SelectItem>
                   <SelectItem value="draft">ร่าง</SelectItem>
                   <SelectItem value="revision">ส่งกลับแก้ไข</SelectItem>
@@ -439,45 +403,30 @@ export default function EvaluateeHome() {
                   <SelectItem value="completed">ประเมินเสร็จสิ้น</SelectItem>
                 </SelectContent>
               </Select>
-
               <Select value={filterCommitteeStatus} onValueChange={setFilterCommitteeStatus}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="h-8 w-[130px] text-xs">
                   <SelectValue placeholder="สถานะกรรมการ" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">สถานะกรรมการทั้งหมด</SelectItem>
+                  <SelectItem value="all">กรรมการทั้งหมด</SelectItem>
                   <SelectItem value="none">ยังไม่ได้ประเมิน</SelectItem>
                   <SelectItem value="done">ประเมินแล้ว</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-
-            <div className="flex items-center justify-between min-h-[28px]">
-              {hasActiveFilters ? (
-                <span className="text-xs text-slate-400">
-                  แสดง {filteredEvaluations.length} จาก {allEvaluations.length} รายการ
-                </span>
-              ) : (
-                <span />
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" onClick={clearFilters}
+                  className="h-8 px-2 text-xs text-muted-foreground gap-1">
+                  <X className="h-3 w-3" /> ล้าง
+                  {hasActiveFilters && <span className="text-muted-foreground/60">({filteredEvaluations.length}/{allEvaluations.length})</span>}
+                </Button>
               )}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearFilters}
-                disabled={!hasActiveFilters}
-                className="h-7 px-2 text-xs text-slate-500 gap-1 disabled:opacity-30"
-              >
-                <X className="h-3 w-3" />
-                ล้างตัวกรอง
-              </Button>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-100 bg-white overflow-hidden shadow-sm">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-slate-50/50 hover:bg-slate-50/50 border-b border-slate-100">
+          <div className="overflow-x-auto px-1">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/30 hover:bg-muted/30 border-b border-border/50">
                     <TableHead className="text-center min-w-[140px] text-slate-400 font-bold uppercase text-[10px] tracking-[0.1em]">
                       ชื่อหน่วยงาน
                     </TableHead>
@@ -487,22 +436,22 @@ export default function EvaluateeHome() {
                     <TableHead className="text-center min-w-[80px] text-slate-400 font-bold uppercase text-[10px] tracking-[0.1em]">
                       ปี
                     </TableHead>
-                    <TableHead className="text-center min-w-[130px] text-slate-400 font-bold uppercase text-[10px] tracking-[0.1em]">
+                    <TableHead className="text-center min-w-[130px] text-muted-foreground font-bold uppercase text-[10px] tracking-[0.1em]">
                       ประเภทเอกสาร
                     </TableHead>
-                    <TableHead className="text-center min-w-[140px] text-slate-400 font-bold uppercase text-[10px] tracking-[0.1em]">
+                    <TableHead className="text-center min-w-[140px] text-muted-foreground font-bold uppercase text-[10px] tracking-[0.1em]">
                       สถานะการประเมินตนเอง
                     </TableHead>
-                    <TableHead className="text-center min-w-[100px] text-slate-400 font-bold uppercase text-[10px] tracking-[0.1em]">
+                    <TableHead className="text-center min-w-[100px] text-muted-foreground font-bold uppercase text-[10px] tracking-[0.1em]">
                       คะแนนรวม
                     </TableHead>
-                    <TableHead className="text-center min-w-[140px] text-slate-400 font-bold uppercase text-[10px] tracking-[0.1em]">
+                    <TableHead className="text-center min-w-[140px] text-muted-foreground font-bold uppercase text-[10px] tracking-[0.1em]">
                       สถานะการประเมินกรรมการ
                     </TableHead>
-                    <TableHead className="text-center min-w-[100px] text-slate-400 font-bold uppercase text-[10px] tracking-[0.1em]">
+                    <TableHead className="text-center min-w-[100px] text-muted-foreground font-bold uppercase text-[10px] tracking-[0.1em]">
                       คะแนนรวมกรรมการ
                     </TableHead>
-                    <TableHead className="text-center w-28 text-slate-400 font-bold uppercase text-[10px] tracking-[0.1em]">
+                    <TableHead className="text-center w-28 text-muted-foreground font-bold uppercase text-[10px] tracking-[0.1em]">
                       จัดการ
                     </TableHead>
                   </TableRow>
@@ -510,59 +459,37 @@ export default function EvaluateeHome() {
                 <TableBody>
                   {filteredEvaluations.length === 0 ? (
                     <TableRow>
-                      <TableCell
-                        colSpan={9}
-                        className="text-center py-10 text-slate-400"
-                      >
+                      <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
                         {allEvaluations.length === 0 ? "ไม่มีข้อมูลประวัติการประเมิน" : "ไม่พบรายการที่ตรงกับตัวกรอง"}
                       </TableCell>
                     </TableRow>
                   ) : (
                     filteredEvaluations.map((item: any) => (
-                      <TableRow
-                        key={item.id}
-                        className="hover:bg-slate-50/50 transition-colors border-b border-slate-50 last:border-0 group"
-                      >
-                        <TableCell className="text-center font-medium">
-                          {item.user_name}
-                        </TableCell>
-                        <TableCell className="text-center font-medium">
-                          {item.program_name}
-                        </TableCell>
-                        <TableCell className="text-center font-medium">
-                          {item.year ? item.year + 543 : "-"}
-                        </TableCell>
+                      <TableRow key={item.id} className="hover:bg-muted/20 transition-colors border-b border-border/30 last:border-0 group">
+                        <TableCell className="text-center font-medium">{item.user_name}</TableCell>
+                        <TableCell className="text-center font-medium">{item.program_name}</TableCell>
+                        <TableCell className="text-center font-medium">{item.year ? item.year + 543 : "-"}</TableCell>
                         <TableCell className="text-center">
                           {(() => {
                             const typeKey = item.evaluation_type ?? "new";
                             const cfg = EVAL_TYPE_CONFIG[typeKey];
-                            if (!cfg) return <span className="text-slate-400 text-xs">{typeKey}</span>;
+                            if (!cfg) return <span className="text-muted-foreground text-xs">{typeKey}</span>;
                             return (
                               <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${cfg.className}`}>
-                                {cfg.icon}
-                                {cfg.label}
+                                {cfg.icon}{cfg.label}
                               </span>
                             );
                           })()}
                         </TableCell>
-                        <TableCell className="text-center">
-                          {getStatusBadge(item.evaluation_status)}
-                        </TableCell>
-                        <TableCell className="text-center font-bold text-slate-600">
-                          {item.total_score !== null
-                            ? `${item.total_score}/${item.max_self_score}`
-                            : "-"}
+                        <TableCell className="text-center">{getStatusBadge(item.evaluation_status)}</TableCell>
+                        <TableCell className="text-center font-bold text-foreground">
+                          {item.total_score !== null ? `${item.total_score}/${item.max_self_score}` : "-"}
                         </TableCell>
                         <TableCell className="text-center">
-                          {getCommitteeBadge(
-                            !!item.total_committee_score ||
-                              item.has_committee_score,
-                          )}
+                          {getCommitteeBadge(!!item.total_committee_score || item.has_committee_score)}
                         </TableCell>
-                        <TableCell className="text-center font-bold text-slate-600">
-                          {item.total_committee_score !== null
-                            ? `${item.total_committee_score}/${item.max_committee_score}`
-                            : "-"}
+                        <TableCell className="text-center font-bold text-foreground">
+                          {item.total_committee_score !== null ? `${item.total_committee_score}/${item.max_committee_score}` : "-"}
                         </TableCell>
                         <TableCell className="text-center">
                           {(() => {
@@ -655,8 +582,7 @@ export default function EvaluateeHome() {
               </Table>
             </div>
           </div>
-        </section>
-      </div>
+        </div>
 
       <AlertActionPopup
         open={!!deleteTargetId}
@@ -680,27 +606,3 @@ export default function EvaluateeHome() {
   );
 }
 
-// ─── Small helpers ────────────────────────────────────────────────────────────
-function InfoTile({
-  icon,
-  label,
-  children,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50/50 transition-colors group">
-      <div className="shrink-0 p-1.5 rounded-lg bg-slate-50 border border-slate-100 group-hover:bg-white transition-all">
-        {icon}
-      </div>
-      <div className="flex flex-col min-w-0 overflow-hidden">
-        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-tight">
-          {label}
-        </p>
-        <div className="flex flex-col">{children}</div>
-      </div>
-    </div>
-  );
-}
