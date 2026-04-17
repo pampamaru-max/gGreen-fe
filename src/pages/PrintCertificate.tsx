@@ -4,6 +4,27 @@ import apiClient from "@/lib/axios";
 import { Loader2, Printer, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+interface Template {
+  id: number;
+  title: string;
+  subtitle: string;
+  bodyText: string;
+  footerText: string;
+  signerName: string;
+  signerTitle: string;
+  bgImageUrl: string | null;
+  logoUrl: string | null;
+  primaryColor: string;
+  orientation?: string;
+  layout?: any[];
+}
+
+interface ScoringLevel {
+  name: string;
+  color: string;
+  template: Template | null;
+}
+
 interface CertificateData {
   evaluationId: string;
   year: number;
@@ -13,24 +34,8 @@ interface CertificateData {
   result: {
     totalScore: number;
     totalMaxScore: number;
-    scoringLevel: {
-      name: string;
-      color: string;
-      template: {
-        id: number;
-        title: string;
-        subtitle: string;
-        bodyText: string;
-        footerText: string;
-        signerName: string;
-        signerTitle: string;
-        bgImageUrl: string | null;
-        logoUrl: string | null;
-        primaryColor: string;
-        orientation?: string;
-        layout?: any[];
-      } | null;
-    } | null;
+    normalLevel: ScoringLevel | null;
+    specialLevel: ScoringLevel | null;
   } | null;
 }
 
@@ -59,7 +64,7 @@ export default function PrintCertificate() {
     );
   }
 
-  if (error || !data || !data.result?.scoringLevel) {
+  if (error || !data || !data.result?.normalLevel) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-4 p-4 text-center">
         <div className="bg-amber-50 text-amber-600 p-8 rounded-3xl border border-amber-100 max-w-xl shadow-sm">
@@ -79,7 +84,7 @@ export default function PrintCertificate() {
     );
   }
 
-  const scoringLevel = data.result.scoringLevel;
+  const scoringLevel = data.result.specialLevel ?? data.result.normalLevel;
   const levelName = scoringLevel.name;
   
   // Use template from DB or fallback to default

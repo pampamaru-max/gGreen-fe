@@ -5,7 +5,7 @@ type LoadingProps = {
   message?: string;
 };
 
-export function LoadingOverlay({ visible, message }: LoadingProps) {
+export default function LoadingOverlay({ visible, message }: LoadingProps) {
   if (!visible) return null;
 
   return (

@@ -370,7 +370,7 @@ export default function ProjectRegistrationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-hidden p-0 flex flex-col">
+      <DialogContent className="sm:max-w-[1100px] max-h-[90vh] overflow-hidden p-0 flex flex-col">
         <div className="px-6 pt-6 pb-3 flex-shrink-0">
           <DialogHeader>
             <div className="flex items-center gap-3 mb-1">

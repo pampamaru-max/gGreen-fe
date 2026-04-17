@@ -514,7 +514,7 @@ export default function EvaluateeHome() {
                                       navigate(`/register/evaluate`);
                                     } else {
                                       navigate(
-                                        `/register/evaluate?filter=evaluated&id=${item.id}`,
+                                        `/register/evaluate?id=${item.id}`,
                                       );
                                     }
                                   }}
