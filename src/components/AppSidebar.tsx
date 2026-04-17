@@ -203,13 +203,13 @@ export function AppSidebar({ fontSize, setFontSize }: AppSidebarProps) {
                 <button
                   onClick={() => setFontSize(Math.min(fontSize + 1, FONT_SIZE_MAX))}
                   disabled={fontSize >= FONT_SIZE_MAX}
-                  className="w-full flex items-center justify-center py-0.5 rounded text-[10px] font-bold text-primary hover:bg-primary/10 disabled:opacity-30 transition-all"
+                  className="w-full flex items-center justify-center py-0.5 rounded text-sm font-bold text-primary hover:bg-primary/10 disabled:opacity-30 transition-all"
                 >▲</button>
-                <span className="text-[9px] font-mono text-primary font-bold">{fontSize}</span>
+                <span className="text-sm font-mono text-primary font-bold">{fontSize}</span>
                 <button
                   onClick={() => setFontSize(Math.max(fontSize - 1, FONT_SIZE_MIN))}
                   disabled={fontSize <= FONT_SIZE_MIN}
-                  className="w-full flex items-center justify-center py-0.5 rounded text-[10px] font-bold text-muted-foreground hover:bg-muted/50 disabled:opacity-30 transition-all"
+                  className="w-full flex items-center justify-center py-0.5 rounded text-sm font-bold text-muted-foreground hover:bg-muted/50 disabled:opacity-30 transition-all"
                 >▼</button>
               </div>
             ) : (

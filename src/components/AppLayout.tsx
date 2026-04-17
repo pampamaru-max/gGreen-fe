@@ -64,13 +64,18 @@ export function AppLayout() {
       <img
         src={isDark ? nightBg : natureBg}
         alt=""
-        className="fixed inset-0 w-full h-full object-cover pointer-events-none select-none transition-opacity duration-500"
-        style={{ zIndex: 0, filter: isDark ? "brightness(0.6) saturate(0.8)" : "brightness(1.05) saturate(1.3)" }}
+        className="fixed inset-0 w-full object-cover pointer-events-none select-none transition-opacity duration-500"
+        style={{
+          zIndex: 0,
+          height: "100%",
+          minHeight: "100dvh",
+          filter: isDark ? "brightness(0.6) saturate(0.8)" : "brightness(1.05) saturate(1.3)",
+        }}
       />
-      <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0, background: isDark ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.1)" }} />
+      <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0, minHeight: "100dvh", background: isDark ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.1)" }} />
       <FirefliesLayer />
 
-      <div className="relative h-screen flex w-full overflow-hidden" style={{ zIndex: 2 }}>
+      <div className="relative flex w-full overflow-hidden" style={{ zIndex: 2, height: "100dvh" }}>
         <AppSidebar fontSize={fontSize} setFontSize={setFontSize} />
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
           {/* Header */}
@@ -166,7 +171,7 @@ export function AppLayout() {
       </div>
 
       {/* Bottom nav สำหรับ mobile */}
-      <MobileBottomNav />
+      <MobileBottomNav fontSize={fontSize} setFontSize={setFontSize} />
     </SidebarProvider>
   );
 }

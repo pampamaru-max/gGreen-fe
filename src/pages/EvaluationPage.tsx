@@ -148,53 +148,53 @@ const EvaluationPage = () => {
   } as React.CSSProperties;
 
   return (
-    <div className="h-full flex flex-col gap-3 p-4">
+    <div className="h-full flex flex-col gap-3 p-3 sm:p-4">
 
-      {/* Header — frozen */}
-      <div className="px-6 py-4 rounded-2xl shrink-0" style={glass}>
+      {/* Header */}
+      <div className="px-4 py-3 rounded-2xl shrink-0" style={glass}>
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ background: "#3a7d2c" }}>
-            <ClipboardCheck className="h-5 w-5 text-white" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg shrink-0" style={{ background: "#3a7d2c" }}>
+            <ClipboardCheck className="h-4 w-4 text-white" />
           </div>
           <div>
-            <h2 className="text-lg font-bold" style={{ color: "var(--green-heading)" }}>ประเมิน G-Green</h2>
-            <p className="text-xs" style={{ color: "var(--green-muted)" }}>รายการหน่วยงานที่ผ่านการคัดเลือกเข้าร่วมโครงการ</p>
+            <h2 className="text-sm font-bold" style={{ color: "var(--green-heading)" }}>ประเมิน G-Green</h2>
+            <p className="text-xs hidden sm:block" style={{ color: "var(--green-muted)" }}>รายการหน่วยงานที่ผ่านการคัดเลือกเข้าร่วมโครงการ</p>
           </div>
         </div>
       </div>
 
-      {/* Filters — frozen */}
-      <div className="px-5 py-3 rounded-2xl shrink-0" style={glass}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-          <div className="relative">
+      {/* Filters */}
+      <div className="px-4 py-3 rounded-2xl shrink-0" style={glass}>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+          <div className="relative col-span-2 sm:col-span-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="ค้นหาชื่อหน่วยงาน..." value={searchOrg} onChange={(e) => setSearchOrg(e.target.value)} className="pl-9 bg-white/60 border-white/50" />
+            <Input placeholder="ค้นหาชื่อหน่วยงาน..." value={searchOrg} onChange={(e) => setSearchOrg(e.target.value)} className="pl-9 h-9 text-sm bg-white/60 border-white/50" />
           </div>
           <Select value={filterProgram} onValueChange={setFilterProgram}>
-            <SelectTrigger className="bg-white/60 border-white/50"><SelectValue placeholder="โครงการ" /></SelectTrigger>
+            <SelectTrigger className="h-9 text-xs bg-white/60 border-white/50"><SelectValue placeholder="โครงการ" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">โครงการทั้งหมด</SelectItem>
               {programOptions.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={filterProvince} onValueChange={setFilterProvince}>
-            <SelectTrigger className="bg-white/60 border-white/50"><SelectValue placeholder="จังหวัด" /></SelectTrigger>
+            <SelectTrigger className="h-9 text-xs bg-white/60 border-white/50"><SelectValue placeholder="จังหวัด" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">จังหวัดทั้งหมด</SelectItem>
               {provinceOptions.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={filterSelfStatus} onValueChange={setFilterSelfStatus}>
-            <SelectTrigger className="bg-white/60 border-white/50"><SelectValue placeholder="สถานะประเมินตนเอง" /></SelectTrigger>
+            <SelectTrigger className="h-9 text-xs bg-white/60 border-white/50"><SelectValue placeholder="สถานะตนเอง" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">สถานะประเมินตนเองทั้งหมด</SelectItem>
+              <SelectItem value="all">สถานะตนเองทั้งหมด</SelectItem>
               <SelectItem value="none">ยังไม่ประเมิน</SelectItem>
               <SelectItem value="draft">ร่าง</SelectItem>
               <SelectItem value="completed">ประเมินแล้ว</SelectItem>
             </SelectContent>
           </Select>
           <Select value={filterCommitteeStatus} onValueChange={setFilterCommitteeStatus}>
-            <SelectTrigger className="bg-white/60 border-white/50"><SelectValue placeholder="สถานะกรรมการ" /></SelectTrigger>
+            <SelectTrigger className="h-9 text-xs bg-white/60 border-white/50"><SelectValue placeholder="สถานะกรรมการ" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">สถานะกรรมการทั้งหมด</SelectItem>
               <SelectItem value="none">ยังไม่ประเมิน</SelectItem>
@@ -204,15 +204,15 @@ const EvaluationPage = () => {
         </div>
         {hasActiveFilters && (
           <div className="flex items-center gap-2 mt-2">
-            <span className="text-sm" style={{ color: "var(--green-muted)" }}>แสดง {filteredRows.length} จาก {rows.length} รายการ</span>
+            <span className="text-xs" style={{ color: "var(--green-muted)" }}>แสดง {filteredRows.length} / {rows.length} รายการ</span>
             <Button variant="ghost" size="sm" onClick={clearFilters} className="h-7 px-2 text-xs">
-              <X className="h-3 w-3 mr-1" />ล้างตัวกรอง
+              <X className="h-3 w-3 mr-1" />ล้าง
             </Button>
           </div>
         )}
       </div>
 
-      {/* Table — scrollable */}
+      {/* Content — scrollable */}
       <div className="flex-1 min-h-0 rounded-2xl overflow-hidden" style={glass}>
         {filteredRows.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full">
@@ -224,7 +224,86 @@ const EvaluationPage = () => {
           </div>
         ) : (
           <div className="h-full overflow-auto">
-            <Table>
+            {/* ── Mobile cards (< md) ── */}
+            <div className="md:hidden p-3 space-y-2">
+              {filteredRows.map((row, idx) => (
+                <div key={row.evaluation_id} className="rounded-xl border border-border/50 bg-background/60 p-3 space-y-2">
+                  {/* Row 1: index + org + year */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2 min-w-0">
+                      <span className="text-[10px] text-muted-foreground font-mono mt-0.5 shrink-0">#{idx + 1}</span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold truncate" style={{ color: "var(--green-heading)" }}>{row.user_name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{row.program_name}</p>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-xs font-semibold text-muted-foreground">{(row as any).year ? (row as any).year + 543 : "-"}</p>
+                      <p className="text-[10px] text-muted-foreground">{row.province}</p>
+                    </div>
+                  </div>
+
+                  {/* Row 2: statuses */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] text-muted-foreground">ตนเอง:</span>
+                      {getSelfAssessmentBadge(row.self_status, row.has_self_score)}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] text-muted-foreground">กรรมการ:</span>
+                      {getCommitteeBadge(row.has_committee_score)}
+                    </div>
+                  </div>
+
+                  {/* Row 3: scores */}
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5">
+                      <p className="text-[10px] text-muted-foreground">คะแนนตนเอง</p>
+                      <p className="text-sm font-bold" style={{ color: "var(--green-heading)" }}>
+                        {row.self_total_score != null
+                          ? <>{row.self_total_score}{row.self_max_score != null && <span className="text-muted-foreground font-normal">/{row.self_max_score}</span>}</>
+                          : "-"}
+                      </p>
+                    </div>
+                    <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5">
+                      <p className="text-[10px] text-muted-foreground">คะแนนกรรมการ</p>
+                      <p className="text-sm font-bold" style={{ color: "#2d7a1b" }}>
+                        {row.committee_total_score != null
+                          ? <>{row.committee_total_score}{row.total_max != null && <span className="text-muted-foreground font-normal">/{row.total_max}</span>}</>
+                          : "-"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Row 4: actions */}
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm"
+                      onClick={() => navigate(`/evaluation/${row.program_id}?evaluationId=${row.evaluation_id}`)}
+                      className="flex-1 h-9 gap-1.5 text-xs font-semibold rounded-xl border-primary/20 bg-primary/5 text-primary hover:bg-primary/10">
+                      {row.self_status === "completed" ? <Eye className="h-3.5 w-3.5" /> : row.evaluation_id ? <Pencil className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                      {row.self_status === "completed" ? "ดูผล" : row.evaluation_id ? "แก้ไข" : "เพิ่ม"}
+                    </Button>
+                    {row.has_committee_score && (
+                      <Button variant="outline" size="icon"
+                        onClick={() => navigate(`/evaluation/${row.program_id}/summary?evaluationId=${row.evaluation_id}`)}
+                        className="h-9 w-9 rounded-xl border-green-200 bg-green-50/50 text-green-600 hover:bg-green-100 shrink-0">
+                        <BarChart2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {row.has_committee_score && row.evaluation_id && (
+                      <Button variant="outline" size="icon"
+                        onClick={() => window.open(`/certificate/print/${row.evaluation_id}`, "_blank")}
+                        className="h-9 w-9 rounded-xl border-amber-200 bg-amber-50/50 text-amber-600 hover:bg-amber-100 shrink-0">
+                        <Printer className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* ── Desktop table (≥ md) ── */}
+            <Table className="hidden md:table">
               <TableHeader className="sticky top-0 z-10" style={{ background: "rgba(220,245,220,0.90)", backdropFilter: "blur(8px)" }}>
                 <TableRow>
                   <TableHead className="w-12 text-center">#</TableHead>
@@ -233,9 +312,9 @@ const EvaluationPage = () => {
                   <TableHead className="text-center w-20">ปี พ.ศ.</TableHead>
                   <TableHead>จังหวัด</TableHead>
                   <TableHead className="text-center">สถานะประเมินตนเอง</TableHead>
-                  <TableHead className="text-center">สถานะกรรมการประเมิน</TableHead>
-                  <TableHead className="text-center w-28">คะแนนรวมตนเอง</TableHead>
-                  <TableHead className="text-center w-28">คะแนนรวมกรรมการ</TableHead>
+                  <TableHead className="text-center">สถานะกรรมการ</TableHead>
+                  <TableHead className="text-center w-28">คะแนนตนเอง</TableHead>
+                  <TableHead className="text-center w-28">คะแนนกรรมการ</TableHead>
                   <TableHead className="text-center w-24">สรุปผล</TableHead>
                   <TableHead className="text-center w-20">จัดการ</TableHead>
                 </TableRow>
@@ -262,7 +341,7 @@ const EvaluationPage = () => {
                     </TableCell>
                     <TableCell className="text-center">
                       {row.has_committee_score && (
-                        <Button variant="ghost" size="icon" onClick={() => navigate(`/evaluation/${row.program_id}/summary?evaluationId=${row.evaluation_id}`)} title="ดูสรุปผลการประเมิน">
+                        <Button variant="ghost" size="icon" onClick={() => navigate(`/evaluation/${row.program_id}/summary?evaluationId=${row.evaluation_id}`)} title="ดูสรุปผล">
                           <BarChart2 className="h-4 w-4 text-green-600" />
                         </Button>
                       )}
@@ -270,7 +349,7 @@ const EvaluationPage = () => {
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center gap-1">
                         <Button variant="ghost" size="icon" onClick={() => navigate(`/evaluation/${row.program_id}?evaluationId=${row.evaluation_id}`)}
-                          title={row.self_status === "completed" ? "ดูผลการประเมิน" : row.evaluation_id ? "แก้ไขการประเมิน" : "เพิ่มการประเมิน"} className="edit-button">
+                          title={row.self_status === "completed" ? "ดูผลการประเมิน" : row.evaluation_id ? "แก้ไขการประเมิน" : "เพิ่มการประเมิน"}>
                           {row.self_status === "completed" ? <Eye className="h-4 w-4 text-muted-foreground" />
                             : row.evaluation_id ? <Pencil className="h-4 w-4 text-primary" />
                             : <Plus className="h-4 w-4 text-primary" />}
