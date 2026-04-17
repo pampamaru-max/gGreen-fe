@@ -80,6 +80,7 @@ export default function EvaluateeHome() {
 
   // Filter states
   const [filterYear, setFilterYear] = useState<string>("all");
+  const [filterEvalType, setFilterEvalType] = useState<string>("all");
   const [filterSelfStatus, setFilterSelfStatus] = useState<string>("all");
   const [filterCommitteeStatus, setFilterCommitteeStatus] = useState<string>("all");
 
@@ -182,6 +183,7 @@ export default function EvaluateeHome() {
         if (filterSelfStatus === "submitted" && s !== "submitted" && s !== "submit") return false;
         if (filterSelfStatus === "completed" && s !== "completed" && s !== "complete") return false;
       }
+      if (filterEvalType !== "all" && item.evaluation_type !== filterEvalType) return false;
       if (filterCommitteeStatus !== "all") {
         const hasScore = !!item.total_committee_score || item.has_committee_score;
         if (filterCommitteeStatus === "done" && !hasScore) return false;
@@ -189,12 +191,13 @@ export default function EvaluateeHome() {
       }
       return true;
     });
-  }, [allEvaluations, filterYear, filterSelfStatus, filterCommitteeStatus]);
+  }, [allEvaluations, filterYear, filterEvalType, filterSelfStatus, filterCommitteeStatus]);
 
-  const hasActiveFilters = filterYear !== "all" || filterSelfStatus !== "all" || filterCommitteeStatus !== "all";
+  const hasActiveFilters = filterYear !== "all" || filterEvalType !== "all" || filterSelfStatus !== "all" || filterCommitteeStatus !== "all";
 
   const clearFilters = () => {
     setFilterYear("all");
+    setFilterEvalType("all");
     setFilterSelfStatus("all");
     setFilterCommitteeStatus("all");
   };
@@ -329,11 +332,11 @@ export default function EvaluateeHome() {
               <h2 className="text-sm font-bold truncate" style={{ color: "var(--green-heading)" }}>
                 {reg?.organizationName ?? user?.name ?? "-"}
               </h2>
-              <Badge className="bg-primary hover:bg-primary/90 text-primary-foreground border-none px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0">
+              <Badge className="bg-primary hover:bg-primary/90 text-primary-foreground border-none px-2 py-0.5 rounded-full text-[0.625rem] font-bold shrink-0">
                 {regStatus.label}
               </Badge>
             </div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
+            <p className="text-[0.625rem] text-muted-foreground uppercase tracking-widest">
               {reg?.organizationType || "General Organization"}
             </p>
           </div>
@@ -358,7 +361,7 @@ export default function EvaluateeHome() {
             <div key={label} className="flex items-center gap-2 bg-muted/30 rounded-xl px-3 py-2 min-w-0">
               {icon}
               <div className="min-w-0">
-                <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-semibold">{label}</p>
+                <p className="text-[0.5625rem] text-muted-foreground uppercase tracking-wider font-semibold">{label}</p>
                 <p className="text-xs font-bold truncate" style={{ color: "var(--green-heading)" }}>{value}</p>
               </div>
             </div>
@@ -387,6 +390,17 @@ export default function EvaluateeHome() {
                   <SelectItem value="all">ทุกปี</SelectItem>
                   {yearOptions.map((y: any) => (
                     <SelectItem key={y} value={String(y)}>{y + 543}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filterEvalType} onValueChange={setFilterEvalType}>
+                <SelectTrigger className="h-8 w-[150px] text-xs">
+                  <SelectValue placeholder="ประเภทเอกสาร" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">ประเภทเอกสารทั้งหมด</SelectItem>
+                  {Object.entries(EVAL_TYPE_CONFIG).map(([key, cfg]) => (
+                    <SelectItem key={key} value={key}>{cfg.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -427,31 +441,31 @@ export default function EvaluateeHome() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/30 hover:bg-muted/30 border-b border-border/50">
-                    <TableHead className="text-center min-w-[140px] text-slate-400 font-bold uppercase text-[10px] tracking-[0.1em]">
+                    <TableHead className="text-center min-w-[140px] text-slate-400 font-bold uppercase text-[0.625rem] tracking-[0.1em]">
                       ชื่อหน่วยงาน
                     </TableHead>
-                    <TableHead className="text-center min-w-[140px] text-slate-400 font-bold uppercase text-[10px] tracking-[0.1em]">
+                    <TableHead className="text-center min-w-[140px] text-slate-400 font-bold uppercase text-[0.625rem] tracking-[0.1em]">
                       โครงการ
                     </TableHead>
-                    <TableHead className="text-center min-w-[80px] text-slate-400 font-bold uppercase text-[10px] tracking-[0.1em]">
+                    <TableHead className="text-center min-w-[80px] text-slate-400 font-bold uppercase text-[0.625rem] tracking-[0.1em]">
                       ปี
                     </TableHead>
-                    <TableHead className="text-center min-w-[130px] text-muted-foreground font-bold uppercase text-[10px] tracking-[0.1em]">
+                    <TableHead className="text-center min-w-[130px] text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">
                       ประเภทเอกสาร
                     </TableHead>
-                    <TableHead className="text-center min-w-[140px] text-muted-foreground font-bold uppercase text-[10px] tracking-[0.1em]">
+                    <TableHead className="text-center min-w-[140px] text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">
                       สถานะการประเมินตนเอง
                     </TableHead>
-                    <TableHead className="text-center min-w-[100px] text-muted-foreground font-bold uppercase text-[10px] tracking-[0.1em]">
+                    <TableHead className="text-center min-w-[100px] text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">
                       คะแนนรวม
                     </TableHead>
-                    <TableHead className="text-center min-w-[140px] text-muted-foreground font-bold uppercase text-[10px] tracking-[0.1em]">
+                    <TableHead className="text-center min-w-[140px] text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">
                       สถานะการประเมินกรรมการ
                     </TableHead>
-                    <TableHead className="text-center min-w-[100px] text-muted-foreground font-bold uppercase text-[10px] tracking-[0.1em]">
+                    <TableHead className="text-center min-w-[100px] text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">
                       คะแนนรวมกรรมการ
                     </TableHead>
-                    <TableHead className="text-center w-28 text-muted-foreground font-bold uppercase text-[10px] tracking-[0.1em]">
+                    <TableHead className="text-center w-28 text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">
                       จัดการ
                     </TableHead>
                   </TableRow>
@@ -475,7 +489,7 @@ export default function EvaluateeHome() {
                             const cfg = EVAL_TYPE_CONFIG[typeKey];
                             if (!cfg) return <span className="text-muted-foreground text-xs">{typeKey}</span>;
                             return (
-                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${cfg.className}`}>
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.6875rem] font-semibold border ${cfg.className}`}>
                                 {cfg.icon}{cfg.label}
                               </span>
                             );
