@@ -5,9 +5,9 @@ import {
   RefreshCw,
   TrendingUp,
   Loader2,
-  Calendar,
   ArrowLeft,
   AlertCircle,
+  ChevronDown,
 } from "lucide-react";
 import {
   Dialog,
@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/dialog";
 // import apiClient from "@/lib/axios"; // TODO: ใช้เมื่อเปิด eligibility check กลับมา
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 // TODO: ใช้ interface นี้เมื่อเปิด eligibility check กลับมา
 interface Eligibility {
@@ -52,6 +51,80 @@ interface TypeOption {
     text: string;
     shadow: string;
   };
+}
+
+function YearPickerStep({
+  years,
+  currentYear,
+  selectedYear,
+  setSelectedYear,
+  usedYears,
+  onConfirm,
+}: {
+  years: number[];
+  currentYear: number;
+  selectedYear: number | null;
+  setSelectedYear: (y: number | null) => void;
+  usedYears: number[];
+  onConfirm: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="flex flex-col gap-3 py-2">
+      <p className="text-sm text-slate-500 dark:text-slate-400">
+        กรุณาเลือกปีงบประมาณที่ต้องการประเมิน
+      </p>
+
+      {usedYears.length > 0 && (
+        <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800/40 px-3 py-2.5">
+          <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+          <p className="text-xs text-red-600 dark:text-red-400 leading-relaxed">
+            <span className="font-bold">ไม่สามารถเลือกปีที่มีใบประเมินอยู่แล้วได้</span>
+            <br />
+            ปีที่ถูกใช้แล้ว: {usedYears.map((y) => `พ.ศ. ${y + 543}`).join(", ")}
+          </p>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-3">
+        {/* Custom dropdown — renders inline, no portal */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          >
+            <span className={selectedYear ? "text-foreground" : "text-muted-foreground"}>
+              {selectedYear ? `ปี ${selectedYear + 543}${selectedYear === currentYear ? " (ปีปัจจุบัน)" : ""}` : "เลือกปี"}
+            </span>
+            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+          </button>
+
+          {open && (
+            <div className="absolute bottom-full mb-1 left-0 right-0 z-10 max-h-52 overflow-y-auto rounded-md border bg-popover shadow-md">
+              {years.map((y) => (
+                <button
+                  key={y}
+                  type="button"
+                  onClick={() => { setSelectedYear(y); setOpen(false); }}
+                  className={`flex w-full items-center px-3 py-2 text-sm text-left transition-colors hover:bg-accent hover:text-accent-foreground ${
+                    selectedYear === y ? "bg-primary text-primary-foreground font-semibold" : "text-foreground"
+                  }`}
+                >
+                  ปี {y + 543} {y === currentYear ? "(ปีปัจจุบัน)" : ""}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <Button disabled={!selectedYear} onClick={onConfirm}>
+          ยืนยัน
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 export default function EvaluationTypeDialog({
@@ -170,7 +243,7 @@ export default function EvaluationTypeDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="w-[calc(100%-2rem)] max-w-md p-4 sm:p-6 overflow-hidden">
+      <DialogContent className="w-[calc(100%-2rem)] max-w-md p-4 sm:p-6">
         <DialogHeader>
           <div className="flex items-center gap-2">
             {step === "year" && (
@@ -233,45 +306,17 @@ export default function EvaluationTypeDialog({
             ))}
           </div>
         ) : (
-          <div className="flex flex-col gap-3 py-2">
-            <p className="text-sm text-slate-500">
-              กรุณาเลือกปีงบประมาณที่ต้องการประเมิน
-            </p>
-            {usedYears.length > 0 && (
-              <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5">
-                <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
-                <p className="text-xs text-red-600 leading-relaxed">
-                  <span className="font-bold">ไม่สามารถเลือกปีที่มีใบประเมินอยู่แล้วได้</span>
-                  <br />
-                  ปีที่ถูกใช้แล้ว: {usedYears.map((y) => `พ.ศ. ${y + 543}`).join(", ")}
-                </p>
-              </div>
-            )}
-            <div className="flex flex-col gap-3">
-              <Select onValueChange={(val) => setSelectedYear(Number(val))}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="เลือกปี" />
-                </SelectTrigger>
-                <SelectContent>
-                  {years.map((y) => (
-                    <SelectItem key={y} value={String(y)}>
-                      ปี {y + 543} {y === currentYear ? "(ปีปัจจุบัน)" : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Button
-                disabled={!selectedYear}
-                onClick={() => {
-                  onClose();
-                  navigate(`/register/evaluate?type=${selectedType}&year=${selectedYear}`);
-                }}
-              >
-                ยืนยัน
-              </Button>
-            </div>
-          </div>
+          <YearPickerStep
+            years={years}
+            currentYear={currentYear}
+            selectedYear={selectedYear}
+            setSelectedYear={setSelectedYear}
+            usedYears={usedYears}
+            onConfirm={() => {
+              onClose();
+              navigate(`/register/evaluate?type=${selectedType}&year=${selectedYear}`);
+            }}
+          />
         )}
       </DialogContent>
     </Dialog>
