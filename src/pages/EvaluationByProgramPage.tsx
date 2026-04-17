@@ -4,6 +4,7 @@ import { Category } from "@/data/evaluationData";
 import type { UploadedFile, IndicatorNavItem } from "@/components/evaluation/CategoryCard";
 import { CategoryCard, IndicatorDialog, getCategoryColor } from "@/components/evaluation/CategoryCard";
 import { ScoreSummary } from "@/components/evaluation/ScoreSummary";
+import { AnimatedScore } from "@/components/ui/animated-score";
 import { ClipboardCheck, Loader2, ArrowLeft, RotateCcw, CheckCircle2, Clock, FileText, AlertCircle, XCircle, FilePlus, RefreshCw, TrendingUp, ChevronDown, Trophy, Medal, Award, Star } from "lucide-react";
 import { ScoringLevelBadges } from "@/components/self-eval/ScoringLevelBadges";
 import type { ScoringLevel } from "@/pages/ProjectRegistration";
@@ -20,6 +21,8 @@ const EVAL_TYPE_CONFIG: Record<string, { label: string; icon: React.ReactNode; c
   renew:   { label: "ต่ออายุใบประกาศนียบัตร", icon: <RefreshCw  className="h-3 w-3" />, className: "bg-amber-50 text-amber-700 border-amber-200"   },
   upgrade: { label: "ยกระดับคะแนน",           icon: <TrendingUp className="h-3 w-3" />, className: "bg-purple-50 text-purple-700 border-purple-200" },
 };
+
+const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = { Trophy, Medal, Award, Star };
 
 interface EvalCategory extends Category {
   scoreType?: string;
@@ -307,6 +310,21 @@ const EvaluationByProgramPage = () => {
   const displayCommitteePct      = displayMax > 0 ? Math.round((displayCommitteeTotal / displayMax) * 100) : 0;
   const displayUnit               = isYesNoProgram ? "ผ่าน" : "";
 
+  const selfPct = useMemo(() => {
+    if (displayMax === 0) return 0;
+    return Math.round((displaySelfTotal / displayMax) * 100);
+  }, [displaySelfTotal, displayMax]);
+
+  const activeLevel = useMemo(() => {
+    if (scoringLevels.length === 0) return null;
+    return [...scoringLevels].reverse().find(l => selfPct >= l.minScore && selfPct <= l.maxScore);
+  }, [scoringLevels, selfPct]);
+
+  const committeeActiveLevel = useMemo(() => {
+    if (scoringLevels.length === 0 || role === "user") return null;
+    return [...scoringLevels].reverse().find(l => displayCommitteePct >= l.minScore && displayCommitteePct <= l.maxScore);
+  }, [scoringLevels, displayCommitteePct, role]);
+
   // ── Wizard ──────────────────────────────────────────────────────────────────
   const flatIndicators = useMemo(() => {
     const items: Array<{ indicator: Category["topics"][0]["indicators"][0]; colorIndex: number }> = [];
@@ -517,142 +535,161 @@ const EvaluationByProgramPage = () => {
             </div>
           </div>
 
-          {/* Scores */}
-          <div className="flex items-center gap-2 shrink-0">
-            {role !== "user" ? (
-              <>
-                <div className="text-right">
-                  <p className="text-[0.5625rem] font-semibold text-muted-foreground uppercase tracking-wider">ตนเอง</p>
-                  <p className="text-base font-bold text-muted-foreground leading-tight">
+          {/* Scores and Actions */}
+          <div className="flex flex-col items-end gap-2 shrink-0">
+            <div className="flex items-center gap-2">
+              {role !== "user" ? (
+                <>
+                  <div className="flex flex-col items-end">
+                    <p className="text-[0.5625rem] font-semibold text-muted-foreground uppercase tracking-wider">ตนเอง</p>
+                    <p className="text-base font-bold text-muted-foreground leading-tight">
+                      <AnimatedScore value={displaySelfTotal}>
+                        {displaySelfTotal}{displayUnit && <span className="text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}
+                      </AnimatedScore>
+                      <span className="text-xs font-normal text-muted-foreground">/{displayMax}</span>
+                    </p>
+                    {displayMax > 0 && <p className="text-[0.5625rem] text-muted-foreground">{selfPct}%</p>}
+                    
+                    {activeLevel && (
+                      <div className="mt-1">
+                        <div className="score-active-wrap scale-[0.8] origin-right">
+                          <div className="score-sparkles">
+                            <div className="score-sparkle" />
+                            <div className="score-sparkle" />
+                            <div className="score-sparkle" />
+                            <div className="score-sparkle" />
+                            <div className="score-sparkle" />
+                          </div>
+                          {(() => {
+                            const IconComp = ICON_MAP[activeLevel.icon] ?? Trophy;
+                            return (
+                              <div className="score-active-badge inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-white font-bold shrink-0"
+                                style={{ background: `linear-gradient(135deg, ${activeLevel.color}cc 0%, ${activeLevel.color} 100%)`, boxShadow: `0 2px 10px ${activeLevel.color}40` }}>
+                                <IconComp className="score-active-icon h-3.5 w-3.5 shrink-0" />
+                                <span className="text-xs">{activeLevel.name}</span>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="w-px self-stretch bg-border mx-1" />
+                  <div className="flex flex-col items-end">
+                    <p className="text-[0.5625rem] font-semibold text-muted-foreground uppercase tracking-wider">กรรมการ</p>
+                    <p className="text-base font-bold text-primary leading-tight">
+                      <AnimatedScore value={displayCommitteeTotal}>
+                        {displayCommitteeTotal}{displayUnit && <span className="text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}
+                      </AnimatedScore>
+                      <span className="text-xs font-normal text-muted-foreground">/{displayMax}</span>
+                    </p>
+                    {displayMax > 0 && <p className="text-[0.5625rem] text-muted-foreground">{displayCommitteePct}%</p>}
+                    
+                    {committeeActiveLevel && (
+                      <div className="mt-1">
+                        <div className="score-active-wrap scale-[0.8] origin-right">
+                          <div className="score-sparkles">
+                            <div className="score-sparkle" />
+                            <div className="score-sparkle" />
+                            <div className="score-sparkle" />
+                            <div className="score-sparkle" />
+                            <div className="score-sparkle" />
+                          </div>
+                          {(() => {
+                            const IconComp = ICON_MAP[committeeActiveLevel.icon] ?? Trophy;
+                            return (
+                              <div className="score-active-badge inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-white font-bold shrink-0"
+                                style={{ background: `linear-gradient(135deg, ${committeeActiveLevel.color}cc 0%, ${committeeActiveLevel.color} 100%)`, boxShadow: `0 2px 10px ${committeeActiveLevel.color}40` }}>
+                                <IconComp className="score-active-icon h-3.5 w-3.5 shrink-0" />
+                                <span className="text-xs">{committeeActiveLevel.name}</span>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="flex flex-col items-end">
+                  <p className="text-[0.5625rem] font-semibold text-muted-foreground uppercase tracking-wider">คะแนนรวม</p>
+                  <p className="text-base font-bold text-primary leading-tight">
                     {displaySelfTotal}{displayUnit && <span className="text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}
                     <span className="text-xs font-normal text-muted-foreground">/{displayMax}</span>
                   </p>
-                  {displayMax > 0 && <p className="text-[0.5625rem] text-muted-foreground">{Math.round((displaySelfTotal / displayMax) * 100)}%</p>}
+                  {displayMax > 0 && <p className="text-[0.5625rem] text-muted-foreground">{selfPct}%</p>}
+                  
+                  {activeLevel && (
+                    <div className="mt-1">
+                      <div className="score-active-wrap scale-[0.8] origin-right">
+                        <div className="score-sparkles">
+                          <div className="score-sparkle" />
+                          <div className="score-sparkle" />
+                          <div className="score-sparkle" />
+                          <div className="score-sparkle" />
+                          <div className="score-sparkle" />
+                        </div>
+                        {(() => {
+                          const IconComp = ICON_MAP[activeLevel.icon] ?? Trophy;
+                          return (
+                            <div className="score-active-badge inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-white font-bold shrink-0"
+                              style={{ background: `linear-gradient(135deg, ${activeLevel.color}cc 0%, ${activeLevel.color} 100%)`, boxShadow: `0 2px 10px ${activeLevel.color}40` }}>
+                              <IconComp className="score-active-icon h-3.5 w-3.5 shrink-0" />
+                              <span className="text-xs">{activeLevel.name}</span>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="w-px h-7 bg-border" />
-                <div className="text-right">
-                  <p className="text-[0.5625rem] font-semibold text-muted-foreground uppercase tracking-wider">กรรมการ</p>
-                  <p className="text-base font-bold text-primary leading-tight">
-                    {displayCommitteeTotal}{displayUnit && <span className="text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}
-                    <span className="text-xs font-normal text-muted-foreground">/{displayMax}</span>
-                  </p>
-                  {displayMax > 0 && <p className="text-[0.5625rem] text-muted-foreground">{displayCommitteePct}%</p>}
-                </div>
-              </>
-            ) : (
-              <div className="text-right">
-                <p className="text-[0.5625rem] font-semibold text-muted-foreground uppercase tracking-wider">คะแนนรวม</p>
-                <p className="text-base font-bold text-primary leading-tight">
-                  {displaySelfTotal}{displayUnit && <span className="text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}
-                  <span className="text-xs font-normal text-muted-foreground">/{displayMax}</span>
-                </p>
-              </div>
-            )}
-            {role !== "user" && import.meta.env.DEV && !isCompleted && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-1 text-purple-600 border-purple-300 hover:bg-purple-50 text-xs h-8 px-2 shrink-0">
-                    🎲 <ChevronDown className="h-3 w-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-44">
-                  <DropdownMenuItem onClick={() => handleFillMode("full")}>⭐ สุ่มคะแนนเต็ม</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleFillMode("good")}>😊 สุ่มคะแนนดีแต่ไม่เต็ม</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleFillMode("mid")}>😐 สุ่มคะแนนกลางๆ</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleFillMode("bad")}>😕 สุ่มคะแนนแย่ๆ</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => handleFillMode("clear")} className="text-destructive">🗑 ล้างคะแนน</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-            {isCompleted ? (
-              <Button variant="outline" size="sm"
-                onClick={() => navigate(`/evaluation/${programId}/summary?evaluationId=${evaluationId || ""}`)}
-                className="gap-1 text-green-700 border-green-300 bg-green-50 hover:bg-green-100 h-8 px-3 text-xs shrink-0">
-                <CheckCircle2 className="h-3.5 w-3.5" /> ดูสรุป
-              </Button>
-            ) : (
-              role !== "user" && isSubmitted && (
-                <div className="flex items-center gap-1.5">
-                  <Button variant="outline" size="sm" onClick={handleReturn}
-                    disabled={!allCommitteeScored}
-                    title={!allCommitteeScored ? `ยังมีตัวชี้วัดที่ยังไม่ได้ประเมิน ${flatIndicators.filter(({ indicator }) => { const v = committeeScores[indicator.id]; return v === undefined || (indicator.scoreType?.includes('yes_no') && v === -1); }).length} ข้อ` : ""}
-                    className="gap-1 text-amber-600 border-amber-300 hover:bg-amber-50 disabled:opacity-50 h-8 px-2 text-xs shrink-0">
-                    <RotateCcw className="h-3.5 w-3.5" /><span className="hidden sm:inline">ส่งกลับ</span>
-                  </Button>
-                  <Button size="sm" onClick={handleComplete} disabled={!allCommitteeScored}
-                    title={!allCommitteeScored ? `ยังมีตัวชี้วัดที่ยังไม่ได้ประเมิน ${flatIndicators.filter(({ indicator }) => { const v = committeeScores[indicator.id]; return v === undefined || (indicator.scoreType?.includes('yes_no') && v === -1); }).length} ข้อ` : ""}
-                    className="gap-1 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 h-8 px-3 text-xs shrink-0">
-                    <CheckCircle2 className="h-3.5 w-3.5" /><span className="hidden sm:inline">ยืนยันผล</span>
-                  </Button>
-                </div>
-              )
-            )}
+              )}
+            </div>
+            
+            <div className="flex items-center gap-1.5">
+              {role !== "user" && import.meta.env.DEV && !isCompleted && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1 text-purple-600 border-purple-300 hover:bg-purple-50 text-[10px] h-7 px-2 shrink-0">
+                      🎲 <ChevronDown className="h-3 w-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-44">
+                    <DropdownMenuItem onClick={() => handleFillMode("full")}>⭐ สุ่มคะแนนเต็ม</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleFillMode("good")}>😊 สุ่มคะแนนดีแต่ไม่เต็ม</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleFillMode("mid")}>😐 สุ่มคะแนนกลางๆ</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleFillMode("bad")}>😕 สุ่มคะแนนแย่ๆ</DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => handleFillMode("clear")} className="text-destructive">🗑 ล้างคะแนน</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+              {isCompleted ? (
+                <Button variant="outline" size="sm"
+                  onClick={() => navigate(`/evaluation/${programId}/summary?evaluationId=${evaluationId || ""}`)}
+                  className="gap-1 text-green-700 border-green-300 bg-green-50 hover:bg-green-100 h-7 px-3 text-[10px] shrink-0">
+                  <CheckCircle2 className="h-3 w-3" /> ดูสรุป
+                </Button>
+              ) : (
+                role !== "user" && isSubmitted && (
+                  <div className="flex items-center gap-1.5">
+                    <Button variant="outline" size="sm" onClick={handleReturn}
+                      disabled={!allCommitteeScored}
+                      title={!allCommitteeScored ? `ยังมีตัวชี้วัดที่ยังไม่ได้ประเมิน ${flatIndicators.filter(({ indicator }) => { const v = committeeScores[indicator.id]; return v === undefined || (indicator.scoreType?.includes('yes_no') && v === -1); }).length} ข้อ` : ""}
+                      className="gap-1 text-amber-600 border-amber-300 hover:bg-amber-50 disabled:opacity-50 h-7 px-2 text-[10px] shrink-0">
+                      <RotateCcw className="h-3 w-3" /><span className="hidden sm:inline">ส่งกลับ</span>
+                    </Button>
+                    <Button size="sm" onClick={handleComplete} disabled={!allCommitteeScored}
+                      title={!allCommitteeScored ? `ยังมีตัวชี้วัดที่ยังไม่ได้ประเมิน ${flatIndicators.filter(({ indicator }) => { const v = committeeScores[indicator.id]; return v === undefined || (indicator.scoreType?.includes('yes_no') && v === -1); }).length} ข้อ` : ""}
+                      className="gap-1 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 h-7 px-3 text-[10px] shrink-0">
+                      <CheckCircle2 className="h-3 w-3" /><span className="hidden sm:inline">ยืนยันผล</span>
+                    </Button>
+                  </div>
+                )
+              )}
+            </div>
           </div>
         </div>
-
-        {/* Scoring level strip */}
-        {role !== "user" && (scoringLevels.length > 0 || programScoringType === 'yes_no') && (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2.5 pt-2.5 border-t border-border/40">
-            <div className="flex-1 min-w-0">
-              {programScoringType === 'yes_no' ? (
-                (() => {
-                  const allPass = displayMax > 0 && displayCommitteeTotal === displayMax;
-                  const color = allPass ? "#059669" : "#E11D48";
-                  return (
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-white font-bold shrink-0"
-                      style={{ background: `linear-gradient(135deg, ${color}cc 0%, ${color} 100%)`, boxShadow: `0 2px 10px ${color}40` }}>
-                      {allPass ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> : <XCircle className="h-3.5 w-3.5 shrink-0" />}
-                      <span className="text-xs">{allPass ? "สอดคล้อง" : "ไม่สอดคล้อง"}</span>
-                    </div>
-                  );
-                })()
-              ) : (() => {
-                const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = { Trophy, Medal, Award, Star };
-                const pct = displayMax > 0 ? Math.round((displayCommitteeTotal / displayMax) * 100) : 0;
-                const activeLevel = [...scoringLevels].reverse().find(l => pct >= l.minScore && pct <= l.maxScore);
-                const others = scoringLevels.filter(l => l.id !== activeLevel?.id);
-                return (
-                  <div className="flex flex-wrap items-center gap-2">
-                    {activeLevel && (() => {
-                      const IconComp = ICON_MAP[activeLevel.icon] ?? Trophy;
-                      return (
-                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-white font-bold shrink-0"
-                          style={{ background: `linear-gradient(135deg, ${activeLevel.color}cc 0%, ${activeLevel.color} 100%)`, boxShadow: `0 2px 10px ${activeLevel.color}40` }}>
-                          <IconComp className="h-3.5 w-3.5 shrink-0" />
-                          <span className="text-xs">{activeLevel.name}</span>
-                          <span className="text-[0.625rem] font-normal opacity-85">({activeLevel.minScore}–{activeLevel.maxScore}%)</span>
-                        </div>
-                      );
-                    })()}
-                    {others.map(level => {
-                      const IconComp = ICON_MAP[level.icon] ?? Trophy;
-                      return (
-                        <div key={level.id} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.625rem] border"
-                          style={{ borderColor: `${level.color}25`, color: `${level.color}60` }}>
-                          <IconComp className="h-3 w-3 shrink-0" />
-                          <span>{level.name}</span>
-                          <span className="opacity-70">({level.minScore}–{level.maxScore}%)</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
-            </div>
-            {displayMax > 0 && (
-              <div className="shrink-0 text-right">
-                <p className="text-[0.5625rem] text-muted-foreground uppercase tracking-wider font-semibold">
-                  {programScoringType === 'yes_no' ? "วิธีคำนวณ (สอดคล้อง)" : isYesNoProgram ? "วิธีคำนวณ (ผ่าน/ไม่ผ่าน)" : "วิธีคำนวณ (คะแนน)"}
-                </p>
-                {programScoringType === 'yes_no' && <p className="text-[0.5625rem] font-bold text-red-600">*ต้องสอดคล้องครบทุกข้อ</p>}
-                {programScoringType !== 'yes_no' && !isYesNoProgram && grandMax > 0 && (
-                  <p className="text-[0.5625rem] font-bold text-red-600">{grandMax === 100 ? "*คำนวนแบบคะแนนเต็มหมวด" : "*คำนวนแบบคะแนนไม่เต็มหมวด"}</p>
-                )}
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Banner */}
         {currentStatus?.banner && (

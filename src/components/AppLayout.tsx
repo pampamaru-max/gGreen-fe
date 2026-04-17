@@ -91,11 +91,11 @@ export function AppLayout() {
             <HoverCard openDelay={150} closeDelay={100}>
               <HoverCardTrigger asChild>
                 <div className="flex items-center gap-2 cursor-default select-none">
-                  <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center ring-1 ring-primary/20 hover:ring-primary/50 hover:bg-primary/15 transition-all">
-                    <User className="h-3.5 w-3.5 text-primary" />
+                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center ring-1 ring-primary/20 hover:ring-primary/50 hover:bg-primary/15 transition-all">
+                    <User className="h-4 w-4 text-primary" />
                   </div>
-                  <span className="text-xs text-muted-foreground max-w-[120px] sm:max-w-[200px] truncate hidden xs:block">
-                    {me?.name || user?.email || ""}
+                  <span className="text-xs font-semibold text-foreground max-w-[120px] sm:max-w-[200px] truncate">
+                    {me?.name || user?.name || user?.email || ""}
                   </span>
                 </div>
               </HoverCardTrigger>

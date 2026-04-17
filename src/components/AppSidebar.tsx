@@ -278,8 +278,8 @@ export function AppSidebar({ fontSize, setFontSize }: AppSidebarProps) {
                 <div className="h-7 w-7 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(58,125,44,0.15)" }}>
                   <User className="h-3.5 w-3.5" style={{ color: "#3a7d2c" }} />
                 </div>
-                <span className="text-xs font-medium truncate" style={{ color: "var(--green-heading)" }}>
-                  {user?.email ?? ""}
+                <span className="text-xs font-bold truncate" style={{ color: "var(--green-heading)" }}>
+                  {user?.name || user?.email || ""}
                 </span>
               </div>
             </SidebarMenuItem>
