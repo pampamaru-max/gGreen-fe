@@ -4,7 +4,7 @@ import {
   ClipboardCheck, Loader2, CheckCircle2, ArrowLeft,
   Clock, FileText, AlertCircle, XCircle, RotateCcw,
   FilePlus, RefreshCw, TrendingUp,
-  Trophy, Medal, Award, Star,
+  Trophy, Medal, Award, Star, Save,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -102,6 +102,8 @@ export default function ProjectRegistration() {
   // notification ของ indicator ที่กรรมการ comment/ให้คะแนนใหม่
   const [newCommitteeIndicatorIds, setNewCommitteeIndicatorIds] = useState<Map<string, { prevScore: number | null; newScore: number | null }>>(new Map());
   const [expandedCategoryId, setExpandedCategoryId] = useState<string | number | null>(null);
+  const [lastSavedAt, setLastSavedAt]               = useState<Date | null>(null);
+  const [dirtyIndicatorIds, setDirtyIndicatorIds]   = useState<Set<string>>(new Set());
   // copy score
   const [copyHistoryEvals, setCopyHistoryEvals] = useState<Array<{ evaluationId: string; year: number; status: string; evaluationType: string }>>([]);
   const [copyHistoryLoaded, setCopyHistoryLoaded] = useState(false);
@@ -279,11 +281,11 @@ export default function ProjectRegistration() {
   }, [programId]);
 
   // ── Score handlers ─────────────────────────────────────────────────────────
-  const handleScoreChange     = (id: string, v: number)  => setScores(p => ({ ...p, [id]: v }));
-  const handleFilesChange     = (id: string, f: UploadedFile[]) => setUploadedFiles(p => ({ ...p, [id]: f }));
-  const handleDetailChange    = (id: string, v: string)  => setImplDetails(p => ({ ...p, [id]: v }));
+  const handleScoreChange     = (id: string, v: number)  => { setScores(p => ({ ...p, [id]: v })); setDirtyIndicatorIds(p => new Set(p).add(id)); };
+  const handleFilesChange     = (id: string, f: UploadedFile[]) => { setUploadedFiles(p => ({ ...p, [id]: f })); setDirtyIndicatorIds(p => new Set(p).add(id)); };
+  const handleDetailChange    = (id: string, v: string)  => { setImplDetails(p => ({ ...p, [id]: v })); setDirtyIndicatorIds(p => new Set(p).add(id)); };
 
-  // POST /evaluation/score — auto-save per indicator
+  // POST /evaluation/score — save per indicator
   const handleSaveIndicator = useCallback(async (indicatorId: string) => {
     if (!programId) return;
     const { data } = await apiClient.post("evaluation/score", {
@@ -295,8 +297,33 @@ export default function ProjectRegistration() {
       ...(evaluationId ? { evaluationId } : { evaluationType, year }),
     });
     if (data?.evaluationId && !evaluationId) setEvaluationId(data.evaluationId);
+    setDirtyIndicatorIds(p => { const n = new Set(p); n.delete(indicatorId); return n; });
+    setLastSavedAt(new Date());
     toast.success("บันทึกเรียบร้อยแล้ว");
   }, [evaluationId, evaluationType, scores, implDetails, uploadedFiles, programId]);
+
+  // ── Autosave dirty indicators every 30s ───────────────────────────────────
+  useEffect(() => {
+    const readOnly = evaluationStatus === "submitted" || evaluationStatus === "completed";
+    if (readOnly || !evaluationId || !programId) return;
+    const interval = setInterval(async () => {
+      const dirty = Array.from(dirtyIndicatorIds);
+      if (dirty.length === 0) return;
+      try {
+        await Promise.all(dirty.map(id =>
+          apiClient.post("evaluation/score", {
+            programId, indicatorId: id, evaluationId,
+            score: scores[id] ?? 0,
+            notes: implDetails[id] ?? "",
+            fileUrls: uploadedFiles[id] ?? [],
+          })
+        ));
+        setDirtyIndicatorIds(new Set());
+        setLastSavedAt(new Date());
+      } catch { /* silent — จะลองใหม่รอบถัดไป */ }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [evaluationId, evaluationStatus, programId, dirtyIndicatorIds, scores, implDetails, uploadedFiles]);
 
   // POST /evaluation/:id/submit — final submit
   const handleSubmitAll = async () => {
@@ -557,7 +584,7 @@ export default function ProjectRegistration() {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shrink-0">
             <ClipboardCheck className="h-4 w-4 text-primary-foreground" />
           </div>
-          <h2 className="flex-1 min-w-0 text-sm font-bold text-foreground truncate">ประเมิน {programName}</h2>
+          <h2 data-testid="evaluation-form-title" className="flex-1 min-w-0 text-sm font-bold text-foreground truncate">ประเมิน {programName}</h2>
           <div className="flex items-center gap-2 shrink-0">
             <div className="text-right">
               <p className="text-[0.5625rem] font-semibold text-muted-foreground uppercase tracking-wider">คะแนนรวม</p>
@@ -648,6 +675,16 @@ export default function ProjectRegistration() {
           {year && (
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[0.625rem] font-medium border border-border bg-muted/60 text-muted-foreground">
               พ.ศ. {year + 543}
+            </span>
+          )}
+          {!isEvalReadOnly && (
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.625rem] font-medium border ${dirtyIndicatorIds.size > 0 ? "border-amber-300 bg-amber-50 text-amber-600" : "border-green-200 bg-green-50 text-green-600"}`}>
+              <Save className="h-2.5 w-2.5" />
+              {dirtyIndicatorIds.size > 0
+                ? `ยังไม่บันทึก ${dirtyIndicatorIds.size} รายการ`
+                : lastSavedAt
+                  ? `บันทึกล่าสุด ${lastSavedAt.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}`
+                  : "autosave เปิดอยู่"}
             </span>
           )}
           <span className="text-[0.625rem] text-muted-foreground">
@@ -790,6 +827,8 @@ export default function ProjectRegistration() {
                 </div>
               ) : (
                 <Button
+                  data-testid="submit-evaluation-btn"
+                  aria-label="ส่งแบบประเมินตนเอง"
                   onClick={handleSubmitAll}
                   disabled={submitting || !allScored}
                   size="lg"

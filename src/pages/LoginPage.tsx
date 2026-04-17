@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { LogIn } from "lucide-react";
+import { LogIn, AlertCircle } from "lucide-react";
 import gLogo from "@/assets/g-logo.png";
 import loginBg from "@/assets/login2.jpg";
 
@@ -19,6 +19,10 @@ export default function LoginPage() {
   const { toast } = useToast();
   const { login } = useAuth();
 
+  const searchParams = new URLSearchParams(window.location.search);
+  const redirectTo = searchParams.get("redirect");
+  const reason = searchParams.get("reason");
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -27,6 +31,10 @@ export default function LoginPage() {
       if (response.data.token) {
         const userData = response.data.user;
         login(userData, response.data.token);
+        if (redirectTo) {
+          navigate(redirectTo, { replace: true });
+          return;
+        }
         const role = userData?.role?.toUpperCase();
         if (role === "SUPERADMIN" || role === "ADMIN") {
           navigate("/settings/programs");
@@ -71,6 +79,16 @@ export default function LoginPage() {
             <p className="text-sm mt-1" style={{ color: "var(--green-muted)" }}>เข้าสู่ระบบเพื่อดำเนินการ</p>
           </div>
         </div>
+
+        {/* Session expired banner */}
+        {reason === "session_expired" && (
+          <div className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50/80 px-3 py-2.5">
+            <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-700 leading-relaxed">
+              <span className="font-bold">เซสชันหมดอายุ</span> — ข้อมูลที่บันทึกไว้ยังคงอยู่ กรุณาเข้าสู่ระบบใหม่เพื่อดำเนินการต่อ
+            </p>
+          </div>
+        )}
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">

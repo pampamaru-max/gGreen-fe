@@ -209,7 +209,11 @@ function EvaluateeIndicatorDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl w-[95vw] h-[90vh] overflow-hidden p-0 flex flex-col">
+      <DialogContent
+        data-testid="indicator-dialog"
+        aria-label={`แบบฟอร์มประเมิน: ${indicator.name}`}
+        className="max-w-5xl w-[95vw] h-[90vh] overflow-hidden p-0 flex flex-col"
+      >
         <DialogHeader className="px-6 pt-5 pb-4 pr-14 shrink-0" style={{ backgroundColor: `hsl(${color} / 0.06)` }}>
           <div className="flex items-start gap-3">
             <span className="h-2.5 w-2.5 rounded-full shrink-0 mt-1.5" style={{ backgroundColor: `hsl(${color})` }} />
@@ -252,6 +256,8 @@ function EvaluateeIndicatorDialog({
             <div className="space-y-1.5">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">รายละเอียดการดำเนินการ</p>
               <textarea
+                data-testid="implementation-detail-input"
+                aria-label="รายละเอียดการดำเนินการ"
                 value={implementationDetail || ""}
                 onChange={(e) => onImplementationDetailChange?.(e.target.value)}
                 placeholder="ระบุรายละเอียดการดำเนินการ..."
@@ -478,7 +484,13 @@ function EvaluateeIndicatorDialog({
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>{isWizardMode ? "ปิด" : "ยกเลิก"}</Button>
             {!readOnly && (
-              <Button size="sm" disabled={saving} onClick={async () => { setSaving(true); if (onSave) await onSave(); setSaving(false); if (!isWizardMode) onOpenChange(false); }}>
+              <Button
+                data-testid="indicator-save-btn"
+                aria-label="บันทึกตัวชี้วัด"
+                size="sm"
+                disabled={saving}
+                onClick={async () => { setSaving(true); if (onSave) await onSave(); setSaving(false); if (!isWizardMode) onOpenChange(false); }}
+              >
                 {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}บันทึก
               </Button>
             )}
@@ -790,7 +802,13 @@ function EvaluatorIndicatorDialog({
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>{isWizardMode ? "ปิด" : "ยกเลิก"}</Button>
             {!readOnly && (
-              <Button size="sm" disabled={saving} onClick={async () => { setSaving(true); if (onSave) await onSave(); setSaving(false); if (!isWizardMode) onOpenChange(false); }}>
+              <Button
+                data-testid="indicator-save-btn"
+                aria-label="บันทึกตัวชี้วัด"
+                size="sm"
+                disabled={saving}
+                onClick={async () => { setSaving(true); if (onSave) await onSave(); setSaving(false); if (!isWizardMode) onOpenChange(false); }}
+              >
                 {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}บันทึก
               </Button>
             )}
@@ -1039,6 +1057,8 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
                   return (
                     <button
                       key={indicator.id}
+                      data-testid={`indicator-btn-${indicator.id}`}
+                      aria-label={`แก้ไขตัวชี้วัด: ${indicator.name}`}
                       onClick={() => {
                         if (onIndicatorClick) {
                           onIndicatorClick(indicator);
