@@ -101,7 +101,12 @@ const ReportParticipants = () => {
 
   return (
     <div className="p-6 space-y-6">
-      <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="gap-2">
+      <Button 
+        variant="outline" 
+        size="sm" 
+        onClick={() => navigate("/")} 
+        className="gap-2 rounded-full px-4 border-primary/20 bg-primary/5 hover:bg-primary/10 transition-all hover:scale-105"
+      >
         <ArrowLeft className="h-4 w-4" />
         กลับหน้าหลัก
       </Button>

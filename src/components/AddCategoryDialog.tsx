@@ -11,11 +11,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "@/hooks/use-toast";
 
 export type AddScoreType =
   | "score_new" | "yes_no_new"
   | "score_upgrad" | "yes_no_upgrad"
   | "score_renew" | "yes_no_renew";
+
+enum SCORE_TYPE {
+  new = 'ปกติ',
+  upgrad = 'อัพเกรด',
+  renew = 'ต่ออายุ'
+}
 
 interface AddCategoryData {
   name: string;
@@ -29,6 +36,7 @@ interface Props {
   onOpenChange: (v: boolean) => void;
   scoreType: AddScoreType;
   nextSortOrder: number;
+  orderList: number[];
   onAdd: (data: AddCategoryData) => void;
 }
 
@@ -41,7 +49,7 @@ const LABELS: Record<AddScoreType, { title: string; badge: string; badgeClass: s
   "yes_no_renew": { title: "เพิ่มหมวดแบบใช่/ไม่ใช่ (ต่ออายุ)", badge: "ใช่/ไม่ใช่ (ต่ออายุ)", badgeClass: "border-amber-300 text-amber-600 bg-amber-50" },
 };
 
-export function AddCategoryDialog({ open, onOpenChange, scoreType, nextSortOrder, onAdd }: Props) {
+export function AddCategoryDialog({ open, onOpenChange, scoreType, nextSortOrder, orderList, onAdd }: Props) {
   const [sortOrder, setSortOrder] = useState<string>(nextSortOrder.toString());
   const [name, setName] = useState("");
   const [maxScore, setMaxScore] = useState<string>("15");
@@ -59,6 +67,11 @@ export function AddCategoryDialog({ open, onOpenChange, scoreType, nextSortOrder
 
   const handleSubmit = () => {
     if (!isValid) return;
+    if (orderList.includes(Number(sortOrder))) {
+      const type = scoreType.split('_').pop();
+      toast({ title: `ลำดับหมวด ${sortOrder} มีอยู่แล้วในหมวด${SCORE_TYPE[type]}`, variant: 'destructive'});
+      return;
+    }
     onAdd({
       name: name.trim(),
       maxScore: hasScore ? Number(maxScore) : 0,

@@ -79,11 +79,10 @@ function YearPickerStep({
       {usedYears.length > 0 && (
         <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800/40 px-3 py-2.5">
           <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
-          <p className="text-xs text-red-600 dark:text-red-400 leading-relaxed">
-            <span className="font-bold">ไม่สามารถเลือกปีที่มีใบประเมินอยู่แล้วได้</span>
-            <br />
+          <div className="flex-1 min-w-0 text-xs text-red-600 dark:text-red-400 leading-relaxed whitespace-normal">
+            <span className="font-bold block mb-1">ไม่สามารถเลือกปีที่มีใบประเมินอยู่แล้วได้</span>
             ปีที่ถูกใช้แล้ว: {usedYears.map((y) => `พ.ศ. ${y + 543}`).join(", ")}
-          </p>
+          </div>
         </div>
       )}
 
@@ -243,7 +242,7 @@ export default function EvaluationTypeDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="w-[calc(100%-2rem)] max-w-md p-4 sm:p-6">
+      <DialogContent className="w-[calc(100%-2rem)] max-w-md p-4 sm:p-6 overflow-hidden">
         <DialogHeader>
           <div className="flex items-center gap-2">
             {step === "year" && (

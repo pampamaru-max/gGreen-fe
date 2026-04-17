@@ -195,12 +195,21 @@ const EvaluationSummaryPage = () => {
               <p className="text-2xl font-semibold mb-2" style={{ color: levelColor }}>{pct}%</p>
             </>
           )}
-          <span
-            className="inline-block rounded-full px-4 py-1 text-sm font-bold border"
-            style={{ color: levelColor, borderColor: levelColor, backgroundColor: `${levelColor}22` }}
-          >
-            {levelName}
-          </span>
+          <div className="score-active-wrap">
+            <div className="score-sparkles">
+              <div className="score-sparkle" />
+              <div className="score-sparkle" />
+              <div className="score-sparkle" />
+              <div className="score-sparkle" />
+              <div className="score-sparkle" />
+            </div>
+            <span
+              className="score-active-badge inline-block rounded-full px-4 py-1 text-sm font-bold border"
+              style={{ color: levelColor, borderColor: levelColor, backgroundColor: `${levelColor}22` }}
+            >
+              {levelName}
+            </span>
+          </div>
           {scoringLevel && (
             <p className="mt-3 text-xs text-muted-foreground">
               เกณฑ์: {scoringLevel.minScore} – {scoringLevel.maxScore}%
