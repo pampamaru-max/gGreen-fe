@@ -382,6 +382,12 @@
   }
 }
 
+p, span {
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
 /* ── Green text variables ── */
 :root {
   --green-heading: #1a3d0f;
