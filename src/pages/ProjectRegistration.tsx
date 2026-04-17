@@ -26,6 +26,7 @@ interface EvalCategory extends Category {
 import apiClient from "@/lib/axios";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { ScoringLevelType } from "./SettingsScoringCriteria";
 
 const EVAL_TYPE_CONFIG: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
   new:     { label: "ประเมินใหม่",             icon: <FilePlus   className="h-3 w-3" />, className: "bg-blue-50 text-blue-700 border-blue-200"     },
@@ -59,6 +60,7 @@ export interface ScoringLevel {
   color: string;
   icon: string;
   sortOrder: number;
+  type: ScoringLevelType;
 }
 
 
