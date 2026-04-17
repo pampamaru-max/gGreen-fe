@@ -50,6 +50,7 @@ interface TypeOption {
     iconBg: string;
     iconText: string;
     text: string;
+    shadow: string;
   };
 }
 
@@ -111,31 +112,33 @@ export default function EvaluationTypeDialog({
       enabled: true, // eligibility?.canNew ?? false,
       disabledReason: "ต้องไม่มีประวัติการประเมินก่อน",
       colors: {
-        border: "border-blue-200",
-        bg: "bg-blue-50",
-        hover: "hover:bg-blue-100",
-        iconBg: "bg-blue-400",
+        border: "border-blue-200 dark:border-blue-800",
+        bg: "bg-blue-50/50 dark:bg-blue-900/20",
+        hover: "hover:bg-blue-100/80 dark:hover:bg-blue-900/40",
+        iconBg: "bg-blue-500",
         iconText: "text-white",
-        text: "text-blue-700",
+        text: "text-blue-700 dark:text-blue-300",
+        shadow: "shadow-blue-100 dark:shadow-blue-900/40",
       },
     },
     {
       key: "upgrade",
       icon: <RefreshCw className="h-6 w-6" />,
       label: "ขอยกระดับการรับรอง",
-      description: "สำหรับหน่วยงานระดับ Gold ที่ต้องการยกระดับและใบรับรองยังไม่หมดอายุ",
+      description: "สำหรับหน่วยงานระดับ Gold ที่ใบรับรองยังไม่หมดอายุและต้องการยกระดับ",
       // description: eligibility?.scoringLevelName
       //   ? `ระดับปัจจุบัน: ${eligibility.scoringLevelName} — ยกระดับเพื่อรับการรับรองสูงขึ้น`
       //   : "สำหรับหน่วยงานระดับ Gold ที่ต้องการยกระดับและใบรับรองยังไม่หมดอายุ",
       enabled: true, // eligibility?.canUpgrade ?? false,
       disabledReason: "ต้องมีผลประเมินระดับ Gold และใบรับรองยังไม่หมดอายุ",
       colors: {
-        border: "border-orange-200",
-        bg: "bg-orange-50",
-        hover: "hover:bg-orange-100",
-        iconBg: "bg-orange-300",
+        border: "border-orange-200 dark:border-orange-800",
+        bg: "bg-orange-50/50 dark:bg-orange-900/20",
+        hover: "hover:bg-orange-100/80 dark:hover:bg-orange-900/40",
+        iconBg: "bg-orange-400",
         iconText: "text-white",
-        text: "text-orange-600",
+        text: "text-orange-700 dark:text-orange-300",
+        shadow: "shadow-orange-100 dark:shadow-orange-900/40",
       },
     },
     {
@@ -149,12 +152,13 @@ export default function EvaluationTypeDialog({
       enabled: true, // eligibility?.canRenew ?? false,
       disabledReason: "ต้องประเมินใหม่ก่อน หรือยังไม่ถึงเวลาต่ออายุ",
       colors: {
-        border: "border-purple-200",
-        bg: "bg-purple-50",
-        hover: "hover:bg-purple-100",
-        iconBg: "bg-purple-400",
+        border: "border-purple-200 dark:border-purple-800",
+        bg: "bg-purple-50/50 dark:bg-purple-900/20",
+        hover: "hover:bg-purple-100/80 dark:hover:bg-purple-900/40",
+        iconBg: "bg-purple-500",
         iconText: "text-white",
-        text: "text-purple-700",
+        text: "text-purple-700 dark:text-purple-300",
+        shadow: "shadow-purple-100 dark:shadow-purple-900/40",
       },
     },
   ];
@@ -166,7 +170,7 @@ export default function EvaluationTypeDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="w-[calc(100%-2rem)] max-w-md p-4 sm:p-6 overflow-hidden">
         <DialogHeader>
           <div className="flex items-center gap-2">
             {step === "year" && (
@@ -192,36 +196,36 @@ export default function EvaluationTypeDialog({
             <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
           </div>
         ) : step === "type" ? (
-          <div className="flex flex-col gap-3 py-2">
+          <div className="flex flex-col gap-4 py-2 px-1">
             {options.map((opt) => (
               <button
                 key={opt.key}
                 onClick={() => opt.enabled && handleSelect(opt.key)}
                 disabled={!opt.enabled}
-                className={`flex items-center gap-4 rounded-xl border p-4 text-left transition-all ${
+                className={`w-full flex items-center gap-4 rounded-2xl border p-4 text-left transition-all duration-300 ${
                   opt.enabled
-                    ? `${opt.colors.border} ${opt.colors.bg} ${opt.colors.hover} cursor-pointer`
-                    : "border-slate-100 bg-white cursor-not-allowed opacity-50"
+                    ? `${opt.colors.border} ${opt.colors.bg} ${opt.colors.hover} ${opt.colors.shadow} shadow-lg cursor-pointer hover:-translate-y-1`
+                    : "border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 cursor-not-allowed opacity-50 shadow-none"
                 }`}
               >
                 <div
-                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${
                     opt.enabled
-                      ? `${opt.colors.iconBg} ${opt.colors.iconText}`
-                      : "bg-slate-100 text-slate-400"
+                      ? `${opt.colors.iconBg} ${opt.colors.iconText} shadow-inner`
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-400"
                   }`}
                 >
                   {opt.icon}
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p
-                    className={`font-semibold ${
+                    className={`text-base font-bold leading-tight ${
                       opt.enabled ? opt.colors.text : "text-slate-400"
                     }`}
                   >
                     {opt.label}
                   </p>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 whitespace-normal line-clamp-2">
                     {opt.enabled ? opt.description : opt.disabledReason}
                   </p>
                 </div>
