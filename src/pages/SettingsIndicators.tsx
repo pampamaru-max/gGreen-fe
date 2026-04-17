@@ -26,7 +26,8 @@ import {
 import AddTopicWithIndicatorsDialog from "@/components/AddTopicWithIndicatorsDialog";
 import { AlertActionPopup } from "@/components/AlertActionPopup";
 import { formatNumber, mergeUniqueById } from "@/helpers/functions";
-import { LoadingOverlay } from "@/components/loading/LoadingOverlay";
+import LoadingOverlay from "@/components/loading/LoadingOverlay";
+import Loading from "@/components/loading/Loading";
 
 interface DbProgram {
   id: string;
@@ -546,7 +547,8 @@ const SettingsIndicators = () => {
   const [categories, setCategories] = useState<DbCategory[]>([]);
   const [topics, setTopics] = useState<DbTopic[]>([]);
   const [indicators, setIndicators] = useState<DbIndicator[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<{programs: boolean, categories: boolean, topics: boolean, indicators: boolean}>({programs: true, categories: true, topics: true, indicators: true});
+  const [saving, setSaving] = useState(false);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const [openAddIndDialog, setOpenAddIndDialog] = useState(false);
@@ -632,19 +634,28 @@ const SettingsIndicators = () => {
   }
 
   useEffect(() => {
-      fetchData({programs: true}).finally(() => setLoading(false));
+      fetchData({programs: true}).finally(() => setLoading(prev => ({...prev, programs: false})));
   },[])
 
   useEffect(() => { 
-    if(selectedProgramId && !fetchedCategories.has(selectedProgramId)) fetchData({ categories: true });
+    if(selectedProgramId && !fetchedCategories.has(selectedProgramId)) {
+      setLoading(prev => ({...prev, categories: true}));
+      fetchData({ categories: true }).finally(() => setLoading(prev => ({...prev, categories: false})));
+    }
   },[selectedProgramId])
 
   useEffect(() => {
-    if(selectedCategoryId && !fetchedTopics.has(selectedCategoryId)) fetchData({ topics: true });
+    if(selectedCategoryId && !fetchedTopics.has(selectedCategoryId)) {
+      setLoading(prev => ({...prev, topics: true}));
+      fetchData({ topics: true }).finally(() => setLoading(prev => ({...prev, topics: false})));
+    }
   },[selectedCategoryId])
 
   useEffect(() => {
-    if(selectedTopicId && !fetchedIndicators.has(selectedTopicId)) fetchData({ indicators: true });
+    if(selectedTopicId && !fetchedIndicators.has(selectedTopicId)) {
+      setLoading(prev => ({...prev, indicators: true}));
+      fetchData({ indicators: true }).finally(() => setLoading(prev => ({...prev, indicators: false})));
+    }
   },[selectedTopicId])
 
   useEffect(() => {
@@ -731,7 +742,7 @@ const SettingsIndicators = () => {
   };
 
   const handleDeleteTopic = async (catId: number, topicId: string) => {
-    setLoading(true);
+    setSaving(true);
     try {
       await apiClient.delete(`topics/${topicId}`);
       toast({ title: "ลบประเด็นสำเร็จ", variant: "success" });
@@ -741,7 +752,7 @@ const SettingsIndicators = () => {
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
@@ -775,7 +786,7 @@ const SettingsIndicators = () => {
   };
 
   const handleEditIndicator = async (indId: string, data: { name: string; maxScore: number; description: string; detail: string; notes: string; evidenceDescription: string; scoringCriteria: ScoringCriterion[] }) => {
-    setLoading(true);
+    setSaving(true);
     const ind = indicators.find(i => i.id === indId);
     if (ind) {
       const topic = topics.find(t => t.id === ind.topicId);
@@ -811,12 +822,12 @@ const SettingsIndicators = () => {
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
   const handleDeleteIndicator = async (topicId: string, indId: string) => {
-    setLoading(true);
+    setSaving(true);
     try {
       await apiClient.delete(`indicators/${indId}`);
       toast({ title: "ลบตัวชี้วัดสำเร็จ", variant: "success" });
@@ -825,7 +836,7 @@ const SettingsIndicators = () => {
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
@@ -858,7 +869,7 @@ const SettingsIndicators = () => {
 
   return (
     <div className="h-full flex flex-col gap-3 p-4">
-      <LoadingOverlay visible={loading} />
+      <LoadingOverlay visible={saving} />
       <div className="px-6 py-4 rounded-2xl shrink-0" style={{ background: "var(--glass-bg)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", boxShadow: "var(--glass-shadow)", border: "1px solid var(--glass-border)" }}>
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ background: "#3a7d2c" }}>
@@ -873,6 +884,7 @@ const SettingsIndicators = () => {
 
       <div className="flex-1 min-h-0 rounded-2xl overflow-hidden" style={{ background: "var(--glass-bg)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", boxShadow: "var(--glass-shadow)", border: "1px solid var(--glass-border)" }}>
         <div className="h-full overflow-y-auto px-6 py-6 space-y-6">
+        <Loading loading={loading.programs} />
         {programs.map((program, progIdx) => {
           const typeOrder = (st: string) => (st.includes("_upgrad") || st === "upgrade") ? 1 : st.includes("_renew") ? 2 : 0;
           const programCategories = categories
@@ -898,6 +910,7 @@ const SettingsIndicators = () => {
 
                 <CollapsibleContent>
                   <div className="px-3 pb-3 space-y-3">
+                    <Loading loading={loading.categories && selectedProgramId === program.id} />
                     {programCategories.map((cat, catIdx) => {
                       const color = "210 70% 45%";
                       const catTopics = topics.filter((t) => t.categoryId === cat.id);
@@ -930,6 +943,7 @@ const SettingsIndicators = () => {
                             </CollapsibleTrigger>
 
                             <CollapsibleContent>
+                              <Loading loading={loading.topics && selectedCategoryId === cat.id} />
                               {(() => {
                                 const isYesNoCat = isYesNoType(cat.scoreType);
                                 const catUsedScore = isYesNoCat ? 0 : indicators
@@ -955,6 +969,7 @@ const SettingsIndicators = () => {
                                     </div>
 
                                     <CollapsibleContent>
+                                      <Loading loading={loading.indicators && selectedTopicId === topic.id} />
                                       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleReorderIndicators(topic.id, e)}>
                                         <SortableContext items={topicInds.map(i => i.id)} strategy={verticalListSortingStrategy}>
                                           <div>

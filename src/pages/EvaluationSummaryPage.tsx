@@ -4,6 +4,7 @@ import { ArrowLeft, ClipboardCheck, Medal } from "lucide-react";
 import { PageLoading } from "@/components/ui/page-loading";
 import { Button } from "@/components/ui/button";
 import apiClient from "@/lib/axios";
+import { ScoringLevelType } from "./SettingsScoringCriteria";
 
 interface YesNoStats {
   passCount: number;
@@ -29,6 +30,7 @@ interface ScoringLevel {
   icon: string;
   minScore: number;
   maxScore: number;
+  type: ScoringLevelType;
 }
 
 interface EvaluationResult {
@@ -38,7 +40,8 @@ interface EvaluationResult {
   userId: string;
   totalScore: number;
   totalMaxScore: number;
-  scoringLevelId: number | null;
+  normalLevelId: number | null;
+  specialLevelId: number | null;
   categoryResults: CategoryResult[];
   calculatedAt: string;
   scoringLevel: ScoringLevel | null;
@@ -81,7 +84,7 @@ const EvaluationSummaryPage = () => {
           const isYesNoProgram = data.totalScore === 0 && data.totalMaxScore === 0;
           const [evalRes, levelsRes] = await Promise.all([
             isYesNoProgram ? apiClient.get(`evaluation/${evaluationId}`) : Promise.resolve(null),
-            apiClient.get<{ id: number; name: string; minScore: number; maxScore: number; color: string; programId: string | null }[]>("scoring-levels"),
+            apiClient.get<{ id: number; name: string; minScore: number; maxScore: number; color: string; type: ScoringLevelType; programId: string | null }[]>("scoring-levels"),
           ]);
           const programLevels = levelsRes.data.filter(
             (l) => l.programId === (data.programId ?? programId)
@@ -114,6 +117,7 @@ const EvaluationSummaryPage = () => {
                   icon: "",
                   minScore: matched.minScore,
                   maxScore: matched.maxScore,
+                  type: matched.type,
                 },
               } : prev);
             }

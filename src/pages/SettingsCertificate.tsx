@@ -18,6 +18,7 @@ import {
   AlignRight,
   Undo2,
   Redo2,
+  Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +41,15 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { ScoringLevelType } from "./SettingsScoringCriteria";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import LoadingOverlay from "@/components/loading/LoadingOverlay";
 
 interface ScoringLevel {
   id: number;
@@ -49,6 +59,7 @@ interface ScoringLevel {
   color: string;
   icon: string;
   sort_order: number;
+  type: ScoringLevelType;
   program_id: string | null;
 }
 
@@ -75,7 +86,8 @@ interface CertElement {
 
 interface CertTemplate {
   id?: number;
-  scoring_level_id: number;
+  normal_level_id: number;
+  special_level_id?: number | null;
   title: string;
   subtitle: string;
   body_text: string;
@@ -105,7 +117,8 @@ const getLayout = (template: CertTemplate): CertElement[] => {
 };
 
 const defaultTemplate = (
-  levelId: number,
+  normalLevelId: number,
+  specialLevelId: number | null,
   color: string,
   signer?: { name: string; title: string },
 ): CertTemplate => {
@@ -161,7 +174,8 @@ const defaultTemplate = (
   ];
 
   return {
-    scoring_level_id: levelId,
+    normal_level_id: normalLevelId,
+    special_level_id: specialLevelId,
     title: "ใบประกาศนียบัตร",
     subtitle: "โครงการ G-Green",
     body_text: "ขอมอบใบประกาศนียบัตรฉบับนี้ให้แก่",
@@ -777,64 +791,64 @@ const EditTemplateDialog = ({
     });
   };
 
- const updateElement = (id: string, updates: Partial<CertElement>) => {
-  setForm((f) => {
-    const currentOrientation = f.orientation || "landscape";
-    
-    // เตรียม Layout Object ให้พร้อม
-    let currentLayouts = { landscape: [] as CertElement[], portrait: [] as CertElement[] };
-    
-    if (f.layout && !Array.isArray(f.layout)) {
-      currentLayouts = { ...f.layout };
-    } else if (Array.isArray(f.layout)) {
-      // กรณีข้อมูลเก่าเป็น Array ให้ย้ายมาไว้ในช่องปัจจุบันก่อน
-      currentLayouts[currentOrientation] = f.layout;
-    }
+  const updateElement = (id: string, updates: Partial<CertElement>) => {
+    setForm((f) => {
+      const currentOrientation = f.orientation || "landscape";
 
-    // Update เฉพาะ Element ในช่อง Orientation ปัจจุบัน
+      // เตรียม Layout Object ให้พร้อม
+    let currentLayouts = { landscape: [] as CertElement[], portrait: [] as CertElement[] };
+
+      if (f.layout && !Array.isArray(f.layout)) {
+        currentLayouts = { ...f.layout };
+      } else if (Array.isArray(f.layout)) {
+        // กรณีข้อมูลเก่าเป็น Array ให้ย้ายมาไว้ในช่องปัจจุบันก่อน
+        currentLayouts[currentOrientation] = f.layout;
+      }
+
+      // Update เฉพาะ Element ในช่อง Orientation ปัจจุบัน
     const updatedList = (currentLayouts[currentOrientation] || []).map((el) =>
       el.id === id ? { ...el, ...updates } : el
-    );
+      );
 
-    return {
-      ...f,
-      layout: {
-        ...currentLayouts,
-        [currentOrientation]: updatedList,
-      },
-    };
-  });
- };
+      return {
+        ...f,
+        layout: {
+          ...currentLayouts,
+          [currentOrientation]: updatedList,
+        },
+      };
+    });
+  };
 
   const changeOrientation = (newOrientation: "landscape" | "portrait") => {
-  setForm((f) => {
-    const oldOrientation = f.orientation || "landscape";
+    setForm((f) => {
+      const oldOrientation = f.orientation || "landscape";
     let layouts = { landscape: [] as CertElement[], portrait: [] as CertElement[] };
-    if (f.layout && !Array.isArray(f.layout)) {
-      layouts = { ...f.layout };
-    } else if (Array.isArray(f.layout)) {
-      layouts[oldOrientation] = f.layout;
-    }
-    // ถ้าหน้าใหม่ที่จะไป (เช่น portrait) ยังไม่มีข้อมูลเลย 
-    // ให้ทำการ Copy ข้อมูลจากหน้าเก่า (landscape) ไปเป็นต้นแบบ
-    if (!layouts[newOrientation] || layouts[newOrientation].length === 0) {
+      if (f.layout && !Array.isArray(f.layout)) {
+        layouts = { ...f.layout };
+      } else if (Array.isArray(f.layout)) {
+        layouts[oldOrientation] = f.layout;
+      }
+      // ถ้าหน้าใหม่ที่จะไป (เช่น portrait) ยังไม่มีข้อมูลเลย
+      // ให้ทำการ Copy ข้อมูลจากหน้าเก่า (landscape) ไปเป็นต้นแบบ
+      if (!layouts[newOrientation] || layouts[newOrientation].length === 0) {
       layouts[newOrientation] = (layouts[oldOrientation] || []).map(el => ({
-        ...el,
-        // ปรับตำแหน่ง Y นิดหน่อยให้เหมาะกับแนวตั้ง (Optional)
+          ...el,
+          // ปรับตำแหน่ง Y นิดหน่อยให้เหมาะกับแนวตั้ง (Optional)
         y: newOrientation === "portrait" ? Math.min(el.y * 1.1, 95) : el.y
-      }));
-    }
+        }));
+      }
 
-    const next = { 
-      ...f, 
-      orientation: newOrientation,
-      layout: layouts 
-    };
-    
-    addToHistory(next);
-    return next;
-  });
- };
+      const next = {
+        ...f,
+        orientation: newOrientation,
+        layout: layouts 
+      };
+
+      addToHistory(next);
+      return next;
+    });
+  };
 
   const copyLayoutFrom = (source: "landscape" | "portrait") => {
     setForm((f) => {
@@ -965,14 +979,14 @@ const EditTemplateDialog = ({
                   </Button>
                 )}
                 <label className="flex items-center gap-1 cursor-pointer hover:text-primary transition-colors ml-2">
-                    <input
-                      type="checkbox"
-                      checked={showGrid}
-                      onChange={(e) => setShowGrid(e.target.checked)}
-                      className="rounded"
-                    />
-                    แสดงเส้นกะ
-                  </label>
+                  <input
+                    type="checkbox"
+                    checked={showGrid}
+                    onChange={(e) => setShowGrid(e.target.checked)}
+                    className="rounded"
+                  />
+                  แสดงเส้นกะ
+                </label>
                 <div className="flex items-center gap-2">
                   <div className="flex-1">
                     <Label>สีหลัก</Label>
@@ -1372,8 +1386,8 @@ const EditTemplateDialog = ({
                             setShowIndicator(true);
                           }}
                           className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all ${
-                            selectedElId === el.id 
-                              ? "bg-primary/5 border-primary ring-1 ring-primary/20" 
+                            selectedElId === el.id
+                              ? "bg-primary/5 border-primary ring-1 ring-primary/20"
                               : "bg-white hover:bg-accent border-slate-200"
                           }`}
                         >
@@ -1497,12 +1511,102 @@ const EditTemplateDialog = ({
   );
 };
 
+/* ──────────────── Copy Template Dialog ──────────────── */
+const CopyTemplateDialog = ({
+  open,
+  setOpen,
+  selectedTemplate,
+  templates,
+  onSave,
+}: {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  selectedTemplate: CertTemplate;
+  templates: (CertTemplate & {
+    program: DbProgram;
+    name: string;
+    scoringLevel: Partial<ScoringLevel>;
+  })[];
+  onSave: (t: CertTemplate) => void;
+}) => {
+  const [selectedCopyTemplate, setSelectedCopyTemplate] =
+    useState<CertTemplate | null>(null);
+  if (!open || !selectedTemplate) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b">
+          <DialogTitle>
+            คัดลอกใบประกาศนียบัตรที่มีอยู่ - {selectedTemplate.title}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="flex flex-col gap-4 px-6 py-1">
+          <Select
+            value={selectedCopyTemplate?.id.toString()}
+            onValueChange={(value) =>
+              setSelectedCopyTemplate(
+                templates.find((t) => t.id === Number(value)) || null,
+              )
+            }
+          >
+            <SelectTrigger className="w-3/5">
+              <SelectValue placeholder="เลือกเทมเพลต..." />
+            </SelectTrigger>
+            <SelectContent>
+              {templates.map((t) => (
+                <SelectItem key={t.id} value={String(t.id)}>
+                  {t.program.name} - {t.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {selectedCopyTemplate && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Eye className="h-4 w-4 text-muted-foreground" />
+                <Label className="text-sm text-muted-foreground">
+                  ตัวอย่าง
+                </Label>
+              </div>
+              <CertificatePreview
+                template={selectedCopyTemplate}
+                levelName={""}
+              />
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="px-6 py-4 border-t gap-2 bg-background">
+          <DialogClose asChild>
+            <Button variant="outline">ยกเลิก</Button>
+          </DialogClose>
+          <Button
+            onClick={() => {
+              onSave(selectedCopyTemplate);
+              setOpen(false);
+            }}
+          >
+            <Save className="mr-2 h-4 w-4" />
+            ใช้เทมเพลต
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 /* ──────────────── Level Certificate Card ──────────────── */
 const LevelCertCard = ({
+  setSelectedTemplate,
+  setOpenCopyTemplateDialog,
   level,
   template,
   onSave,
 }: {
+  setSelectedTemplate: (template: CertTemplate) => void;
+  setOpenCopyTemplateDialog: (open: boolean) => void;
   level: ScoringLevel;
   template: CertTemplate;
   onSave: (t: CertTemplate) => void;
@@ -1550,17 +1654,30 @@ const LevelCertCard = ({
               </span>
             </div>
           </div>
-          <EditTemplateDialog
-            template={template}
-            levelName={level.name}
-            onSave={onSave}
-          />
-          <ViewCertificateDialog
-            template={template}
-            levelName={level.name}
-            open={isPreviewOpen}
-            onOpenChange={setIsPreviewOpen}
-          />
+          <div className="flex gap-3">
+            <EditTemplateDialog
+              template={template}
+              levelName={level.name}
+              onSave={onSave}
+            />
+            <ViewCertificateDialog
+              template={template}
+              levelName={level.name}
+              open={isPreviewOpen}
+              onOpenChange={setIsPreviewOpen}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSelectedTemplate(template);
+                setOpenCopyTemplateDialog(true);
+              }}
+            >
+              <Copy className="mr-2 h-4 w-4" />
+              ใช้เทมเพลตที่มีอยู่
+            </Button>
+          </div>
         </div>
         <div
           className="cursor-pointer group relative overflow-hidden"
@@ -1584,6 +1701,10 @@ const LevelCertCard = ({
 
 /* ──────────────── Main Page ──────────────── */
 const SettingsCertificate = () => {
+  const [openCopyTemplateDialog, setOpenCopyTemplateDialog] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<CertTemplate | null>(
+    null,
+  );
   const queryClient = useQueryClient();
 
   const { data: levels = [], isLoading: levelsLoading } = useQuery({
@@ -1598,6 +1719,7 @@ const SettingsCertificate = () => {
         color: l.color,
         icon: l.icon,
         sort_order: l.sortOrder ?? l.sort_order,
+        type: l.type,
         program_id: l.programId ?? l.program_id,
       })) as ScoringLevel[];
     },
@@ -1620,41 +1742,65 @@ const SettingsCertificate = () => {
     queryKey: ["certificate-templates"],
     queryFn: async () => {
       const { data } = await apiClient.get<any[]>("certificate-templates");
-      return data.map((t) => ({
-        id: t.id,
-        scoring_level_id: t.scoringLevelId ?? t.scoring_level_id,
-        title: t.title,
-        subtitle: t.subtitle,
-        body_text: t.bodyText ?? t.body_text,
-        footer_text: t.footerText ?? t.footer_text,
-        signer_name: t.signerName ?? t.signer_name,
-        signer_title: t.signerTitle ?? t.signer_title,
-        bg_image_url: t.bgImageUrl ?? t.bg_image_url,
-        logo_url: t.logoUrl ?? t.logo_url,
-        primary_color: t.primaryColor ?? t.primary_color,
-        orientation: t.orientation,
-        layout: t.layout,
-      })) as CertTemplate[];
+      return data.map((t) => {
+        const normalLevel = levels.find((l) => l.id ===  t.normalLevelId);
+        const specialLevel = levels.find((l) => l.id === t.specialLevelId);
+        return {
+          id: t.id,
+          normal_level_id: t.normalLevelId ?? t.normal_level_id,
+          special_level_id: t.specialLevelId ?? t.special_level_id,
+          title: t.title,
+          subtitle: t.subtitle,
+          body_text: t.bodyText ?? t.body_text,
+          footer_text: t.footerText ?? t.footer_text,
+          signer_name: t.signerName ?? t.signer_name,
+          signer_title: t.signerTitle ?? t.signer_title,
+          bg_image_url: t.bgImageUrl ?? t.bg_image_url,
+          logo_url: t.logoUrl ?? t.logo_url,
+          primary_color: t.primaryColor ?? t.primary_color,
+          orientation: t.orientation,
+          layout: t.layout,
+          program: programs.find((p) => p.id === (specialLevel ?? normalLevel).program_id),
+          scoringLevel: specialLevel ?? normalLevel,
+          name: specialLevel ? `${normalLevel.name} ${specialLevel.name}` : normalLevel.name,
+        };
+      });
     },
+  });
+
+  const sortedTemplates = templatesRaw.sort((a, b) => {
+    const aType = a.scoringLevel.type;
+    const bType = b.scoringLevel.type;
+    if (aType !== bType) {
+      return aType === ScoringLevelType.NORMAL ? -1 : 1;
+    }
+    return a.scoringLevel.sort_order - b.scoringLevel.sort_order;
   });
 
   const templates: Record<number, CertTemplate> = {};
   templatesRaw.forEach((t) => {
-    templates[t.scoring_level_id] = t;
+    templates[
+      t.special_level_id
+        ? `${t.normal_level_id}-${t.special_level_id}`
+        : t.normal_level_id
+    ] = t;
   });
 
   const saveMutation = useMutation({
     mutationFn: async ({
-      levelId,
+      normalLevelId,
+      specialLevelId,
       template,
       updateAllSigners,
     }: {
-      levelId: number;
+      normalLevelId?: number;
+      specialLevelId?: number | null;
       template: CertTemplate;
       updateAllSigners?: boolean;
     }) => {
       const toApiPayload = (t: Omit<CertTemplate, "id">) => ({
-        scoringLevelId: t.scoring_level_id,
+        normalLevelId: normalLevelId,
+        specialLevelId: specialLevelId,
         title: t.title,
         subtitle: t.subtitle,
         bodyText: t.body_text,
@@ -1668,10 +1814,17 @@ const SettingsCertificate = () => {
         layout: t.layout,
       });
 
-      const existing = templates[levelId];
+      const existing = specialLevelId
+        ? templates[`${normalLevelId}-${specialLevelId}`]
+        : templates[normalLevelId];
       if (existing?.id) {
+        delete existing['program'];
+        delete existing['scoringLevel'];
         const { id, ...rest } = template;
-        await apiClient.patch(`certificate-templates/${existing.id}`, toApiPayload(rest));
+        await apiClient.patch(
+          `certificate-templates/${existing.id}`,
+          toApiPayload(rest),
+        );
       } else {
         const { id, ...rest } = template;
         await apiClient.post("certificate-templates", toApiPayload(rest));
@@ -1680,7 +1833,10 @@ const SettingsCertificate = () => {
       if (updateAllSigners) {
         // Sync signer info to all other EXISTING templates
         const otherTemplates = templatesRaw.filter(
-          (t) => t.scoring_level_id !== levelId && t.id,
+          (t) =>
+            t.normal_level_id !== normalLevelId &&
+            t.special_level_id !== specialLevelId &&
+            t.id,
         );
         for (const other of otherTemplates) {
           await apiClient.patch(`certificate-templates/${other.id}`, {
@@ -1709,38 +1865,38 @@ const SettingsCertificate = () => {
     },
   });
 
-  const handleSave = (levelId: number, template: CertTemplate) => {
+  const handleSave = (
+    normalLevelId: number,
+    template: CertTemplate,
+    specialLevelId?: number,
+  ) => {
     // Check if signer info changed compared to current data
-    const current = templates[levelId];
+    const current =
+      templates[
+        specialLevelId ? `${normalLevelId}-${specialLevelId}` : normalLevelId
+      ];
     const signerChanged =
       current &&
       (current.signer_name !== template.signer_name ||
         current.signer_title !== template.signer_title);
-
+        
     saveMutation.mutate({
-      levelId,
+      normalLevelId,
+      specialLevelId,
       template,
       updateAllSigners: !!signerChanged,
     });
   };
 
-  if (levelsLoading || programsLoading || templatesLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[300px]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-full p-4 space-y-3">
-      <div className="px-6 py-4 rounded-2xl" style={{ background: "var(--glass-bg-soft)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", boxShadow: "var(--glass-shadow)", border: "1px solid var(--glass-border)" }}>
+    <div className="h-full flex flex-col gap-3 p-4">
+      <div className="px-6 py-4 rounded-2xl shrink-0" style={{ background: "var(--glass-bg)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", boxShadow: "var(--glass-shadow)", border: "1px solid var(--glass-border)" }}>
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-            <FileText className="h-5 w-5 text-primary-foreground" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ background: "#3a7d2c" }}>
+            <FileText className="h-5 w-5 text-white" />
           </div>
           <div className="flex-1">
-            <h2 className="text-lg font-bold text-foreground">
+            <h2 className="text-lg font-bold" style={{ color: "#1a3d0f" }}>
               ใบประกาศนียบัตร
             </h2>
             <p className="text-xs text-muted-foreground">
@@ -1750,101 +1906,142 @@ const SettingsCertificate = () => {
         </div>
       </div>
 
-      <div className="px-6 py-6 space-y-6">
-        {programs.length === 0 && (
-          <div className="text-center py-8 text-muted-foreground">
-            <FileText className="mx-auto h-10 w-10 mb-2 opacity-30" />
-            <p>ยังไม่มีโครงการ กรุณาเพิ่มโครงการก่อน</p>
-          </div>
-        )}
+      <LoadingOverlay visible={levelsLoading || programsLoading || templatesLoading}/>
 
-        {programs.map((program) => {
-          const programLevels = levels
-            .filter((l) => l.program_id === program.id)
-            .sort((a, b) => a.sort_order - b.sort_order);
-          const configuredCount = programLevels.filter(
-            (l) => !!templates[l.id],
-          ).length;
+      <div className="flex-1 min-h-0 rounded-2xl overflow-hidden" style={{ background: "var(--glass-bg)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", boxShadow: "var(--glass-shadow)", border: "1px solid var(--glass-border)" }}>
+        <div className="h-full overflow-y-auto px-6 py-6 space-y-6">
+          {programs.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              <FileText className="mx-auto h-10 w-10 mb-2 opacity-30" />
+              <p>ยังไม่มีโครงการ กรุณาเพิ่มโครงการก่อน</p>
+            </div>
+          )}
 
-          // Find first available signer info to use as default for new templates
-          const firstTemplateWithSigner = templatesRaw.find(
-            (t) => t.signer_name || t.signer_title,
-          );
-          const defaultSigner = firstTemplateWithSigner
-            ? {
-                name: firstTemplateWithSigner.signer_name,
-                title: firstTemplateWithSigner.signer_title,
-              }
-            : undefined;
+          {programs.map((program) => {
+            const programLevels = levels
+              .filter((l) => l.program_id === program.id)
+              .sort((a, b) => a.sort_order - b.sort_order);
+            const normalLevels = programLevels.filter((l) => l.type === ScoringLevelType.NORMAL);
+            const specialLevels = programLevels.filter((l) => l.type === ScoringLevelType.SPECIAL);
+            const combinedLevels = specialLevels.flatMap((special) =>
+              normalLevels.map((normal) => ({
+                ...special,
+                name: `${normal.name} ${special.name}`,
+                normal_level_id: normal.id,
+              })),
+            );
+            const allProgLevels: (ScoringLevel & { normal_level_id?: number; })[] = [...normalLevels, ...combinedLevels];
+            const configuredCount = allProgLevels.filter((l) => !!templates[l.type === ScoringLevelType.SPECIAL ? `${l.normal_level_id}-${l.id}` : l.id]).length;
 
-          return (
-            <Collapsible key={program.id} className="group/prog">
-              <div className="rounded-xl border border-accent/30 bg-accent/10 overflow-hidden shadow-sm">
-                <CollapsibleTrigger asChild>
-                  <button className="flex w-full items-center gap-3 px-5 py-4 hover:bg-accent/20 transition-colors">
-                    <ChevronRight className="h-5 w-5 text-accent-foreground/70 transition-transform group-data-[state=open]/prog:rotate-90" />
-                    <p className="font-bold text-foreground text-left flex-1 text-base">
-                      {program.name}
-                    </p>
-                    <span className="text-xs text-muted-foreground">
-                      {configuredCount}/{programLevels.length} ระดับตั้งค่าแล้ว
-                    </span>
-                  </button>
-                </CollapsibleTrigger>
+            // Find first available signer info to use as default for new templates
+            const firstTemplateWithSigner = templatesRaw.find(
+              (t) => t.signer_name || t.signer_title,
+            );
+            const defaultSigner = firstTemplateWithSigner
+              ? {
+                  name: firstTemplateWithSigner.signer_name,
+                  title: firstTemplateWithSigner.signer_title,
+                }
+              : undefined;
 
-                <CollapsibleContent>
-                  <div className="border-t px-4 py-4 space-y-4">
-                    {programLevels.length === 0 ? (
-                      <div className="text-center py-6 text-muted-foreground">
-                        <FileText className="mx-auto h-8 w-8 mb-2 opacity-30" />
-                        <p className="text-sm">
-                          ยังไม่มีเกณฑ์คะแนนในโครงการนี้
-                          กรุณาตั้งค่าเกณฑ์คะแนนก่อน
-                        </p>
-                      </div>
-                    ) : (
-                      programLevels.map((level) => {
-                        const template =
-                          templates[level.id] ||
-                          defaultTemplate(level.id, level.color, defaultSigner);
-                        return (
-                          <LevelCertCard
-                            key={level.id}
-                            level={level}
-                            template={template}
-                            onSave={(t) => handleSave(level.id, t)}
-                          />
-                        );
-                      })
-                    )}
-                  </div>
-                </CollapsibleContent>
-              </div>
-            </Collapsible>
-          );
-        })}
+            return (
+              <Collapsible key={program.id} className="group/prog">
+                <div className="rounded-xl border border-accent/30 bg-accent/10 overflow-hidden shadow-sm">
+                  <CollapsibleTrigger asChild>
+                    <button className="flex w-full items-center gap-3 px-5 py-4 hover:bg-accent/20 transition-colors">
+                      <ChevronRight className="h-5 w-5 text-accent-foreground/70 transition-transform group-data-[state=open]/prog:rotate-90" />
+                      <p className="font-bold text-foreground text-left flex-1 text-base">
+                        {program.name}
+                      </p>
+                      <span className="text-xs text-muted-foreground">
+                        {configuredCount}/{allProgLevels.length} ระดับตั้งค่าแล้ว
+                      </span>
+                    </button>
+                  </CollapsibleTrigger>
 
-        {levels.some((l) => !l.program_id) && (
-          <div className="rounded-xl border border-dashed bg-muted/30 p-4 space-y-4">
-            <p className="text-sm font-semibold text-muted-foreground">
-              ระดับที่ยังไม่ได้ผูกกับโครงการ
-            </p>
-            {levels
-              .filter((l) => !l.program_id)
-              .map((level) => {
-                const template =
-                  templates[level.id] || defaultTemplate(level.id, level.color);
-                return (
-                  <LevelCertCard
-                    key={level.id}
-                    level={level}
-                    template={template}
-                    onSave={(t) => handleSave(level.id, t)}
-                  />
-                );
-              })}
-          </div>
-        )}
+                  <CollapsibleContent>
+                    <div className="border-t px-4 py-4 space-y-4">
+                      {openCopyTemplateDialog && selectedTemplate && (
+                        <CopyTemplateDialog
+                          open={openCopyTemplateDialog}
+                          setOpen={setOpenCopyTemplateDialog}
+                          selectedTemplate={selectedTemplate}
+                          templates={sortedTemplates}
+                          onSave={(t) =>
+                            handleSave(
+                              selectedTemplate.normal_level_id,
+                              t,
+                              selectedTemplate.special_level_id,
+                            )
+                          }
+                        />
+                      )}
+                      {allProgLevels.length === 0 ? (
+                        <div className="text-center py-6 text-muted-foreground">
+                          <FileText className="mx-auto h-8 w-8 mb-2 opacity-30" />
+                          <p className="text-sm">
+                            ยังไม่มีเกณฑ์คะแนนในโครงการนี้
+                            กรุณาตั้งค่าเกณฑ์คะแนนก่อน
+                          </p>
+                        </div>
+                      ) : (
+                        allProgLevels.map((level) => {
+                          const normalId =
+                            level.type === ScoringLevelType.NORMAL
+                              ? level.id
+                              : level.normal_level_id;
+                          const specialId =
+                            level.type === ScoringLevelType.SPECIAL
+                              ? level.id
+                              : null;
+                          const template =
+                            templates[specialId ? `${normalId}-${specialId}` : normalId] ||
+                            defaultTemplate(normalId, specialId, level.color, defaultSigner);
+                          return (
+                            <LevelCertCard
+                              key={`${level.normal_level_id ?? level.id}-${template.special_level_id}`}
+                              level={level}
+                              setSelectedTemplate={setSelectedTemplate}
+                              setOpenCopyTemplateDialog={
+                                setOpenCopyTemplateDialog
+                              }
+                              template={template}
+                              onSave={(t) => handleSave(normalId, t, specialId)}
+                            />
+                          );
+                        })
+                      )}
+                    </div>
+                  </CollapsibleContent>
+                </div>
+              </Collapsible>
+            );
+          })}
+
+          {levels.some((l) => !l.program_id) && (
+            <div className="rounded-xl border border-dashed bg-muted/30 p-4 space-y-4">
+              <p className="text-sm font-semibold text-muted-foreground">
+                ระดับที่ยังไม่ได้ผูกกับโครงการ
+              </p>
+              {levels
+                .filter((l) => !l.program_id)
+                .map((level) => {
+                  const template =
+                    templates[level.id] || defaultTemplate(level.id, null, level.color);
+                  return (
+                    <LevelCertCard
+                      key={level.id}
+                      level={level}
+                      setSelectedTemplate={setSelectedTemplate}
+                      setOpenCopyTemplateDialog={setOpenCopyTemplateDialog}
+                      template={template}
+                      onSave={(t) => handleSave(level.id, t, level.id)}
+                    />
+                  );
+                })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
