@@ -1044,7 +1044,7 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
               <div className="divide-y">
                 {topic.indicators.map((indicator) => {
                   const rawScore = displayScores[indicator.id];
-                  const indScore = rawScore ?? 0;
+                  const indScore = rawScore === -1 ? 0 : (rawScore ?? 0);
                   const fileCount = (uploadedFiles[indicator.id] || []).length;
                   const isCommitteeUnscored = scoreView === "committee" && committeeScores && rawScore === undefined;
                   const notif = newIndicatorNotifs?.get(indicator.id);

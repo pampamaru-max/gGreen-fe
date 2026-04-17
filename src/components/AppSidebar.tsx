@@ -57,7 +57,9 @@ export function AppSidebar({ fontSize, setFontSize }: AppSidebarProps) {
   const currentPath = location.pathname;
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
-  const { isAdmin, loading: roleLoading } = useUserRole();
+  const { isAdmin, role, loading: roleLoading } = useUserRole();
+  // evaluatee ใช้ /register เป็น home, role อื่นใช้ /evaluation
+  const evaluationHome = role === "user" ? "/register" : "/evaluation";
 
   const isSettingsActive = currentPath.startsWith("/settings");
   const isReportsActive = currentPath.startsWith("/reports");
@@ -76,7 +78,7 @@ export function AppSidebar({ fontSize, setFontSize }: AppSidebarProps) {
               {/* ประเมิน G-Green */}
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <NavLink to="/evaluation" className="hover:bg-muted/50" activeClassName="bg-muted text-primary font-medium">
+                  <NavLink to={evaluationHome} className="hover:bg-muted/50" activeClassName="bg-muted text-primary font-medium">
                     <ClipboardCheck className="mr-2 h-4 w-4" />
                     {!collapsed && <span>ประเมิน G-Green</span>}
                   </NavLink>

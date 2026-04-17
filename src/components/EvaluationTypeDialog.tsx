@@ -5,9 +5,9 @@ import {
   RefreshCw,
   TrendingUp,
   Loader2,
-  Calendar,
   ArrowLeft,
   AlertCircle,
+  ChevronDown,
 } from "lucide-react";
 import {
   Dialog,
@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/dialog";
 // import apiClient from "@/lib/axios"; // TODO: ใช้เมื่อเปิด eligibility check กลับมา
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 // TODO: ใช้ interface นี้เมื่อเปิด eligibility check กลับมา
 interface Eligibility {
@@ -50,7 +49,82 @@ interface TypeOption {
     iconBg: string;
     iconText: string;
     text: string;
+    shadow: string;
   };
+}
+
+function YearPickerStep({
+  years,
+  currentYear,
+  selectedYear,
+  setSelectedYear,
+  usedYears,
+  onConfirm,
+}: {
+  years: number[];
+  currentYear: number;
+  selectedYear: number | null;
+  setSelectedYear: (y: number | null) => void;
+  usedYears: number[];
+  onConfirm: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="flex flex-col gap-3 py-2">
+      <p className="text-sm text-slate-500 dark:text-slate-400">
+        กรุณาเลือกปีงบประมาณที่ต้องการประเมิน
+      </p>
+
+      {usedYears.length > 0 && (
+        <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800/40 px-3 py-2.5">
+          <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+          <p className="text-xs text-red-600 dark:text-red-400 leading-relaxed">
+            <span className="font-bold">ไม่สามารถเลือกปีที่มีใบประเมินอยู่แล้วได้</span>
+            <br />
+            ปีที่ถูกใช้แล้ว: {usedYears.map((y) => `พ.ศ. ${y + 543}`).join(", ")}
+          </p>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-3">
+        {/* Custom dropdown — renders inline, no portal */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          >
+            <span className={selectedYear ? "text-foreground" : "text-muted-foreground"}>
+              {selectedYear ? `ปี ${selectedYear + 543}${selectedYear === currentYear ? " (ปีปัจจุบัน)" : ""}` : "เลือกปี"}
+            </span>
+            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+          </button>
+
+          {open && (
+            <div className="absolute bottom-full mb-1 left-0 right-0 z-10 max-h-52 overflow-y-auto rounded-md border bg-popover shadow-md">
+              {years.map((y) => (
+                <button
+                  key={y}
+                  type="button"
+                  onClick={() => { setSelectedYear(y); setOpen(false); }}
+                  className={`flex w-full items-center px-3 py-2 text-sm text-left transition-colors hover:bg-accent hover:text-accent-foreground ${
+                    selectedYear === y ? "bg-primary text-primary-foreground font-semibold" : "text-foreground"
+                  }`}
+                >
+                  ปี {y + 543} {y === currentYear ? "(ปีปัจจุบัน)" : ""}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <Button disabled={!selectedYear} onClick={onConfirm}>
+          ยืนยัน
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 export default function EvaluationTypeDialog({
@@ -111,31 +185,33 @@ export default function EvaluationTypeDialog({
       enabled: true, // eligibility?.canNew ?? false,
       disabledReason: "ต้องไม่มีประวัติการประเมินก่อน",
       colors: {
-        border: "border-blue-200",
-        bg: "bg-blue-50",
-        hover: "hover:bg-blue-100",
-        iconBg: "bg-blue-400",
+        border: "border-blue-200 dark:border-blue-800",
+        bg: "bg-blue-50/50 dark:bg-blue-900/20",
+        hover: "hover:bg-blue-100/80 dark:hover:bg-blue-900/40",
+        iconBg: "bg-blue-500",
         iconText: "text-white",
-        text: "text-blue-700",
+        text: "text-blue-700 dark:text-blue-300",
+        shadow: "shadow-blue-100 dark:shadow-blue-900/40",
       },
     },
     {
       key: "upgrade",
       icon: <RefreshCw className="h-6 w-6" />,
       label: "ขอยกระดับการรับรอง",
-      description: "สำหรับหน่วยงานระดับ Gold ที่ต้องการยกระดับและใบรับรองยังไม่หมดอายุ",
+      description: "สำหรับหน่วยงานระดับ Gold ที่ใบรับรองยังไม่หมดอายุและต้องการยกระดับ",
       // description: eligibility?.scoringLevelName
       //   ? `ระดับปัจจุบัน: ${eligibility.scoringLevelName} — ยกระดับเพื่อรับการรับรองสูงขึ้น`
       //   : "สำหรับหน่วยงานระดับ Gold ที่ต้องการยกระดับและใบรับรองยังไม่หมดอายุ",
       enabled: true, // eligibility?.canUpgrade ?? false,
       disabledReason: "ต้องมีผลประเมินระดับ Gold และใบรับรองยังไม่หมดอายุ",
       colors: {
-        border: "border-orange-200",
-        bg: "bg-orange-50",
-        hover: "hover:bg-orange-100",
-        iconBg: "bg-orange-300",
+        border: "border-orange-200 dark:border-orange-800",
+        bg: "bg-orange-50/50 dark:bg-orange-900/20",
+        hover: "hover:bg-orange-100/80 dark:hover:bg-orange-900/40",
+        iconBg: "bg-orange-400",
         iconText: "text-white",
-        text: "text-orange-600",
+        text: "text-orange-700 dark:text-orange-300",
+        shadow: "shadow-orange-100 dark:shadow-orange-900/40",
       },
     },
     {
@@ -149,12 +225,13 @@ export default function EvaluationTypeDialog({
       enabled: true, // eligibility?.canRenew ?? false,
       disabledReason: "ต้องประเมินใหม่ก่อน หรือยังไม่ถึงเวลาต่ออายุ",
       colors: {
-        border: "border-purple-200",
-        bg: "bg-purple-50",
-        hover: "hover:bg-purple-100",
-        iconBg: "bg-purple-400",
+        border: "border-purple-200 dark:border-purple-800",
+        bg: "bg-purple-50/50 dark:bg-purple-900/20",
+        hover: "hover:bg-purple-100/80 dark:hover:bg-purple-900/40",
+        iconBg: "bg-purple-500",
         iconText: "text-white",
-        text: "text-purple-700",
+        text: "text-purple-700 dark:text-purple-300",
+        shadow: "shadow-purple-100 dark:shadow-purple-900/40",
       },
     },
   ];
@@ -166,7 +243,7 @@ export default function EvaluationTypeDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="w-[calc(100%-2rem)] max-w-md p-4 sm:p-6">
         <DialogHeader>
           <div className="flex items-center gap-2">
             {step === "year" && (
@@ -192,36 +269,36 @@ export default function EvaluationTypeDialog({
             <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
           </div>
         ) : step === "type" ? (
-          <div className="flex flex-col gap-3 py-2">
+          <div className="flex flex-col gap-4 py-2 px-1">
             {options.map((opt) => (
               <button
                 key={opt.key}
                 onClick={() => opt.enabled && handleSelect(opt.key)}
                 disabled={!opt.enabled}
-                className={`flex items-center gap-4 rounded-xl border p-4 text-left transition-all ${
+                className={`w-full flex items-center gap-4 rounded-2xl border p-4 text-left transition-all duration-300 ${
                   opt.enabled
-                    ? `${opt.colors.border} ${opt.colors.bg} ${opt.colors.hover} cursor-pointer`
-                    : "border-slate-100 bg-white cursor-not-allowed opacity-50"
+                    ? `${opt.colors.border} ${opt.colors.bg} ${opt.colors.hover} ${opt.colors.shadow} shadow-lg cursor-pointer hover:-translate-y-1`
+                    : "border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 cursor-not-allowed opacity-50 shadow-none"
                 }`}
               >
                 <div
-                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${
                     opt.enabled
-                      ? `${opt.colors.iconBg} ${opt.colors.iconText}`
-                      : "bg-slate-100 text-slate-400"
+                      ? `${opt.colors.iconBg} ${opt.colors.iconText} shadow-inner`
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-400"
                   }`}
                 >
                   {opt.icon}
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p
-                    className={`font-semibold ${
+                    className={`text-base font-bold leading-tight ${
                       opt.enabled ? opt.colors.text : "text-slate-400"
                     }`}
                   >
                     {opt.label}
                   </p>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 whitespace-normal line-clamp-2">
                     {opt.enabled ? opt.description : opt.disabledReason}
                   </p>
                 </div>
@@ -229,45 +306,17 @@ export default function EvaluationTypeDialog({
             ))}
           </div>
         ) : (
-          <div className="flex flex-col gap-3 py-2">
-            <p className="text-sm text-slate-500">
-              กรุณาเลือกปีงบประมาณที่ต้องการประเมิน
-            </p>
-            {usedYears.length > 0 && (
-              <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5">
-                <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
-                <p className="text-xs text-red-600 leading-relaxed">
-                  <span className="font-bold">ไม่สามารถเลือกปีที่มีใบประเมินอยู่แล้วได้</span>
-                  <br />
-                  ปีที่ถูกใช้แล้ว: {usedYears.map((y) => `พ.ศ. ${y + 543}`).join(", ")}
-                </p>
-              </div>
-            )}
-            <div className="flex flex-col gap-3">
-              <Select onValueChange={(val) => setSelectedYear(Number(val))}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="เลือกปี" />
-                </SelectTrigger>
-                <SelectContent>
-                  {years.map((y) => (
-                    <SelectItem key={y} value={String(y)}>
-                      ปี {y + 543} {y === currentYear ? "(ปีปัจจุบัน)" : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Button
-                disabled={!selectedYear}
-                onClick={() => {
-                  onClose();
-                  navigate(`/register/evaluate?type=${selectedType}&year=${selectedYear}`);
-                }}
-              >
-                ยืนยัน
-              </Button>
-            </div>
-          </div>
+          <YearPickerStep
+            years={years}
+            currentYear={currentYear}
+            selectedYear={selectedYear}
+            setSelectedYear={setSelectedYear}
+            usedYears={usedYears}
+            onConfirm={() => {
+              onClose();
+              navigate(`/register/evaluate?type=${selectedType}&year=${selectedYear}`);
+            }}
+          />
         )}
       </DialogContent>
     </Dialog>

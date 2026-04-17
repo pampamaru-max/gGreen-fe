@@ -31,14 +31,18 @@ interface MobileBottomNavProps {
 export function MobileBottomNav({ fontSize, setFontSize }: MobileBottomNavProps) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { isAdmin } = useUserRole();
+  const { isAdmin, role } = useUserRole();
   const { signOut, user } = useAuth();
+  // evaluatee ใช้ /register เป็น home, role อื่นใช้ /evaluation
+  const evaluationHome = role === "user" ? "/register" : "/evaluation";
   const { isDark, toggleTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(pathname.startsWith("/settings"));
 
   const isActive = (path: string) =>
     path === "/" ? pathname === "/" : pathname.startsWith(path);
+  // active ถ้าอยู่ที่ /evaluation หรือ /register (ขึ้นกับ role)
+  const isEvalActive = pathname.startsWith("/evaluation") || pathname.startsWith("/register");
 
   const goTo = (path: string) => {
     setOpen(false);
@@ -51,13 +55,13 @@ export function MobileBottomNav({ fontSize, setFontSize }: MobileBottomNavProps)
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border/60">
         <div className="flex items-stretch">
           <button
-            onClick={() => navigate("/evaluation")}
+            onClick={() => navigate(evaluationHome)}
             className={cn(
               "flex-1 flex flex-col items-center justify-center gap-1 py-2.5 transition-colors",
-              isActive("/evaluation") ? "text-primary" : "text-muted-foreground"
+              isEvalActive ? "text-primary" : "text-muted-foreground"
             )}
           >
-            <ClipboardCheck className={cn("h-5 w-5", isActive("/evaluation") && "stroke-[2.5]")} />
+            <ClipboardCheck className={cn("h-5 w-5", isEvalActive && "stroke-[2.5]")} />
             <span className="text-[10px] font-medium leading-none">ประเมิน</span>
           </button>
 
@@ -98,10 +102,10 @@ export function MobileBottomNav({ fontSize, setFontSize }: MobileBottomNavProps)
           <div className="overflow-y-auto px-3 pb-4 space-y-0.5">
             {/* ประเมิน G-Green */}
             <button
-              onClick={() => goTo("/evaluation")}
+              onClick={() => goTo(evaluationHome)}
               className={cn(
                 "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-left text-sm",
-                isActive("/evaluation") ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"
+                isEvalActive ? "bg-muted text-primary font-medium" : "hover:bg-muted/50"
               )}
             >
               <ClipboardCheck className="h-4 w-4 shrink-0" />

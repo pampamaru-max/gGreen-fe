@@ -213,8 +213,8 @@ function SortableProgramCard({ program, onEdit, onDelete }: { program: Program; 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: program.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
   return (
-    <div ref={setNodeRef} style={{ ...style, ...glassCard }} className="rounded-xl">
-      <div className="p-4 flex items-center justify-between">
+    <div ref={setNodeRef} style={{ ...style, ...glassCard }} className="flex flex-1 overflow-hidden rounded-xl">
+      <div className="p-4 flex w-full items-center justify-between">
         <div className="flex items-center gap-3 min-w-0">
           <button type="button" className="cursor-grab touch-none" style={{ color: "#3a7d2c" }} {...attributes} {...listeners}>
             <GripVertical className="h-4 w-4" />
