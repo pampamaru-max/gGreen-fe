@@ -145,8 +145,8 @@ export default function HomePage() {
                     <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl flex items-center justify-center transition-colors" style={{ background: "rgba(58,125,44,0.15)" }}>
                       <IconComp className="h-5 w-5 sm:h-6 sm:w-6" style={{ color: "#3a7d2c" }} />
                     </div>
-                    <span className="text-xs sm:text-sm font-semibold" style={{ color: "var(--green-heading)" }}>{p.name}</span>
-                    <span className="text-xs leading-tight hidden sm:block" style={{ color: "var(--green-muted)" }}>{p.description}</span>
+                    <span className="text-xs sm:text-sm font-semibold w-full break-words leading-snug" style={{ color: "var(--green-heading)" }}>{p.name}</span>
+                    <span className="text-xs leading-tight hidden sm:block w-full break-words" style={{ color: "var(--green-muted)" }}>{p.description}</span>
                   </div>
                 );
               })}

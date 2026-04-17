@@ -8,7 +8,7 @@ type BackToTopButtonProps = {
 };
 
 export function BackToTopButton({ containerRef, heightToShow = 300 }: BackToTopButtonProps) {
-  let timeout: NodeJS.Timeout;
+  let timeout: ReturnType<typeof setTimeout>;
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -50,10 +50,10 @@ export function BackToTopButton({ containerRef, heightToShow = 300 }: BackToTopB
     <Button
       onClick={scrollToTop}
       size="icon"
-      className="fixed bottom-4 right-4 rounded-md bg-primary text-white shadow-lg hover:bg-primary/90 transition-opacity opacity-80 hover:opacity-100"
+      className="fixed bottom-20 right-4 h-8 w-8 rounded-full bg-red-500 text-white shadow-lg hover:bg-red-600 transition-opacity opacity-80 hover:opacity-100"
       aria-label="Back to top"
     >
-      <ArrowUp />
+      <ArrowUp className="h-4 w-4" />
     </Button>
   );
 }
