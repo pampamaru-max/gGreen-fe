@@ -319,7 +319,7 @@ export default function EvaluateeHome() {
   } as React.CSSProperties;
 
   return (
-    <div className="h-full flex flex-col gap-3 p-4">
+    <div className="h-full flex flex-col gap-3 p-3 sm:p-4">
 
       {/* ════ Header glass card ════ */}
       <div className="px-4 py-3 rounded-2xl shrink-0" style={glassCard}>
@@ -342,9 +342,10 @@ export default function EvaluateeHome() {
           </div>
           {(!reg || reg.status === "selected") && (
             <Button onClick={() => setEvalTypeDialogOpen(true)}
-              className="gap-2 shrink-0 h-8 px-3 text-xs font-bold" style={{ background: "#3a7d2c", color: "#fff" }}>
+              className="gap-1.5 shrink-0 h-8 px-3 text-xs font-bold" style={{ background: "#3a7d2c", color: "#fff" }}>
               <ClipboardCheck className="h-3.5 w-3.5" />
-              เริ่มประเมิน
+              <span className="hidden xs:inline">เริ่มประเมิน</span>
+              <span className="xs:hidden">เริ่ม</span>
               <ArrowRight className="h-3.5 w-3.5" />
             </Button>
           )}
@@ -372,18 +373,26 @@ export default function EvaluateeHome() {
       {/* ════ Scrollable content glass card ════ */}
       <div className="flex-1 min-h-0 rounded-2xl overflow-hidden" style={glassCard}>
         <div className="h-full overflow-y-auto">
-          {/* Header row */}
-          <div className="flex items-center justify-between gap-3 px-4 pt-4 pb-2 flex-wrap">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                <ListChecks className="h-4 w-4 text-primary" />
+          {/* Header + Filters */}
+          <div className="px-4 pt-4 pb-2 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                  <ListChecks className="h-4 w-4 text-primary" />
+                </div>
+                <h2 className="text-sm font-bold" style={{ color: "var(--green-heading)" }}>ประวัติการประเมิน</h2>
               </div>
-              <h2 className="text-sm font-bold" style={{ color: "var(--green-heading)" }}>ประวัติการประเมิน</h2>
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" onClick={clearFilters}
+                  className="h-7 px-2 text-xs text-muted-foreground gap-1">
+                  <X className="h-3 w-3" /> ล้าง ({filteredEvaluations.length}/{allEvaluations.length})
+                </Button>
+              )}
             </div>
-            {/* Filters */}
-            <div className="flex items-center gap-2 flex-wrap">
+            {/* Filters — 2 cols on mobile, wrap on desktop */}
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
               <Select value={filterYear} onValueChange={setFilterYear}>
-                <SelectTrigger className="h-8 w-[110px] text-xs">
+                <SelectTrigger className="h-8 text-xs w-full sm:w-[110px]">
                   <SelectValue placeholder="ทุกปี" />
                 </SelectTrigger>
                 <SelectContent>
@@ -394,7 +403,7 @@ export default function EvaluateeHome() {
                 </SelectContent>
               </Select>
               <Select value={filterEvalType} onValueChange={setFilterEvalType}>
-                <SelectTrigger className="h-8 w-[150px] text-xs">
+                <SelectTrigger className="h-8 text-xs w-full sm:w-[150px]">
                   <SelectValue placeholder="ประเภทเอกสาร" />
                 </SelectTrigger>
                 <SelectContent>
@@ -405,7 +414,7 @@ export default function EvaluateeHome() {
                 </SelectContent>
               </Select>
               <Select value={filterSelfStatus} onValueChange={setFilterSelfStatus}>
-                <SelectTrigger className="h-8 w-[150px] text-xs">
+                <SelectTrigger className="h-8 text-xs w-full sm:w-[150px]">
                   <SelectValue placeholder="สถานะตนเอง" />
                 </SelectTrigger>
                 <SelectContent>
@@ -418,7 +427,7 @@ export default function EvaluateeHome() {
                 </SelectContent>
               </Select>
               <Select value={filterCommitteeStatus} onValueChange={setFilterCommitteeStatus}>
-                <SelectTrigger className="h-8 w-[130px] text-xs">
+                <SelectTrigger className="h-8 text-xs w-full sm:w-[130px]">
                   <SelectValue placeholder="สถานะกรรมการ" />
                 </SelectTrigger>
                 <SelectContent>
@@ -427,176 +436,193 @@ export default function EvaluateeHome() {
                   <SelectItem value="done">ประเมินแล้ว</SelectItem>
                 </SelectContent>
               </Select>
-              {hasActiveFilters && (
-                <Button variant="ghost" size="sm" onClick={clearFilters}
-                  className="h-8 px-2 text-xs text-muted-foreground gap-1">
-                  <X className="h-3 w-3" /> ล้าง
-                  {hasActiveFilters && <span className="text-muted-foreground/60">({filteredEvaluations.length}/{allEvaluations.length})</span>}
-                </Button>
-              )}
             </div>
           </div>
 
-          <div className="overflow-x-auto px-1">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/30 hover:bg-muted/30 border-b border-border/50">
-                    <TableHead className="text-center min-w-[140px] text-slate-400 font-bold uppercase text-[0.625rem] tracking-[0.1em]">
-                      ชื่อหน่วยงาน
-                    </TableHead>
-                    <TableHead className="text-center min-w-[140px] text-slate-400 font-bold uppercase text-[0.625rem] tracking-[0.1em]">
-                      โครงการ
-                    </TableHead>
-                    <TableHead className="text-center min-w-[80px] text-slate-400 font-bold uppercase text-[0.625rem] tracking-[0.1em]">
-                      ปี
-                    </TableHead>
-                    <TableHead className="text-center min-w-[130px] text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">
-                      ประเภทเอกสาร
-                    </TableHead>
-                    <TableHead className="text-center min-w-[140px] text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">
-                      สถานะการประเมินตนเอง
-                    </TableHead>
-                    <TableHead className="text-center min-w-[100px] text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">
-                      คะแนนรวม
-                    </TableHead>
-                    <TableHead className="text-center min-w-[140px] text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">
-                      สถานะการประเมินกรรมการ
-                    </TableHead>
-                    <TableHead className="text-center min-w-[100px] text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">
-                      คะแนนรวมกรรมการ
-                    </TableHead>
-                    <TableHead className="text-center w-28 text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">
-                      จัดการ
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredEvaluations.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
-                        {allEvaluations.length === 0 ? "ไม่มีข้อมูลประวัติการประเมิน" : "ไม่พบรายการที่ตรงกับตัวกรอง"}
-                      </TableCell>
+          {filteredEvaluations.length === 0 ? (
+            <div className="flex items-center justify-center py-16 text-muted-foreground text-sm">
+              {allEvaluations.length === 0 ? "ไม่มีข้อมูลประวัติการประเมิน" : "ไม่พบรายการที่ตรงกับตัวกรอง"}
+            </div>
+          ) : (
+            <>
+              {/* ── Mobile card list (< md) ── */}
+              <div className="md:hidden px-3 pb-3 space-y-2">
+                {filteredEvaluations.map((item: any) => {
+                  const isReadOnly = !item.is_pending && (
+                    item.evaluation_status === "completed" || item.evaluation_status === "submitted" ||
+                    item.evaluation_status === "complete" || item.evaluation_status === "submit"
+                  );
+                  const typeKey = item.evaluation_type ?? "new";
+                  const typeCfg = EVAL_TYPE_CONFIG[typeKey];
+                  const hasCommittee = !!item.total_committee_score || item.has_committee_score;
+
+                  return (
+                    <div key={item.id} className="rounded-xl border border-border/50 bg-background/60 p-3 space-y-2.5">
+                      {/* Row 1: program + year + type */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">โครงการ</p>
+                          <p className="text-sm font-bold truncate" style={{ color: "var(--green-heading)" }}>{item.program_name}</p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <span className="text-xs font-semibold text-muted-foreground">{item.year ? item.year + 543 : "-"}</span>
+                          {typeCfg && (
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.625rem] font-semibold border ${typeCfg.className}`}>
+                              {typeCfg.icon}{typeCfg.label}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Row 2: status row */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-muted-foreground">ตนเอง:</span>
+                          {getStatusBadge(item.evaluation_status)}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-muted-foreground">กรรมการ:</span>
+                          {getCommitteeBadge(hasCommittee)}
+                        </div>
+                      </div>
+
+                      {/* Row 3: scores */}
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5">
+                          <p className="text-[10px] text-muted-foreground">คะแนนตนเอง</p>
+                          <p className="text-sm font-bold" style={{ color: "var(--green-heading)" }}>
+                            {item.total_score !== null ? `${item.total_score}/${item.max_self_score}` : "-"}
+                          </p>
+                        </div>
+                        <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5">
+                          <p className="text-[10px] text-muted-foreground">คะแนนกรรมการ</p>
+                          <p className="text-sm font-bold" style={{ color: "var(--green-heading)" }}>
+                            {item.total_committee_score !== null ? `${item.total_committee_score}/${item.max_committee_score}` : "-"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Row 4: actions */}
+                      <div className="flex items-center gap-2 pt-0.5">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => item.is_pending ? navigate(`/register/evaluate`) : navigate(`/register/evaluate?id=${item.id}`)}
+                          className={`flex-1 h-9 gap-1.5 text-xs font-semibold rounded-xl ${
+                            item.is_pending
+                              ? "border-blue-200 bg-blue-50/50 text-blue-600 hover:bg-blue-100"
+                              : isReadOnly
+                              ? "border-slate-200 bg-slate-50/50 text-slate-500 hover:bg-slate-100"
+                              : "border-emerald-200 bg-emerald-50/50 text-emerald-600 hover:bg-emerald-100"
+                          }`}
+                        >
+                          {item.is_pending ? <Plus className="h-3.5 w-3.5" /> : isReadOnly ? <Eye className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
+                          {item.is_pending ? "เริ่มประเมิน" : isReadOnly ? "ดูรายละเอียด" : "แก้ไข"}
+                        </Button>
+                        {hasCommittee && (
+                          <Button variant="outline" size="icon"
+                            onClick={() => window.open(`/certificate/print/${item.id}`, "_blank")}
+                            className="h-9 w-9 rounded-xl border-amber-200 bg-amber-50/50 text-amber-600 hover:bg-amber-100 shrink-0">
+                            <Printer className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {!item.is_pending && item.evaluation_status === "draft" && (
+                          <Button variant="outline" size="icon"
+                            onClick={() => setDeleteTargetId(item.id)}
+                            className="h-9 w-9 rounded-xl border-red-100 bg-red-50/50 text-red-500 hover:bg-red-100 hover:text-red-700 shrink-0">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* ── Desktop table (≥ md) ── */}
+              <div className="hidden md:block overflow-x-auto px-1">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/30 hover:bg-muted/30 border-b border-border/50">
+                      <TableHead className="text-center min-w-[140px] text-slate-400 font-bold uppercase text-[0.625rem] tracking-[0.1em]">ชื่อหน่วยงาน</TableHead>
+                      <TableHead className="text-center min-w-[140px] text-slate-400 font-bold uppercase text-[0.625rem] tracking-[0.1em]">โครงการ</TableHead>
+                      <TableHead className="text-center min-w-[80px] text-slate-400 font-bold uppercase text-[0.625rem] tracking-[0.1em]">ปี</TableHead>
+                      <TableHead className="text-center min-w-[130px] text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">ประเภทเอกสาร</TableHead>
+                      <TableHead className="text-center min-w-[140px] text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">สถานะประเมินตนเอง</TableHead>
+                      <TableHead className="text-center min-w-[100px] text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">คะแนนรวม</TableHead>
+                      <TableHead className="text-center min-w-[140px] text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">สถานะกรรมการ</TableHead>
+                      <TableHead className="text-center min-w-[100px] text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">คะแนนกรรมการ</TableHead>
+                      <TableHead className="text-center w-28 text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">จัดการ</TableHead>
                     </TableRow>
-                  ) : (
-                    filteredEvaluations.map((item: any) => (
-                      <TableRow key={item.id} className="hover:bg-muted/20 transition-colors border-b border-border/30 last:border-0 group">
-                        <TableCell className="text-center font-medium">{item.user_name}</TableCell>
-                        <TableCell className="text-center font-medium">{item.program_name}</TableCell>
-                        <TableCell className="text-center font-medium">{item.year ? item.year + 543 : "-"}</TableCell>
-                        <TableCell className="text-center">
-                          {(() => {
-                            const typeKey = item.evaluation_type ?? "new";
-                            const cfg = EVAL_TYPE_CONFIG[typeKey];
-                            if (!cfg) return <span className="text-muted-foreground text-xs">{typeKey}</span>;
-                            return (
-                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.6875rem] font-semibold border ${cfg.className}`}>
-                                {cfg.icon}{cfg.label}
+                  </TableHeader>
+                  <TableBody>
+                    {filteredEvaluations.map((item: any) => {
+                      const isReadOnly = !item.is_pending && (
+                        item.evaluation_status === "completed" || item.evaluation_status === "submitted" ||
+                        item.evaluation_status === "complete" || item.evaluation_status === "submit"
+                      );
+                      const typeKey = item.evaluation_type ?? "new";
+                      const typeCfg = EVAL_TYPE_CONFIG[typeKey];
+                      return (
+                        <TableRow key={item.id} className="hover:bg-muted/20 transition-colors border-b border-border/30 last:border-0 group">
+                          <TableCell className="text-center font-medium">{item.user_name}</TableCell>
+                          <TableCell className="text-center font-medium">{item.program_name}</TableCell>
+                          <TableCell className="text-center font-medium">{item.year ? item.year + 543 : "-"}</TableCell>
+                          <TableCell className="text-center">
+                            {typeCfg ? (
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.6875rem] font-semibold border ${typeCfg.className}`}>
+                                {typeCfg.icon}{typeCfg.label}
                               </span>
-                            );
-                          })()}
-                        </TableCell>
-                        <TableCell className="text-center">{getStatusBadge(item.evaluation_status)}</TableCell>
-                        <TableCell className="text-center font-bold text-foreground">
-                          {item.total_score !== null ? `${item.total_score}/${item.max_self_score}` : "-"}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {getCommitteeBadge(!!item.total_committee_score || item.has_committee_score)}
-                        </TableCell>
-                        <TableCell className="text-center font-bold text-foreground">
-                          {item.total_committee_score !== null ? `${item.total_committee_score}/${item.max_committee_score}` : "-"}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {(() => {
-                            const isEditable =
-                              !item.is_pending &&
-                              (item.evaluation_status === "draft" ||
-                                item.evaluation_status === "revision");
-                            const isReadOnly =
-                              !item.is_pending &&
-                              (item.evaluation_status === "completed" ||
-                                item.evaluation_status === "submitted" ||
-                                item.evaluation_status === "complete" ||
-                                item.evaluation_status === "submit");
-
-                            return (
-                              <div className="flex items-center justify-center gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={() => {
-                                    if (item.is_pending) {
-                                      navigate(`/register/evaluate`);
-                                    } else {
-                                      navigate(
-                                        `/register/evaluate?id=${item.id}`,
-                                      );
-                                    }
-                                  }}
-                                  className={`h-10 w-10 rounded-xl transition-all shadow-sm ${
-                                    item.is_pending
-                                      ? "border-blue-100 bg-blue-50/50 text-blue-600 hover:bg-blue-100 hover:text-blue-700"
-                                      : isReadOnly
-                                        ? "border-slate-100 bg-slate-50/50 text-slate-500 hover:bg-slate-100 hover:text-slate-600"
-                                        : "border-emerald-100 bg-emerald-50/50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700"
-                                  }`}
-                                  title={
-                                    item.is_pending
-                                      ? "เริ่มการประเมิน"
-                                      : isReadOnly
-                                        ? "ดูรายละเอียด (อ่านอย่างเดียว)"
-                                        : "แก้ไขการประเมิน"
-                                  }
-                                >
-                                  {item.is_pending ? (
-                                    <Plus className="h-5 w-5" />
-                                  ) : isReadOnly ? (
-                                    <Eye className="h-5 w-5" />
-                                  ) : (
-                                    <Pencil className="h-5 w-5" />
-                                  )}
+                            ) : <span className="text-muted-foreground text-xs">{typeKey}</span>}
+                          </TableCell>
+                          <TableCell className="text-center">{getStatusBadge(item.evaluation_status)}</TableCell>
+                          <TableCell className="text-center font-bold text-foreground">
+                            {item.total_score !== null ? `${item.total_score}/${item.max_self_score}` : "-"}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {getCommitteeBadge(!!item.total_committee_score || item.has_committee_score)}
+                          </TableCell>
+                          <TableCell className="text-center font-bold text-foreground">
+                            {item.total_committee_score !== null ? `${item.total_committee_score}/${item.max_committee_score}` : "-"}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <Button variant="outline" size="icon"
+                                onClick={() => item.is_pending ? navigate(`/register/evaluate`) : navigate(`/register/evaluate?id=${item.id}`)}
+                                className={`h-10 w-10 rounded-xl transition-all shadow-sm ${
+                                  item.is_pending ? "border-blue-100 bg-blue-50/50 text-blue-600 hover:bg-blue-100"
+                                  : isReadOnly ? "border-slate-100 bg-slate-50/50 text-slate-500 hover:bg-slate-100"
+                                  : "border-emerald-100 bg-emerald-50/50 text-emerald-600 hover:bg-emerald-100"
+                                }`}
+                              >
+                                {item.is_pending ? <Plus className="h-5 w-5" /> : isReadOnly ? <Eye className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
+                              </Button>
+                              {(!!item.total_committee_score || item.has_committee_score) && (
+                                <Button variant="outline" size="icon"
+                                  onClick={() => window.open(`/certificate/print/${item.id}`, "_blank")}
+                                  className="h-10 w-10 rounded-xl border-amber-100 bg-amber-50/50 text-amber-600 hover:bg-amber-100 transition-all shadow-sm">
+                                  <Printer className="h-5 w-5" />
                                 </Button>
-
-                                {(!!item.total_committee_score ||
-                                  item.has_committee_score) && (
-                                  <Button
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={() => {
-                                      window.open(
-                                        `/certificate/print/${item.id}`,
-                                        "_blank",
-                                      );
-                                    }}
-                                    className="h-10 w-10 rounded-xl border-amber-100 bg-amber-50/50 text-amber-600 hover:bg-amber-100 hover:text-amber-700 transition-all shadow-sm group-hover:scale-110"
-                                    title="พิมพ์ใบประกาศนียบัตร"
-                                  >
-                                    <Printer className="h-5 w-5" />
-                                  </Button>
-                                )}
-
-                                {!item.is_pending && item.evaluation_status === "draft" && (
-                                  <Button
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={() => setDeleteTargetId(item.id)}
-                                    className="h-10 w-10 rounded-xl border-red-100 bg-red-50/50 text-red-500 hover:bg-red-100 hover:text-red-700 transition-all shadow-sm"
-                                    title="ลบเอกสารร่าง"
-                                  >
-                                    <Trash2 className="h-5 w-5" />
-                                  </Button>
-                                )}
-                              </div>
-                            );
-                          })()}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
+                              )}
+                              {!item.is_pending && item.evaluation_status === "draft" && (
+                                <Button variant="outline" size="icon"
+                                  onClick={() => setDeleteTargetId(item.id)}
+                                  className="h-10 w-10 rounded-xl border-red-100 bg-red-50/50 text-red-500 hover:bg-red-100 hover:text-red-700 transition-all shadow-sm">
+                                  <Trash2 className="h-5 w-5" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
         </div>
+      </div>
 
       <AlertActionPopup
         open={!!deleteTargetId}

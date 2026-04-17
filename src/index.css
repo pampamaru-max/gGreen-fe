@@ -97,9 +97,27 @@
   * {
     @apply border-border;
   }
+  html {
+    /* ป้องกันส่วนขาวบน/ล่างบน mobile เมื่อ background image โหลดไม่ทัน
+       หรือ viewport ไม่ตรงกับ 100vh (iOS Safari, Android Chrome) */
+    background-color: #1a3d1a;
+    /* ใช้ dvh (dynamic viewport height) แทน vh เพื่อรองรับ browser chrome บน mobile */
+    height: 100%;
+    height: -webkit-fill-available;
+  }
+
   body {
     @apply bg-background text-foreground font-sans;
     font-family: 'Noto Sans Thai', sans-serif;
+    background-color: #1a3d1a;
+    min-height: 100vh;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+  }
+
+  #root {
+    min-height: 100vh;
+    min-height: 100dvh;
   }
 }
 
