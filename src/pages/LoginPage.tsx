@@ -31,14 +31,25 @@ export default function LoginPage() {
       if (response.data.token) {
         const userData = response.data.user;
         login(userData, response.data.token);
-        if (redirectTo) {
-          navigate(redirectTo, { replace: true });
+        const role = userData?.role?.toUpperCase();
+        const isAdmin = role === "SUPERADMIN" || role === "ADMIN";
+        const isEvaluator = role === "EVALUATOR";
+
+        // ใช้ redirect param เฉพาะเมื่อ path นั้น ตรงกับสิทธิ์ของ role
+        const redirectIsValid =
+          redirectTo &&
+          (isAdmin    ? redirectTo.startsWith("/settings") || redirectTo.startsWith("/evaluation") || redirectTo.startsWith("/registration") || redirectTo.startsWith("/projects") :
+           isEvaluator ? redirectTo.startsWith("/evaluation") :
+                         redirectTo.startsWith("/register"));
+
+        if (redirectIsValid) {
+          navigate(redirectTo!, { replace: true });
           return;
         }
-        const role = userData?.role?.toUpperCase();
-        if (role === "SUPERADMIN" || role === "ADMIN") {
+
+        if (isAdmin) {
           navigate("/settings/programs");
-        } else if (role === "EVALUATOR") {
+        } else if (isEvaluator) {
           navigate("/evaluation");
         } else {
           navigate("/register");
