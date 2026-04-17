@@ -533,6 +533,8 @@ const ProgramCard = ({
 
   const hasSpecialCats = upgradCategories.length > 0 || renewCategories.length > 0;
 
+  const suffixType = '_' + (addingType ?? "score_new").split('_').pop();
+  
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <div className="rounded-xl border border-accent/30 bg-accent/10 shadow-sm overflow-hidden">
@@ -664,6 +666,7 @@ const ProgramCard = ({
                 onOpenChange={(v) => { if (!v) setAddingType(null); }}
                 scoreType={addingType ?? "score_new"}
                 nextSortOrder={nextSortOrder}
+                orderList={categories.filter(c => c.scoreType.endsWith(suffixType)).map(c => c.sortOrder)}
                 onAdd={(data) => { onAddCategory(data, program.id); setAddingType(null); }}
               />
 
