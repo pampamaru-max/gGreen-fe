@@ -1950,7 +1950,7 @@ const SettingsCertificate = () => {
                   <CollapsibleTrigger asChild>
                     <button className="flex w-full items-center gap-3 px-5 py-4 hover:bg-accent/20 transition-colors">
                       <ChevronRight className="h-5 w-5 text-accent-foreground/70 transition-transform group-data-[state=open]/prog:rotate-90" />
-                      <p className="font-bold text-foreground text-left flex-1 text-base">
+                      <p className="font-bold text-foreground text-left flex-1 text-base truncate">
                         {program.name}
                       </p>
                       <span className="text-xs text-muted-foreground">

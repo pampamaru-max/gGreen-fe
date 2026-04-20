@@ -653,7 +653,7 @@ const SettingsScoringCriteria = () => {
                 <CollapsibleTrigger asChild>
                   <button className="flex w-full items-center gap-3 px-5 py-4 hover:bg-emerald-50/60 transition-colors">
                     <ChevronRight className="h-5 w-5 text-emerald-600/70 transition-transform group-data-[state=open]/prog:rotate-90" />
-                    <p className="font-bold text-slate-800 text-left flex-1 text-base">{program.name}</p>
+                    <p className="font-bold text-slate-800 text-left flex-1 text-base truncate">{program.name}</p>
                     <span className="text-xs text-slate-500">
                       {program.scoringType === 'yes_no' ? 'สอดคล้อง/ไม่สอดคล้อง' : `${programLevels.length} ระดับ`}
                     </span>
