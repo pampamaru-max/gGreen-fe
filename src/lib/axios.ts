@@ -39,7 +39,7 @@ apiClient.interceptors.response.use(
         window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}&reason=session_expired`;
       }
     }
-    return Promise.reject(error);
+    return Promise.reject(error.response?.data ?? error);
   }
 );
 
