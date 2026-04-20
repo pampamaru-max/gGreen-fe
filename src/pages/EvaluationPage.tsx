@@ -319,15 +319,15 @@ const EvaluationPage = () => {
                     </div>
                   </div>
 
-                  {/* Row 3: scores */}
+                    {/* Row 3: scores */}
                   <div className="flex items-center gap-2">
                     <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5 flex flex-col items-center">
                       <p className="text-[10px] text-muted-foreground">คะแนนรวม</p>
-                      {renderScoreWithLevel(row.total_score ?? row.self_total_score ?? null, row.total_max ?? row.self_max_score ?? null, row.program_id)}
+                      {renderScoreWithLevel(row.self_total_score ?? null, row.self_max_score ?? row.total_max ?? null, row.program_id)}
                     </div>
                     <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5 flex flex-col items-center">
                       <p className="text-[10px] text-muted-foreground">กรรมการ</p>
-                      {renderScoreWithLevel(row.committee_total_score ?? null, row.total_max ?? row.self_max_score ?? null, row.program_id)}
+                      {renderScoreWithLevel(row.committee_total_score ?? null, row.committee_max_score ?? row.total_max ?? null, row.program_id)}
                     </div>
                   </div>
 
@@ -397,10 +397,10 @@ const EvaluationPage = () => {
                       <TableCell className="text-center">{getSelfAssessmentBadge(row.self_status)}</TableCell>
                       <TableCell className="text-center">{getCommitteeBadge(row.self_status, row.has_committee_score)}</TableCell>
                       <TableCell className="text-center">
-                        {renderScoreWithLevel(row.total_score ?? row.self_total_score ?? null, row.total_max ?? row.self_max_score ?? null, row.program_id)}
+                        {renderScoreWithLevel(row.self_total_score ?? null, row.self_max_score ?? row.total_max ?? null, row.program_id)}
                       </TableCell>
                       <TableCell className="text-center">
-                        {renderScoreWithLevel(row.committee_total_score ?? null, row.total_max ?? row.self_max_score ?? null, row.program_id)}
+                        {renderScoreWithLevel(row.committee_total_score ?? null, row.committee_max_score ?? row.total_max ?? null, row.program_id)}
                       </TableCell>
                       <TableCell className="text-center">
                         {row.has_committee_score && (

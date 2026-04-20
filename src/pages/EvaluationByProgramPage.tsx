@@ -57,6 +57,8 @@ const EvaluationByProgramPage = () => {
   const [evaluationType, setEvaluationType] = useState<string | null>(null);
   const [scoringLevels, setScoringLevels] = useState<ScoringLevel[]>([]);
   const [year, setYear] = useState<number | null>(null);
+  const [selfMaxFromApi, setSelfMaxFromApi] = useState<number | null>(null);
+  const [committeeMaxFromApi, setCommitteeMaxFromApi] = useState<number | null>(null);
   // notification IDs ของ indicator ที่ผู้ถูกประเมินแก้ไขใหม่ (เฉพาะฝั่งกรรมการ)
   const [newEvaluateeIndicatorIds, setNewEvaluateeIndicatorIds] = useState<Map<string, { prevScore: number | null; newScore: number | null }>>(new Map());
   const [expandedCategoryId, setExpandedCategoryId] = useState<string | number | null>(null);
@@ -132,6 +134,8 @@ const EvaluationByProgramPage = () => {
             setEvaluationStatus(evalData.status);
             if (evalData.evaluationType) setEvaluationType(evalData.evaluationType);
             if (evalData.year) setYear(evalData.year);
+            if (evalData.self_max_score) setSelfMaxFromApi(Number(evalData.self_max_score));
+            if (evalData.committee_max_score) setCommitteeMaxFromApi(Number(evalData.committee_max_score));
 
             const loaded: Record<string, number> = {};
             const loadedDetails: Record<string, string> = {};
@@ -307,13 +311,17 @@ const EvaluationByProgramPage = () => {
   const displayCommitteeTotal    = isYesNoProgram ? grandCommitteePassCount : grandCommitteeTotal;
   const displaySelfTotal         = isYesNoProgram ? grandSelfPassCount      : grandSelfTotal;
   const displayMax               = isYesNoProgram ? grandSelfPassTotal      : grandMax;
-  const displayCommitteePct      = displayMax > 0 ? Math.round((displayCommitteeTotal / displayMax) * 100) : 0;
+  
+  const displaySelfMax           = isYesNoProgram ? grandSelfPassTotal      : (selfMaxFromApi ?? displayMax);
+  const displayCommitteeMax      = isYesNoProgram ? grandSelfPassTotal      : (committeeMaxFromApi ?? displayMax);
+
+  const displayCommitteePct      = displayCommitteeMax > 0 ? Math.round((displayCommitteeTotal / displayCommitteeMax) * 100) : 0;
   const displayUnit               = isYesNoProgram ? "ผ่าน" : "";
 
   const selfPct = useMemo(() => {
-    if (displayMax === 0) return 0;
-    return Math.round((displaySelfTotal / displayMax) * 100);
-  }, [displaySelfTotal, displayMax]);
+    if (displaySelfMax === 0) return 0;
+    return Math.round((displaySelfTotal / displaySelfMax) * 100);
+  }, [displaySelfTotal, displaySelfMax]);
 
   const activeLevel = useMemo(() => {
     if (scoringLevels.length === 0) return null;
@@ -442,34 +450,49 @@ const EvaluationByProgramPage = () => {
   };
 
   const handleComplete = async () => {
-    if (!evaluationId) return;
-    await apiClient.post(`evaluation/${evaluationId}/complete`);
-
-    // yes/no programs: นับจำนวนที่ผ่าน แล้วเทียบกับ scoring-levels ของ program นั้น
-    const allCategories = visibleCategories;
-    const hasYesNo = allCategories.some(c => c.scoreType?.includes('yes_no'));
-    if (hasYesNo) {
-      const levelsRes = await apiClient.get<{ id: number; name: string; minScore: number; maxScore: number; programId: string | null }[]>("scoring-levels");
-      const programLevels = levelsRes.data.filter(l => l.programId === programId);
-      const totalIndicators = allCategories.reduce((s, c) => s + c.topics.reduce((ts, t) => ts + t.indicators.length, 0), 0);
-      const passCount = allCategories.reduce((s, c) =>
-        s + c.topics.reduce((ts, t) =>
-          ts + t.indicators.reduce((is, i) => is + ((committeeScores[i.id] ?? -1) === 1 ? 1 : 0), 0), 0), 0);
-      const passPct = totalIndicators > 0 ? Math.round((passCount / totalIndicators) * 100) : 0;
-      const matchedLevel = programLevels.find(l => passPct >= l.minScore && passPct <= l.maxScore);
-      await apiClient.post(`evaluation/${evaluationId}/calculate-yesno`, {
-        passCount,
-        totalIndicators,
-        passPct,
-        scoringLevelId: matchedLevel?.id ?? null,
-        scoringLevelName: matchedLevel?.name ?? null,
-      });
-    } else {
-      await apiClient.post(`evaluation/${evaluationId}/calculate`);
+    const targetId = evaluationId || evaluationIdParam;
+    if (!targetId) {
+      toast.error("ไม่พบรหัสการประเมิน");
+      return;
     }
 
-    toast.success("ยืนยันผลการประเมินเรียบร้อย");
-    navigate(`/evaluation/${programId}/summary?evaluationId=${evaluationId}`);
+    setLoading(true);
+    try {
+      await apiClient.post(`evaluation/${targetId}/complete`);
+
+      // yes/no programs: นับจำนวนที่ผ่าน แล้วเทียบกับ scoring-levels ของ program นั้น
+      const allCategories = visibleCategories;
+      const hasYesNo = allCategories.some(c => c.scoreType?.includes('yes_no'));
+      if (hasYesNo) {
+        const levelsRes = await apiClient.get<{ id: number; name: string; minScore: number; maxScore: number; programId: string | null }[]>("scoring-levels");
+        const programLevels = levelsRes.data.filter(l => l.programId === programId);
+        const totalIndicators = allCategories.reduce((s, c) => s + c.topics.reduce((ts, t) => ts + t.indicators.length, 0), 0);
+        const passCount = allCategories.reduce((s, c) =>
+          s + c.topics.reduce((ts, t) =>
+            ts + t.indicators.reduce((is, i) => is + ((committeeScores[i.id] ?? -1) === 1 ? 1 : 0), 0), 0), 0);
+        const passPct = totalIndicators > 0 ? Math.round((passCount / totalIndicators) * 100) : 0;
+        const matchedLevel = programLevels.find(l => passPct >= l.minScore && passPct <= l.maxScore);
+        await apiClient.post(`evaluation/${targetId}/calculate-yesno`, {
+          passCount,
+          totalIndicators,
+          passPct,
+          scoringLevelId: matchedLevel?.id ?? null,
+          scoringLevelName: matchedLevel?.name ?? null,
+        });
+      } else {
+        await apiClient.post(`evaluation/${targetId}/calculate`);
+      }
+
+      toast.success("ยืนยันผลการประเมินเรียบร้อย");
+      // Use window.location as a more forceful navigation if needed, 
+      // but navigate() should be fine if we're not in an error state.
+      navigate(`/evaluation/${programId}/summary?evaluationId=${targetId}`);
+    } catch (error) {
+      console.error("handleComplete error:", error);
+      toast.error("เกิดข้อผิดพลาดในการบันทึกผลการประเมิน");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleReturn = async () => {
@@ -546,9 +569,9 @@ const EvaluationByProgramPage = () => {
                       <AnimatedScore value={displaySelfTotal}>
                         {displaySelfTotal}{displayUnit && <span className="text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}
                       </AnimatedScore>
-                      <span className="text-xs font-normal text-muted-foreground">/{displayMax}</span>
+                      <span className="text-xs font-normal text-muted-foreground">/{displaySelfMax}</span>
                     </p>
-                    {displayMax > 0 && <p className="text-[0.5625rem] text-muted-foreground">{selfPct}%</p>}
+                    {displaySelfMax > 0 && <p className="text-[0.5625rem] text-muted-foreground">{selfPct}%</p>}
                     
                     {activeLevel && (
                       <div className="mt-1">
@@ -581,9 +604,9 @@ const EvaluationByProgramPage = () => {
                       <AnimatedScore value={displayCommitteeTotal}>
                         {displayCommitteeTotal}{displayUnit && <span className="text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}
                       </AnimatedScore>
-                      <span className="text-xs font-normal text-muted-foreground">/{displayMax}</span>
+                      <span className="text-xs font-normal text-muted-foreground">/{displayCommitteeMax}</span>
                     </p>
-                    {displayMax > 0 && <p className="text-[0.5625rem] text-muted-foreground">{displayCommitteePct}%</p>}
+                    {displayCommitteeMax > 0 && <p className="text-[0.5625rem] text-muted-foreground">{displayCommitteePct}%</p>}
                     
                     {committeeActiveLevel && (
                       <div className="mt-1">
@@ -615,9 +638,9 @@ const EvaluationByProgramPage = () => {
                   <p className="text-[0.5625rem] font-semibold text-muted-foreground uppercase tracking-wider">คะแนนรวม</p>
                   <p className="text-base font-bold text-primary leading-tight">
                     {displaySelfTotal}{displayUnit && <span className="text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}
-                    <span className="text-xs font-normal text-muted-foreground">/{displayMax}</span>
+                    <span className="text-xs font-normal text-muted-foreground">/{displaySelfMax}</span>
                   </p>
-                  {displayMax > 0 && <p className="text-[0.5625rem] text-muted-foreground">{selfPct}%</p>}
+                  {displaySelfMax > 0 && <p className="text-[0.5625rem] text-muted-foreground">{selfPct}%</p>}
                   
                   {activeLevel && (
                     <div className="mt-1">

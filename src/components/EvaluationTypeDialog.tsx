@@ -104,6 +104,7 @@ function YearPickerStep({
                 <SelectItem
                   key={y}
                   value={String(y)}
+                  disabled={isUsed}
                   className="flex items-center justify-between gap-4"
                 >
                   <div className="flex flex-1 items-center justify-between gap-4">
