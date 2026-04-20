@@ -127,6 +127,40 @@ export default function EvaluateeHome() {
     enabled: !!programId,
   });
 
+  const { data: scoringLevels = [] } = useQuery({
+    queryKey: ["scoring-levels", programId],
+    queryFn: async () => {
+      if (!programId) return [];
+      const { data } = await apiClient.get(`scoring-levels?programId=${programId}`);
+      return (data ?? []).sort((a: any, b: any) => a.sortOrder - b.sortOrder);
+    },
+    enabled: !!programId,
+  });
+
+  const renderScoreWithLevel = (score: number | null, max: number | null, levels: any[]) => {
+    if (score === null || max === null || max === 0) return "-";
+    const numScore = Number(score);
+    const numMax = Number(max);
+    if (isNaN(numScore) || isNaN(numMax) || numMax === 0) return "-";
+    
+    const pct = Math.round((numScore / numMax) * 100);
+    const level = [...levels].reverse().find((l: any) => pct >= l.minScore && (l.maxScore === null || pct <= l.maxScore));
+    
+    return (
+      <div className="flex flex-col items-center gap-1">
+        <span className="text-sm font-bold">{pct}%</span>
+        {level && (
+          <Badge 
+            className="text-[10px] px-2 py-0 h-4 border-none whitespace-nowrap"
+            style={{ backgroundColor: level.color, color: '#fff' }}
+          >
+            {level.name}
+          </Badge>
+        )}
+      </div>
+    );
+  };
+
   const allEvaluations = useMemo(() => {
     const combined = [...evaluations];
 
@@ -219,12 +253,12 @@ export default function EvaluateeHome() {
     { label: string; className: string }
   > = {
     completed: {
-      label: "ประเมินเสร็จสิ้น",
+      label: "เสร็จสิ้น",
       className: "bg-emerald-600 text-white",
     },
-    submitted: { label: "รอผู้ประเมิน", className: "bg-blue-600 text-white" },
+    submitted: { label: "ส่งแล้ว", className: "bg-blue-600 text-white" },
     draft: { label: "ร่าง", className: "bg-amber-500 text-white" },
-    revision: { label: "ส่งกลับแก้ไข", className: "bg-rose-500 text-white" },
+    revision: { label: "ต้องแก้ไข", className: "bg-rose-500 text-white" },
   };
 
   const getStatusBadge = (status?: string | null) => {
@@ -270,13 +304,35 @@ export default function EvaluateeHome() {
       .finally(() => setRegLoading(false));
   }, [user?.id]);
 
-  const getCommitteeBadge = (hasScore: boolean) => {
+  const getCommitteeBadge = (status: string | null, hasScore: boolean) => {
+    if (status === "completed" || status === "complete")
+      return (
+        <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white border-none px-3">
+          เสร็จสิ้น
+        </Badge>
+      );
+    
+    if (status === "submitted" || status === "submit")
+      return (
+        <Badge className="bg-blue-600 text-white border-none px-3">
+          รอการประเมิน
+        </Badge>
+      );
+
+    if (status === "revision")
+      return (
+        <Badge variant="secondary" className="bg-amber-100 text-amber-700 border-amber-300 px-3">
+          รอดำเนินการ
+        </Badge>
+      );
+
     if (hasScore)
       return (
         <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white border-none px-3">
           ประเมินแล้ว
         </Badge>
       );
+
     return (
       <Badge variant="outline" className="text-slate-400 border-slate-200 px-3">
         ยังไม่ได้ประเมิน
@@ -461,11 +517,9 @@ export default function EvaluateeHome() {
                       {/* Row 1: program + year + type */}
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">โครงการ</p>
-                          <p className="text-sm font-bold truncate" style={{ color: "var(--green-heading)" }}>{item.program_name}</p>
+                          <span className="text-xs font-semibold text-muted-foreground">ปี พ.ศ. {item.year ? item.year + 543 : "-"}</span>
                         </div>
                         <div className="flex flex-col items-end gap-1 shrink-0">
-                          <span className="text-xs font-semibold text-muted-foreground">{item.year ? item.year + 543 : "-"}</span>
                           {typeCfg && (
                             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.625rem] font-semibold border ${typeCfg.className}`}>
                               {typeCfg.icon}{typeCfg.label}
@@ -482,23 +536,19 @@ export default function EvaluateeHome() {
                         </div>
                         <div className="flex items-center gap-1.5">
                           <span className="text-[10px] text-muted-foreground">กรรมการ:</span>
-                          {getCommitteeBadge(hasCommittee)}
+                          {getCommitteeBadge(item.evaluation_status, hasCommittee)}
                         </div>
                       </div>
 
                       {/* Row 3: scores */}
                       <div className="flex items-center gap-3">
-                        <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5">
-                          <p className="text-[10px] text-muted-foreground">คะแนนตนเอง</p>
-                          <p className="text-sm font-bold" style={{ color: "var(--green-heading)" }}>
-                            {item.total_score !== null ? `${item.total_score}/${item.max_self_score}` : "-"}
-                          </p>
+                        <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5 flex flex-col items-center">
+                          <p className="text-[10px] text-muted-foreground">คะแนนรวม</p>
+                          {renderScoreWithLevel(item.total_score, item.max_self_score, scoringLevels)}
                         </div>
-                        <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5">
-                          <p className="text-[10px] text-muted-foreground">คะแนนกรรมการ</p>
-                          <p className="text-sm font-bold" style={{ color: "var(--green-heading)" }}>
-                            {item.total_committee_score !== null ? `${item.total_committee_score}/${item.max_committee_score}` : "-"}
-                          </p>
+                        <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5 flex flex-col items-center">
+                          <p className="text-[10px] text-muted-foreground">กรรมการ</p>
+                          {renderScoreWithLevel(item.total_committee_score, item.max_committee_score, scoringLevels)}
                         </div>
                       </div>
 
@@ -544,14 +594,12 @@ export default function EvaluateeHome() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/30 hover:bg-muted/30 border-b border-border/50">
-                      <TableHead className="text-center min-w-[140px] text-slate-400 font-bold uppercase text-[0.625rem] tracking-[0.1em]">ชื่อหน่วยงาน</TableHead>
-                      <TableHead className="text-center min-w-[140px] text-slate-400 font-bold uppercase text-[0.625rem] tracking-[0.1em]">โครงการ</TableHead>
                       <TableHead className="text-center min-w-[80px] text-slate-400 font-bold uppercase text-[0.625rem] tracking-[0.1em]">ปี</TableHead>
                       <TableHead className="text-center min-w-[130px] text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">ประเภทเอกสาร</TableHead>
                       <TableHead className="text-center min-w-[140px] text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">สถานะประเมินตนเอง</TableHead>
                       <TableHead className="text-center min-w-[100px] text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">คะแนนรวม</TableHead>
                       <TableHead className="text-center min-w-[140px] text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">สถานะกรรมการ</TableHead>
-                      <TableHead className="text-center min-w-[100px] text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">คะแนนกรรมการ</TableHead>
+                      <TableHead className="text-center min-w-[100px] text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">กรรมการ</TableHead>
                       <TableHead className="text-center w-28 text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">จัดการ</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -565,8 +613,6 @@ export default function EvaluateeHome() {
                       const typeCfg = EVAL_TYPE_CONFIG[typeKey];
                       return (
                         <TableRow key={item.id} className="hover:bg-muted/20 transition-colors border-b border-border/30 last:border-0 group">
-                          <TableCell className="text-center font-medium">{item.user_name}</TableCell>
-                          <TableCell className="text-center font-medium">{item.program_name}</TableCell>
                           <TableCell className="text-center font-medium">{item.year ? item.year + 543 : "-"}</TableCell>
                           <TableCell className="text-center">
                             {typeCfg ? (
@@ -577,13 +623,13 @@ export default function EvaluateeHome() {
                           </TableCell>
                           <TableCell className="text-center">{getStatusBadge(item.evaluation_status)}</TableCell>
                           <TableCell className="text-center font-bold text-foreground">
-                            {item.total_score !== null ? `${item.total_score}/${item.max_self_score}` : "-"}
+                            {renderScoreWithLevel(item.total_score, item.max_self_score, scoringLevels)}
                           </TableCell>
                           <TableCell className="text-center">
-                            {getCommitteeBadge(!!item.total_committee_score || item.has_committee_score)}
+                            {getCommitteeBadge(item.evaluation_status, !!item.total_committee_score || item.has_committee_score)}
                           </TableCell>
                           <TableCell className="text-center font-bold text-foreground">
-                            {item.total_committee_score !== null ? `${item.total_committee_score}/${item.max_committee_score}` : "-"}
+                            {renderScoreWithLevel(item.total_committee_score, item.max_committee_score, scoringLevels)}
                           </TableCell>
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-2">
