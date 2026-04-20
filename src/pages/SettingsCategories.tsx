@@ -413,7 +413,7 @@ const CategoryItem = ({ cat, topicCount, indicatorCount, onEdit, onDelete }: Cat
       <div className="flex items-center gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <p className="font-medium text-sm text-foreground">{cat.name}</p>
+            <p className="font-medium text-sm text-foreground truncate">{cat.name}</p>
             <Badge variant="outline" className={`text-xs ${scoreBadge.cls}`}>{scoreBadge.label}</Badge>
           </div>
           <p className="text-xs text-muted-foreground">
@@ -542,7 +542,7 @@ const ProgramCard = ({
           <button className="flex w-full items-center gap-3 p-4 text-left hover:bg-muted/50 transition-colors">
             {open ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-foreground">{program.name}</p>
+              <p className="font-bold text-foreground truncate">{program.name}</p>
               <p className="text-xs text-muted-foreground">{categories.length} หมวด</p>
             </div>
             <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">

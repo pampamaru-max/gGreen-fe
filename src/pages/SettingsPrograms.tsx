@@ -221,7 +221,7 @@ function SortableProgramCard({ program, onEdit, onDelete }: { program: Program; 
             <GripVertical className="h-4 w-4" />
           </button>
           <div className="min-w-0">
-            <p className="font-semibold text-sm" style={{ color: "var(--green-heading)" }}>{program.name}</p>
+            <p className="font-semibold text-sm truncate" style={{ color: "var(--green-heading)" }}>{program.name}</p>
             <p className="text-xs truncate" style={{ color: "var(--green-muted)" }}>{program.description}</p>
           </div>
         </div>

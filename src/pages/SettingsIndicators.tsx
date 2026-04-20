@@ -517,7 +517,7 @@ function SortableIndicatorRow({
       <button {...attributes} {...listeners} className="shrink-0 cursor-grab active:cursor-grabbing touch-none text-muted-foreground hover:text-foreground">
         <GripVertical className="h-4 w-4" />
       </button>
-      <span className="flex-1 text-sm text-foreground whitespace-pre-wrap">{ind.name}</span>
+      <span className="flex-1 text-sm text-foreground whitespace-pre-wrap truncate">{ind.name}</span>
       {isYesNo ? (
         <span className="text-xs font-semibold px-2 py-1 rounded-md bg-orange-100 text-orange-700 border border-orange-200">
           ผ่าน/ไม่ผ่าน
@@ -901,7 +901,7 @@ const SettingsIndicators = () => {
                     onClick={() => setSelectedProgramId(program.id)}
                   >
                     <ChevronRight className="h-5 w-5 text-accent-foreground/70 transition-transform group-data-[state=open]/prog:rotate-90" />
-                    <p className="font-bold text-foreground text-left flex-1 text-base">{program.name}</p>
+                    <p className="font-bold text-foreground text-left flex-1 text-base truncate">{program.name}</p>
                     <span className="text-xs text-muted-foreground">
                       {program.categories} หมวด
                     </span>
@@ -925,7 +925,7 @@ const SettingsIndicators = () => {
                                 onClick={() => setSelectedCategoryId(cat.id)}
                               >
                                 <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]/cat:rotate-90" />
-                                <p className="font-bold text-foreground text-left flex-1">{cat.name}</p>
+                                <p className="font-bold text-foreground text-left flex-1 truncate">{cat.name}</p>
                                 <span className="text-xs text-muted-foreground">
                                   {(() => {
                                     const st = cat.scoreType as string;
@@ -963,7 +963,7 @@ const SettingsIndicators = () => {
                                           <ChevronRight className="h-3.5 w-3.5 text-muted-foreground transition-transform group-data-[state=open]/topic:rotate-90" />
                                         </button>
                                       </CollapsibleTrigger>
-                                      <span className="text-sm font-medium text-foreground flex-1">{topic.name}</span>
+                                      <span className="text-sm font-medium text-foreground flex-1 truncate">{topic.name}</span>
                                       <EditTopicDialog topic={topic} onSave={(name) => handleEditTopic(cat.id, topic.id, name)} />
                                       <AlertActionPopup action={() => handleDeleteTopic(cat.id, topic.id)} type="delete" title="ยืนยันการลบประเด็น" description={`ต้องการลบประเด็น "${topic.name}" หรือไม่?`}/>
                                     </div>

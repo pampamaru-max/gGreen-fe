@@ -413,12 +413,6 @@
   }
 }
 
-p, span {
-  text-overflow: ellipsis;
-  overflow: hidden;
-  white-space: nowrap;
-}
-
 /* ── Green text variables ── */
 :root {
   --green-heading: #1a3d0f;
@@ -443,6 +437,10 @@ p, span {
   --glass-bg-soft: rgba(10, 20, 14, 0.60);
   --glass-border: rgba(255, 255, 255, 0.07);
   --glass-shadow: 0 4px 20px rgba(0, 0, 0, 0.50);
+}
+
+.fake-selection {
+  background-color: #b3d4fc; /* like native highlight */
 }
 
 /* ── Fireflies ── */
