@@ -464,8 +464,8 @@ const EvaluationByProgramPage = () => {
       const allCategories = visibleCategories;
       const hasYesNo = allCategories.some(c => c.scoreType?.includes('yes_no'));
       if (hasYesNo) {
-        const levelsRes = await apiClient.get<{ id: number; name: string; minScore: number; maxScore: number; programId: string | null }[]>("scoring-levels");
-        const programLevels = levelsRes.data.filter(l => l.programId === programId);
+        const levelsRes = await apiClient.get<{ id: number; name: string; minScore: number; maxScore: number; programId: string | null }[]>(`scoring-levels?programId=${programId}`);
+        const programLevels = levelsRes.data;
         const totalIndicators = allCategories.reduce((s, c) => s + c.topics.reduce((ts, t) => ts + t.indicators.length, 0), 0);
         const passCount = allCategories.reduce((s, c) =>
           s + c.topics.reduce((ts, t) =>
@@ -484,12 +484,11 @@ const EvaluationByProgramPage = () => {
       }
 
       toast.success("ยืนยันผลการประเมินเรียบร้อย");
-      // Use window.location as a more forceful navigation if needed, 
-      // but navigate() should be fine if we're not in an error state.
       navigate(`/evaluation/${programId}/summary?evaluationId=${targetId}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error("handleComplete error:", error);
-      toast.error("เกิดข้อผิดพลาดในการบันทึกผลการประเมิน");
+      const errorMessage = error.response?.data?.message || error.message || "เกิดข้อผิดพลาดในการบันทึกผลการประเมิน";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
