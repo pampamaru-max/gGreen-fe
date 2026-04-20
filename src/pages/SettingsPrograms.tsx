@@ -102,6 +102,7 @@ type Program = {
   guidelines: GuidelineItem[];
   reports: GuidelineItem[];
   sort_order: number;
+  updatedAt?: Date;
 };
 
 /** Backward compat: convert old string[] to GuidelineItem[] */
@@ -315,9 +316,9 @@ export default function SettingsPrograms() {
   const upsertMutation = useMutation({
     mutationFn: async (program: Omit<Program, "sort_order"> & { sort_order?: number }) => {
       if (editingProgram) {
-        const { name, description, icon, about, guidelines, reports, sort_order } = program;
+        const { name, description, icon, about, guidelines, reports, sort_order, updatedAt } = program;
         await apiClient.patch(`programs/${editingProgram.id}`, {
-          name, description, icon, about, guidelines, reports,
+          name, description, icon, about, guidelines, reports, updatedAt,
           sortOrder: sort_order ?? programs.length,
         });
       } else {
@@ -370,6 +371,7 @@ export default function SettingsPrograms() {
       about: [...p.about],
       guidelines: p.guidelines.map((g) => ({ ...g, files: [...g.files] })),
       reports: p.reports.map((r) => ({ ...r, files: [...r.files] })),
+      updatedAt: p.updatedAt
     });
     setNewGuidelineTitle("");
     setDialogOpen(true);
