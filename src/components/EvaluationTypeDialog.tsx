@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-// import apiClient from "@/lib/axios"; // TODO: ใช้เมื่อเปิด eligibility check กลับมา
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 
 // TODO: ใช้ interface นี้เมื่อเปิด eligibility check กลับมา
@@ -53,30 +53,32 @@ interface TypeOption {
   };
 }
 
+interface YearPickerStepProps {
+  years: number[];
+  currentYear: number;
+  selectedYear: number | null;
+  setSelectedYear: (y: number | null) => void;
+  usedYears: number[];
+  selectedType: TypeOption["key"] | null;
+  onConfirm: () => void;
+}
+
 function YearPickerStep({
   years,
   currentYear,
   selectedYear,
   setSelectedYear,
   usedYears,
+  selectedType,
   onConfirm,
-}: {
-  years: number[];
-  currentYear: number;
-  selectedYear: number | null;
-  setSelectedYear: (y: number | null) => void;
-  usedYears: number[];
-  onConfirm: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-
+}: YearPickerStepProps) {
   return (
     <div className="flex flex-col gap-3 py-2">
       <p className="text-sm text-slate-500 dark:text-slate-400">
         กรุณาเลือกปีงบประมาณที่ต้องการประเมิน
       </p>
 
-      {usedYears.length > 0 && (
+      {usedYears.length > 0 && selectedType === "new" && (
         <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800/40 px-3 py-2.5">
           <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0 text-xs text-red-600 dark:text-red-400 leading-relaxed whitespace-normal">
@@ -87,36 +89,36 @@ function YearPickerStep({
       )}
 
       <div className="flex flex-col gap-3">
-        {/* Custom dropdown — renders inline, no portal */}
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setOpen((o) => !o)}
-            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-          >
-            <span className={selectedYear ? "text-foreground" : "text-muted-foreground"}>
-              {selectedYear ? `ปี ${selectedYear + 543}${selectedYear === currentYear ? " (ปีปัจจุบัน)" : ""}` : "เลือกปี"}
-            </span>
-            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
-          </button>
+        <Select
+          value={selectedYear ? String(selectedYear) : undefined}
+          onValueChange={(val) => setSelectedYear(parseInt(val))}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="เลือกปี" />
+          </SelectTrigger>
+          <SelectContent position="popper" className="max-h-[300px]">
+            {years.map((y) => {
+              const isUsed = usedYears.includes(y);
 
-          {open && (
-            <div className="absolute bottom-full mb-1 left-0 right-0 z-10 max-h-52 overflow-y-auto rounded-md border bg-popover shadow-md">
-              {years.map((y) => (
-                <button
+              return (
+                <SelectItem
                   key={y}
-                  type="button"
-                  onClick={() => { setSelectedYear(y); setOpen(false); }}
-                  className={`flex w-full items-center px-3 py-2 text-sm text-left transition-colors hover:bg-accent hover:text-accent-foreground ${
-                    selectedYear === y ? "bg-primary text-primary-foreground font-semibold" : "text-foreground"
-                  }`}
+                  value={String(y)}
+                  className="flex items-center justify-between gap-4"
                 >
-                  ปี {y + 543} {y === currentYear ? "(ปีปัจจุบัน)" : ""}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+                  <div className="flex flex-1 items-center justify-between gap-4">
+                    <span>ปี {y + 543} {y === currentYear ? "(ปีปัจจุบัน)" : ""}</span>
+                    {isUsed && (
+                      <span className="text-[10px] font-normal px-1.5 py-0.5 rounded-full border border-slate-200 bg-slate-100 shrink-0">
+                        ใช้แล้ว
+                      </span>
+                    )}
+                  </div>
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
 
         <Button disabled={!selectedYear} onClick={onConfirm}>
           ยืนยัน
@@ -125,6 +127,7 @@ function YearPickerStep({
     </div>
   );
 }
+
 
 export default function EvaluationTypeDialog({
   open,
@@ -141,11 +144,12 @@ export default function EvaluationTypeDialog({
   const currentYear = new Date().getFullYear();
   const years = useMemo(() => {
     const list = [];
-    for (let i = 0; i <= 10; i++) {
+    // แสดงปีปัจจุบันและย้อนหลัง 15 ปี
+    for (let i = 0; i <= 15; i++) {
       list.push(currentYear - i);
     }
-    return list.filter((y) => !usedYears.includes(y));
-  }, [currentYear, usedYears]);
+    return list;
+  }, [currentYear]);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
 
   useEffect(() => {
@@ -311,6 +315,7 @@ export default function EvaluationTypeDialog({
             selectedYear={selectedYear}
             setSelectedYear={setSelectedYear}
             usedYears={usedYears}
+            selectedType={selectedType}
             onConfirm={() => {
               onClose();
               navigate(`/register/evaluate?type=${selectedType}&year=${selectedYear}`);
