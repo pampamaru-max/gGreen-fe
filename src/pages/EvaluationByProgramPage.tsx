@@ -106,6 +106,8 @@ const EvaluationByProgramPage = () => {
               notes: i.notes ?? "",
               evidenceDescription: i.evidenceDescription ?? "",
               scoringCriteria: Array.isArray(i.scoringCriteria) ? i.scoringCriteria : [],
+              isHeader: i.isHeader,
+              parentId: i.parentId,
             })),
           })),
         }));
@@ -313,7 +315,10 @@ const EvaluationByProgramPage = () => {
     visibleCategories.forEach((cat, catIdx) => {
       cat.topics.forEach((topic) => {
         topic.indicators.forEach((indicator) => {
-          items.push({ indicator, colorIndex: catIdx });
+          const hasChildren = topic.indicators.some(i => i.parentId === indicator.id);
+          if (!indicator.isHeader && !hasChildren) {
+            items.push({ indicator, colorIndex: catIdx });
+          }
         });
       });
     });

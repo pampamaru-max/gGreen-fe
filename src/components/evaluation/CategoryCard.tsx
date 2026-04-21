@@ -976,31 +976,42 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
               </div>
               <div className="divide-y">
                 {topic.indicators.map((indicator) => {
-                  const selfScore = scores[indicator.id] ?? 0;
+                  const selfScore = scores[indicator.id];
                   const cScore = committeeScores?.[indicator.id];
                   const fileCount = (uploadedFiles[indicator.id] || []).length;
                   const isCommitteeMode = scoreView === "committee";
-                  const notif = newIndicatorNotifs?.get(indicator.id);
                   const isYesNo = indicator.scoreType?.includes('yes_no');
-                  const formatScore = (v: number | null) => {
-                    if (v === null || v === undefined) return '–';
-                    if (isYesNo) return v === 1 ? 'ผ่าน' : 'ไม่ผ่าน';
-                    return String(v);
-                  };
+
+                  const parentId = indicator.parentId;
+                  const hasChildren = topic.indicators.some(i => i.parentId === indicator.id);
+                  const isParent = indicator.isHeader || hasChildren;
+
+                  let displayName = indicator.name;
+                  if (parentId) {
+                    const siblings = topic.indicators.filter(i => i.parentId === parentId);
+                    const index = siblings.findIndex(i => i.id === indicator.id) + 1;
+                    displayName = `${index}. ${indicator.name}`;
+                  }
+
                   return (
                     <button
                       key={indicator.id}
                       onClick={() => {
+                        if (isParent) return;
                         if (onIndicatorClick) {
                           onIndicatorClick(indicator);
                         } else {
                           setSelectedIndicator(indicator);
                         }
                       }}
-                      className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-muted/30 transition-colors"
+                      className={`flex items-center gap-3 px-4 py-3 w-full text-left transition-colors ${isParent ? 'cursor-default bg-muted/5' : 'hover:bg-muted/30'} ${parentId ? 'pl-9' : ''}`}
                     >
-                      <span className="h-1 w-1 rounded-full bg-muted-foreground/40 shrink-0" />
-                      <span className="flex-1 text-sm text-foreground truncate">{indicator.name}</span>
+                      {isParent ? (
+                        <div className="h-1.5 w-1.5 rounded-sm bg-primary/40 shrink-0" />
+                      ) : (
+                        <span className={`h-1 w-1 rounded-full bg-muted-foreground/40 shrink-0 ${parentId ? 'scale-75' : ''}`} />
+                      )}
+                      <span className={`flex-1 text-sm text-foreground truncate ${isParent ? 'font-semibold text-primary' : ''}`}>{displayName}</span>
                       {implementationDetails?.[indicator.id] && (
                         <span className="inline-flex items-center px-1 py-0.5 rounded bg-blue-50 text-blue-500 border border-blue-100 shrink-0">
                           <AlignLeft className="h-3 w-3" />
@@ -1019,32 +1030,42 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
                       )}
                       {isCommitteeMode ? (
                         <div className="flex items-center gap-2 shrink-0">
-                          {/* คะแนนตนเอง */}
-                          <span className="text-xs text-muted-foreground tabular-nums">
-                            {selfScore}/{indicator.maxScore}
-                          </span>
-                          <span className="text-muted-foreground/40">→</span>
-                          {/* คะแนนกรรมการ */}
-                          {cScore !== undefined && cScore !== -1 ? (
-                            <span
-                              className="text-sm font-bold tabular-nums min-w-[3rem] text-right"
-                              style={{ color: isYesNo ? (cScore === 1 ? "hsl(142 60% 40%)" : "hsl(0 72% 51%)") : `hsl(${color})` }}
-                            >
-                              {isYesNo ? (cScore === 1 ? "ผ่าน" : "ไม่ผ่าน") : `${cScore}/${indicator.maxScore}`}
-                            </span>
+                          {isParent ? (
+                            <div className="min-w-[3rem]" />
                           ) : (
-                            <span className="text-xs font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 min-w-[3rem] text-center">
-                              รอ
-                            </span>
+                            <>
+                              {/* คะแนนตนเอง */}
+                              <span className="text-xs text-muted-foreground tabular-nums">
+                                {isYesNo ? (selfScore === 1 ? "ผ่าน" : (selfScore === 0 ? "ไม่ผ่าน" : "–")) : `${selfScore ?? 0}/${indicator.maxScore}`}
+                              </span>
+                              <span className="text-muted-foreground/40">→</span>
+                              {/* คะแนนกรรมการ */}
+                              {cScore !== undefined && cScore !== -1 ? (
+                                <span
+                                  className="text-sm font-bold tabular-nums min-w-[3rem] text-right"
+                                  style={{ color: isYesNo ? (cScore === 1 ? "hsl(142 60% 40%)" : "hsl(0 72% 51%)") : `hsl(${color})` }}
+                                >
+                                  {isYesNo ? (cScore === 1 ? "ผ่าน" : "ไม่ผ่าน") : `${cScore}/${indicator.maxScore}`}
+                                </span>
+                              ) : (
+                                <span className="text-xs font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 min-w-[3rem] text-center">
+                                  รอ
+                                </span>
+                              )}
+                            </>
                           )}
                         </div>
                       ) : (
-                        <span
-                          className="text-sm font-bold tabular-nums min-w-[3rem] text-right"
-                          style={{ color: selfScore > 0 ? `hsl(${color})` : "hsl(var(--muted-foreground))" }}
-                        >
-                          {selfScore}/{indicator.maxScore}
-                        </span>
+                        isParent ? (
+                          <div className="min-w-[3rem]" />
+                        ) : (
+                          <span
+                            className="text-sm font-bold tabular-nums min-w-[3rem] text-right"
+                            style={{ color: (selfScore !== undefined && selfScore !== -1 && (isYesNo ? selfScore >= 0 : selfScore > 0)) ? (isYesNo ? (selfScore === 1 ? "hsl(142 60% 40%)" : "hsl(0 72% 51%)") : `hsl(${color})`) : "hsl(var(--muted-foreground))" }}
+                          >
+                            {isYesNo ? (selfScore === 1 ? "ผ่าน" : (selfScore === 0 ? "ไม่ผ่าน" : "รอ")) : `${selfScore ?? 0}/${indicator.maxScore}`}
+                          </span>
+                        )
                       )}
                     </button>
                   );
