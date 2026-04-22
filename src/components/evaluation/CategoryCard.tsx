@@ -976,7 +976,7 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
               </div>
               <div className="divide-y">
                 {topic.indicators.map((indicator) => {
-                  const selfScore = scores[indicator.id] ?? 0;
+                  const selfScore = scores[indicator.id] === -1 ? 0 : (scores[indicator.id] ?? 0);
                   const cScore = committeeScores?.[indicator.id];
                   const fileCount = (uploadedFiles[indicator.id] || []).length;
                   const isCommitteeMode = scoreView === "committee";

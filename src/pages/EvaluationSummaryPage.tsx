@@ -145,94 +145,118 @@ const EvaluationSummaryPage = () => {
   const levelColor = isYesNo ? yesNoStats!.levelColor : (normalLevel?.color ?? "#6b7280");
   const levelName = isYesNo ? (yesNoStats!.levelName ?? "ไม่ระบุ") : (normalLevel?.name ?? "ไม่ระบุ");
 
+  const glass = {
+    background: "var(--glass-bg)",
+    backdropFilter: "blur(14px)",
+    WebkitBackdropFilter: "blur(14px)",
+    boxShadow: "var(--glass-shadow)",
+    border: "1px solid var(--glass-border)",
+  } as React.CSSProperties;
+
   return (
-    <div className="min-h-full bg-background">
+    <div className="h-full flex flex-col gap-3 p-3 sm:p-4">
+
       {/* Header */}
-      <div className="border-b bg-card/50 px-6 py-4">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/evaluation")} className="shrink-0">
-            <ArrowLeft className="h-5 w-5" />
+      <div className="px-4 py-3 rounded-2xl shrink-0" style={glass}>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/evaluation")} className="shrink-0 h-8 w-8">
+            <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-            <ClipboardCheck className="h-5 w-5 text-primary-foreground" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg shrink-0" style={{ background: "#3a7d2c" }}>
+            <ClipboardCheck className="h-4 w-4 text-white" />
           </div>
-          <div className="flex-1">
-            <h2 className="text-lg font-bold text-foreground">สรุปผลการประเมิน</h2>
-            <p className="text-xs text-muted-foreground">{result.programId}</p>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-sm font-bold leading-tight" style={{ color: "var(--green-heading)" }}>สรุปผลการประเมิน</h2>
+            <p className="text-xs" style={{ color: "var(--green-muted)" }}>{result.programId}</p>
           </div>
         </div>
       </div>
 
-      <div className="px-6 py-6 max-w-3xl mx-auto space-y-6">
-        {/* Result card */}
-        <div
-          className="rounded-2xl border p-6 text-center"
-          style={{ borderColor: levelColor, backgroundColor: `${levelColor}18` }}
-        >
-          <Medal className="h-12 w-12 mx-auto mb-3" style={{ color: levelColor }} />
-          {isYesNo ? (
-            <>
-              <p className="text-4xl font-bold mb-1">
-                <span style={{ color: levelColor }}>{yesNoStats!.passCount}</span>
-                <span className="text-xl font-normal text-muted-foreground">/{yesNoStats!.totalIndicators} ผ่าน</span>
-              </p>
-              <p className="text-2xl font-semibold mb-2" style={{ color: levelColor }}>{pct}%</p>
-            </>
-          ) : (
-            <>
-              <p className="text-4xl font-bold mb-1">
-                <span style={{ color: levelColor }}>{Number.isInteger(totalScore) ? totalScore : totalScore.toFixed(2)}</span>
-                <span className="text-xl font-normal text-muted-foreground">/{totalMaxScore}</span>
-              </p>
-              <p className="text-2xl font-semibold mb-2" style={{ color: levelColor }}>{pct}%</p>
-            </>
-          )}
-          <span
-            className="inline-block rounded-full px-4 py-1 text-sm font-bold border"
-            style={{ color: levelColor, borderColor: levelColor, backgroundColor: `${levelColor}22` }}
-          >
-            {levelName}
-          </span>
-          {normalLevel && (
-            <p className="mt-3 text-xs text-muted-foreground">
-              เกณฑ์: {normalLevel.minScore} – {normalLevel.maxScore}%
-            </p>
-          )}
-        </div>
+      {/* Scrollable content */}
+      <div className="flex-1 min-h-0 rounded-2xl overflow-hidden" style={glass}>
+        <div className="h-full overflow-y-auto px-4 py-4">
+          <div className="max-w-2xl mx-auto space-y-4">
 
-        {/* Category breakdown — only for score-based */}
-        {!isYesNo && categoryResults?.length > 0 && (
-          <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">รายละเอียดตามหมวด</h3>
-            {categoryResults.map((cat) => {
-              const catPct = cat.categoryMaxScore > 0 ? (cat.scaledScore / cat.categoryMaxScore) * 100 : 0;
-              return (
-                <div key={cat.categoryId} className="rounded-xl border bg-card p-4">
-                  <div className="flex items-start justify-between mb-2 gap-2">
-                    <p className="text-sm font-semibold flex-1">{cat.categoryName}</p>
-                    <div className="text-right shrink-0">
-                      <p className="text-lg font-bold text-primary">
-                        {cat.scaledScore.toFixed(4)}
-                        <span className="text-xs font-normal text-muted-foreground">/{cat.categoryMaxScore}</span>
-                      </p>
-                      <p className="text-xs text-muted-foreground">คะแนนดิบ: {cat.rawScore}/{cat.indicatorMaxTotal}</p>
-                    </div>
-                  </div>
-                  <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-500 bg-primary"
-                      style={{ width: `${Math.min(catPct, 100)}%` }}
-                    />
-                  </div>
+            {/* Result card */}
+            <div
+              className="rounded-2xl border p-6 text-center"
+              style={{ borderColor: levelColor, backgroundColor: `${levelColor}18` }}
+            >
+              <Medal className="h-12 w-12 mx-auto mb-3" style={{ color: levelColor }} />
+              {isYesNo ? (
+                <>
+                  <p className="text-4xl font-bold mb-1">
+                    <span style={{ color: levelColor }}>{yesNoStats!.passCount}</span>
+                    <span className="text-xl font-normal text-muted-foreground">/{yesNoStats!.totalIndicators} ผ่าน</span>
+                  </p>
+                  <p className="text-2xl font-semibold mb-2" style={{ color: levelColor }}>{pct}%</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-4xl font-bold mb-1">
+                    <span style={{ color: levelColor }}>{Number.isInteger(totalScore) ? totalScore : totalScore.toFixed(2)}</span>
+                    <span className="text-xl font-normal text-muted-foreground">/{totalMaxScore}</span>
+                  </p>
+                  <p className="text-2xl font-semibold mb-2" style={{ color: levelColor }}>{pct}%</p>
+                </>
+              )}
+              <div className="score-active-wrap">
+                <div className="score-sparkles">
+                  <div className="score-sparkle" />
+                  <div className="score-sparkle" />
+                  <div className="score-sparkle" />
+                  <div className="score-sparkle" />
+                  <div className="score-sparkle" />
                 </div>
-              );
-            })}
-          </div>
-        )}
+                <span
+                  className="score-active-badge inline-block rounded-full px-4 py-1 text-sm font-bold border"
+                  style={{ color: levelColor, borderColor: levelColor, backgroundColor: `${levelColor}22` }}
+                >
+                  {levelName}
+                </span>
+              </div>
+              {normalLevel && (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  เกณฑ์: {normalLevel.minScore} – {normalLevel.maxScore}%
+                </p>
+              )}
+            </div>
 
-        <Button className="w-full" onClick={() => navigate("/evaluation")}>
-          กลับหน้ารายการประเมิน
-        </Button>
+            {/* Category breakdown */}
+            {!isYesNo && categoryResults?.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-xs font-semibold uppercase tracking-wide px-1" style={{ color: "var(--green-muted)" }}>รายละเอียดตามหมวด</h3>
+                {categoryResults.map((cat) => {
+                  const catPct = cat.categoryMaxScore > 0 ? (cat.scaledScore / cat.categoryMaxScore) * 100 : 0;
+                  return (
+                    <div key={cat.categoryId} className="rounded-xl p-4" style={glass}>
+                      <div className="flex items-start justify-between mb-2 gap-2">
+                        <p className="text-sm font-semibold flex-1">{cat.categoryName}</p>
+                        <div className="text-right shrink-0">
+                          <p className="text-base font-bold" style={{ color: "var(--green-heading)" }}>
+                            {cat.scaledScore.toFixed(4)}
+                            <span className="text-xs font-normal text-muted-foreground">/{cat.categoryMaxScore}</span>
+                          </p>
+                          <p className="text-xs text-muted-foreground">คะแนนดิบ: {cat.rawScore}/{cat.indicatorMaxTotal}</p>
+                        </div>
+                      </div>
+                      <div className="h-1.5 w-full rounded-full bg-muted/50 overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min(catPct, 100)}%`, background: "var(--green-heading)" }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <Button className="w-full" onClick={() => navigate("/evaluation")}>
+              กลับหน้ารายการประเมิน
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );

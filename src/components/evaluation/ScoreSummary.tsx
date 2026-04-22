@@ -40,20 +40,20 @@ export function ScoreSummary({ data, committeeData, onCategoryClick }: Props) {
             <div
               key={item.id}
               onClick={() => onCategoryClick?.(item.id)}
-              className={`overflow-hidden rounded-xl bg-white border border-l-4 p-4 transition-shadow hover:shadow-md ${onCategoryClick ? "cursor-pointer" : ""}`}
+              className={`overflow-hidden rounded-xl bg-card border border-l-4 p-4 transition-shadow hover:shadow-md ${onCategoryClick ? "cursor-pointer" : ""}`}
               style={{ borderLeftColor: accentColor }}
             >
               <p className="text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wider">หมวดที่ {idx + 1}</p>
               <p className="text-sm font-bold text-foreground mt-0.5 mb-4 leading-tight">{item.name}</p>
 
               <div className="space-y-1.5">
-                {isCommittee && <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-blue-600">ประเมินตนเอง</p>}
+                {isCommittee && <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-blue-500 dark:text-blue-400">ประเมินตนเอง</p>}
                 <div className="flex items-baseline gap-1">
                   <span className="text-3xl font-extrabold text-foreground leading-none">{pass}</span>
                   <span className="text-sm font-medium text-muted-foreground">/{total} ผ่าน</span>
-                  <span className="ml-auto text-sm font-bold text-blue-600">{selfPct}%</span>
+                  <span className="ml-auto text-sm font-bold text-blue-500 dark:text-blue-400">{selfPct}%</span>
                 </div>
-                <div className="h-2 w-full rounded-full overflow-hidden bg-blue-100">
+                <div className="h-2 w-full rounded-full overflow-hidden bg-blue-100 dark:bg-blue-900/40">
                   <div
                     className="h-full rounded-full transition-all duration-500"
                     style={{ width: `${selfPct}%`, background: "linear-gradient(to right, #60A5FA, #1D4ED8)" }}
@@ -93,20 +93,20 @@ export function ScoreSummary({ data, committeeData, onCategoryClick }: Props) {
           <div
             key={item.id}
             onClick={() => onCategoryClick?.(item.id)}
-            className={`overflow-hidden rounded-xl bg-white border border-l-4 p-4 transition-shadow hover:shadow-md ${onCategoryClick ? "cursor-pointer" : ""}`}
+            className={`overflow-hidden rounded-xl bg-card border border-l-4 p-4 transition-shadow hover:shadow-md ${onCategoryClick ? "cursor-pointer" : ""}`}
             style={{ borderLeftColor: accentColor }}
           >
             <p className="text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wider">หมวดที่ {idx + 1}</p>
             <p className="text-sm font-bold text-foreground mt-0.5 mb-4 leading-tight">{item.name}</p>
 
             <div className="space-y-1.5">
-              {isCommittee && <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-blue-600">ประเมินตนเอง</p>}
+              {isCommittee && <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-blue-500 dark:text-blue-400">ประเมินตนเอง</p>}
               <div className="flex items-baseline gap-1">
                 <span className="text-3xl font-extrabold text-foreground leading-none">{item.score}</span>
                 <span className="text-sm font-medium text-muted-foreground">/{item.totalPossible}</span>
-                <span className="ml-auto text-sm font-bold text-blue-600">{selfPct}%</span>
+                <span className="ml-auto text-sm font-bold text-blue-500 dark:text-blue-400">{selfPct}%</span>
               </div>
-              <div className="h-2 w-full rounded-full overflow-hidden bg-blue-100">
+              <div className="h-2 w-full rounded-full overflow-hidden bg-blue-100 dark:bg-blue-900/40">
                 <div
                   className="h-full rounded-full transition-all duration-500"
                   style={{ width: `${selfPct}%`, background: "linear-gradient(to right, #60A5FA, #1D4ED8)" }}

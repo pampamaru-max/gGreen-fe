@@ -67,7 +67,11 @@ export default function ProgramDetailPage() {
         <FirefliesLayer />
         <div className="relative z-10 flex flex-col items-center justify-center min-h-screen gap-4">
           <p className="text-muted-foreground">ไม่พบข้อมูลโครงการ</p>
-          <Button variant="outline" onClick={() => navigate("/")}>
+          <Button 
+            variant="outline" 
+            onClick={() => navigate("/")}
+            className="rounded-full px-6 transition-all hover:scale-105"
+          >
             <ArrowLeft className="mr-2 h-4 w-4" /> กลับหน้าหลัก
           </Button>
         </div>
@@ -86,8 +90,13 @@ export default function ProgramDetailPage() {
 
       {/* Content */}
       <div className="relative z-10 flex flex-col gap-4 p-6 max-w-screen-2xl mx-auto">
-        <Button variant="ghost" className="self-start -ml-2" onClick={() => navigate("/")}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> กลับหน้าหลัก
+        <Button 
+          variant="ghost" 
+          className="self-start px-4 py-2 rounded-full transition-all duration-300 hover:scale-105 active:scale-95 shadow-md group border border-white/20 bg-white/20 backdrop-blur-md text-foreground/90 hover:bg-white/30 hover:text-foreground" 
+          onClick={() => navigate("/")}
+        >
+          <ArrowLeft className="mr-2 h-4 w-4 transition-transform group-hover:-translate-x-1" /> 
+          <span className="font-medium">กลับหน้าหลัก</span>
         </Button>
 
         {/* Hero card */}
