@@ -50,18 +50,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import LoadingOverlay from "@/components/loading/LoadingOverlay";
-
-interface ScoringLevel {
-  id: number;
-  name: string;
-  min_score: number;
-  max_score: number;
-  color: string;
-  icon: string;
-  sort_order: number;
-  type: ScoringLevelType;
-  program_id: string | null;
-}
+import { ScoringLevel } from "./ProjectRegistration";
 
 interface DbProgram {
   id: string;
@@ -1632,7 +1621,7 @@ const LevelCertCard = ({
             <div className="flex-1">
               <p className="font-semibold text-foreground">{level.name}</p>
               <p className="text-xs text-muted-foreground">
-                ช่วงคะแนน: {level.min_score}% – {level.max_score}%
+                ช่วงคะแนน: {level.minScore}% – {level.maxScore}%
               </p>
             </div>
           </div>
@@ -1711,17 +1700,7 @@ const SettingsCertificate = () => {
     queryKey: ["scoring-levels"],
     queryFn: async () => {
       const { data } = await apiClient.get<any[]>("scoring-levels");
-      return data.map((l) => ({
-        id: l.id,
-        name: l.name,
-        min_score: l.minScore ?? l.min_score,
-        max_score: l.maxScore ?? l.max_score,
-        color: l.color,
-        icon: l.icon,
-        sort_order: l.sortOrder ?? l.sort_order,
-        type: l.type,
-        program_id: l.programId ?? l.program_id,
-      })) as ScoringLevel[];
+      return data;
     },
   });
 
@@ -1769,12 +1748,13 @@ const SettingsCertificate = () => {
   });
 
   const sortedTemplates = templatesRaw.sort((a, b) => {
-    const aType = a.scoringLevel.type;
-    const bType = b.scoringLevel.type;
+    const aType = a.scoringLevel?.type;
+    const bType = b.scoringLevel?.type;
+    if (a.program !== b.program) return a.program?.sort_order - b.program?.sort_order;
     if (aType !== bType) {
-      return aType === ScoringLevelType.NORMAL ? -1 : 1;
+      return aType === ScoringLevelType.new ? -1 : aType === ScoringLevelType.upgrade ? -1 : 1;
     }
-    return a.scoringLevel.sort_order - b.scoringLevel.sort_order;
+    return a.scoringLevel.sortOrder - b.scoringLevel.sortOrder;
   });
 
   const templates: Record<number, CertTemplate> = {};
@@ -1919,10 +1899,10 @@ const SettingsCertificate = () => {
 
           {programs.map((program) => {
             const programLevels = levels
-              .filter((l) => l.program_id === program.id)
-              .sort((a, b) => a.sort_order - b.sort_order);
-            const normalLevels = programLevels.filter((l) => l.type === ScoringLevelType.NORMAL);
-            const specialLevels = programLevels.filter((l) => l.type === ScoringLevelType.SPECIAL);
+              .filter((l) => l.programId === program.id)
+              .sort((a, b) => a.sortOrder - b.sortOrder);
+            const normalLevels = programLevels.filter((l) => l.type === ScoringLevelType.new);
+            const specialLevels = programLevels.filter((l) => l.type !== ScoringLevelType.new);
             const combinedLevels = specialLevels.flatMap((special) =>
               normalLevels.map((normal) => ({
                 ...special,
@@ -1931,7 +1911,7 @@ const SettingsCertificate = () => {
               })),
             );
             const allProgLevels: (ScoringLevel & { normal_level_id?: number; })[] = [...normalLevels, ...combinedLevels];
-            const configuredCount = allProgLevels.filter((l) => !!templates[l.type === ScoringLevelType.SPECIAL ? `${l.normal_level_id}-${l.id}` : l.id]).length;
+            const configuredCount = allProgLevels.filter((l) => !!templates[l.type !== ScoringLevelType.new ? `${l.normal_level_id}-${l.id}` : l.id]).length;
 
             // Find first available signer info to use as default for new templates
             const firstTemplateWithSigner = templatesRaw.find(
@@ -1987,11 +1967,11 @@ const SettingsCertificate = () => {
                       ) : (
                         allProgLevels.map((level) => {
                           const normalId =
-                            level.type === ScoringLevelType.NORMAL
+                            level.type === ScoringLevelType.new
                               ? level.id
                               : level.normal_level_id;
                           const specialId =
-                            level.type === ScoringLevelType.SPECIAL
+                            level.type !== ScoringLevelType.new
                               ? level.id
                               : null;
                           const template =
@@ -2024,7 +2004,7 @@ const SettingsCertificate = () => {
                 ระดับที่ยังไม่ได้ผูกกับโครงการ
               </p>
               {levels
-                .filter((l) => !l.program_id)
+                .filter((l) => !l.programId)
                 .map((level) => {
                   const template =
                     templates[level.id] || defaultTemplate(level.id, null, level.color);

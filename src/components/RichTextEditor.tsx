@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { TextStyle, Color } from "@tiptap/extension-text-style";
+import { TextStyle, Color, FontSize } from "@tiptap/extension-text-style";
 import { Underline } from "@tiptap/extension-underline";
 import { TextAlign } from "@tiptap/extension-text-align";
 import { Highlight } from "@tiptap/extension-highlight";
@@ -10,7 +10,11 @@ import {
   List, ListOrdered, Heading2, Heading3,
   AlignLeft, AlignCenter, AlignRight,
   Palette, Highlighter,
+  Plus,
+  Minus,
 } from "lucide-react";
+import { Button } from "./ui/button";
+import { fakeSelectionPlugin, fakeSelectionPluginKey } from "@/plugins/fakeSelectionPlugin";
 
 const TEXT_COLORS = [
   { label: "ดำ", value: "#000000" },
@@ -120,6 +124,7 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
       Underline,
       Highlight.configure({ multicolor: true }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
+      FontSize,
     ],
     content: value || "",
     onUpdate({ editor }) {
@@ -132,6 +137,9 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
         style: `min-height: ${minHeight}; padding: 8px 10px;`,
         "data-placeholder": placeholder ?? "",
       },
+    },
+    onCreate({ editor }) {
+      editor.registerPlugin(fakeSelectionPlugin);
     },
   });
 
@@ -147,6 +155,53 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
 
   if (!editor) return null;
 
+  const selectionRef = useRef(null);
+  const saveSelection = () => {
+    const { from, to } = editor.state.selection;
+    editor.view.dispatch(
+      editor.state.tr.setMeta(fakeSelectionPluginKey, {
+        selection: { from, to },
+      })
+    );
+  };
+  const clearSelection = () => {
+    editor.view.dispatch(
+      editor.state.tr.setMeta(fakeSelectionPluginKey, {
+        clear: true,
+      })
+    );
+  };
+  useEffect(() => {
+    if (!editor) return;
+
+    const updateSelection = () => {
+      selectionRef.current = editor.state.selection;
+    };
+
+    editor.on("selectionUpdate", updateSelection);
+    return () => {
+      editor.off("selectionUpdate", updateSelection);
+    };
+  }, [editor]);
+
+  const getFontSize = () => {
+    const size = editor.getAttributes("textStyle").fontSize
+    return size ? parseInt(size) : 16;
+  };
+  const fontSize = getFontSize();
+  const [inputValue, setInputValue] = useState(String(fontSize));
+  useEffect(() => {
+    setInputValue(String(fontSize));
+  }, [fontSize]);
+  const applyFontSize = (size: number) => {
+    editor
+      .chain()
+      .focus()
+      .setTextSelection(selectionRef.current)
+      .setFontSize(`${size}px`)
+      .run();
+  };
+
   return (
     <div className="rounded-md border border-input bg-background text-sm focus-within:ring-1 focus-within:ring-ring overflow-hidden">
       {/* Toolbar */}
@@ -157,6 +212,51 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
         <ToolBtn onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} active={editor.isActive("heading", { level: 3 })} title="หัวข้อเล็ก">
           <Heading3 className="h-3.5 w-3.5" />
         </ToolBtn>
+        <Sep />
+        <div
+          title="ปรับขนาดตัวอักษร"
+          className="h-7 w-fit flex gap-1 items-center justify-center text-sm text-muted-foreground"
+        >
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-5 rounded-sm "
+            onClick={() => applyFontSize(fontSize - 2)}
+          >
+            <Minus className="h-3.5 w-3.5" />
+          </Button>
+          <input
+            className="w-8 text-center border-[1px] border-muted-foreground/50 rounded-sm"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            onFocus={saveSelection}
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onBlur={() => {
+              const value = Number(inputValue);
+              if (!isNaN(value)) {
+                applyFontSize(value);
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                const value = Number(inputValue);
+                if (!isNaN(value)) {
+                  applyFontSize(value);
+                }
+              }
+            }}
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-5 rounded-sm"
+            onClick={() => applyFontSize(fontSize + 2)}
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </Button>
+        </div>
         <Sep />
         <ToolBtn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive("bold")} title="ตัวหนา">
           <Bold className="h-3.5 w-3.5" />
@@ -210,7 +310,7 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
 
       {/* Editor area */}
       <div className="relative">
-        <EditorContent editor={editor} />
+        <EditorContent editor={editor} onBlur={saveSelection} onFocus={clearSelection} />
         {!value && placeholder && (
           <p className="pointer-events-none absolute top-2 left-2.5 text-sm text-muted-foreground/60 select-none">
             {placeholder}

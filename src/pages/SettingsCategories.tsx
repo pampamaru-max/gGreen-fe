@@ -13,6 +13,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { AlertActionPopup } from "@/components/AlertActionPopup";
+import { ScoringLevel } from "./ProjectRegistration";
 
 interface DbCategory {
   id: number;
@@ -33,17 +34,6 @@ interface DbProgram {
   name: string;
   icon: string;
   sortOrder: number;
-}
-
-interface ScoringLevel {
-  id: number;
-  name: string;
-  minScore: number;
-  maxScore: number;
-  color: string;
-  icon: string;
-  sortOrder: number;
-  programId: string | null;
 }
 
 // ─── Segmented Toggle ────────────────────────────────────────────────────────
