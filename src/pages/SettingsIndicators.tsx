@@ -379,10 +379,22 @@ function EditIndicatorDialog({
         <div className={`grid ${isHeader ? 'grid-cols-1 w-full px-1' : 'grid-cols-1 md:grid-cols-2 flex-1 min-h-0 overflow-hidden'} gap-6 py-2`}>
           <div className={`space-y-3 ${isHeader ? 'pb-4' : 'overflow-y-auto pr-1'}`}>
             {isHeader ? (
+              <>
               <div className="space-y-2.5 p-0.5">
                 <Label>ชื่อหัวข้อย่อย</Label>
                 <Input value={name} onChange={(e) => setName(e.target.value)} className="font-bold focus-visible:ring-offset-2" />
               </div>
+
+              <div className="space-y-2.5 p-0.5 pt-2">
+                <Label>คำอธิบายใต้หัวข้อ (ถ้ามี)</Label>
+                <Textarea 
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="ระบุรายละเอียดเพิ่มเติม..."
+                  className="bg-muted/10 min-h-[80px]"
+                />
+              </div>
+            </>
             ) : isYesNo ? (
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2">
@@ -515,14 +527,24 @@ function IndicatorTreeNode({
       return (
           <div ref={setNodeRef} style={style} className={`mb-3 ${level > 0 ? 'ml-6' : ''}`}>
               <div className="border border-primary/20 rounded-lg bg-card shadow-sm overflow-hidden group/col">
-                  <div className="flex items-center justify-between p-3 bg-primary/5 border-b group/header">
-                      <div className="flex items-center gap-2 flex-1">
-                          <button {...attributes} {...listeners} className="cursor-grab text-muted-foreground hover:text-foreground">
+
+                  <div className="flex items-start justfy-between p-3 bg-primary/5 border-b group/header">
+                      <div className="flex items-start gap-2 flex-1 mt-0.5">
+                          <button {...attributes} {...listeners} className="cursor-grab text-muted-foreground hover:text-foreground mt-0.5">
                               <GripVertical className="h-4 w-4" />
                           </button>
+                          <div className="mt-0.5">
                           {ind.isHeader ? <FolderTree className="h-4 w-4 text-primary/70" /> : <ListChecks className="h-4 w-4 text-muted-foreground"/>}
-                          <span className={`font-bold text-[15px] ${ind.isHeader ? 'text-primary' : 'text-foreground'}`}>{ind.name}</span>
+                          </div>
+                          <div className="flex flex-col flex-1 pr-4">
+                          <span className={`font-bold text-[15px] leading.sunug ${ind.isHeader ? 'text-primary' : 'text-foreground'}`}>{ind.name}</span>
+
+                            {ind.description && (
+                              <span className="text-[13px] text-muted-foreground mt-1 whitespace-pre-wrap leading-relaxed">{ind.description}</span>
+                            )}
+                          </div>
                       </div>
+
                       <div className="flex items-center gap-1 opacity-0 group-hover/header:opacity-100 transition-opacity">
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(ind)}><Pencil className="h-3.5 w-3.5" /></Button>
                           <AlertActionPopup action={() => onDelete(ind.id)} type="delete" title="ยืนยันลบ" description={`ต้องการลบ "${ind.name}" และข้อมูลภายในทั้งหมดหรือไม่?`}/>
