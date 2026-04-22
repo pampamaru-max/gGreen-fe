@@ -1,23 +1,11 @@
 import { useRef, useCallback } from "react";
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import { TextStyle, Color } from "@tiptap/extension-text-style";
-import { Underline } from "@tiptap/extension-underline";
-import { TextAlign } from "@tiptap/extension-text-align";
-import { Highlight } from "@tiptap/extension-highlight";
 import apiClient from "@/lib/axios";
 import { Button } from "@/components/ui/button";
-import {
-  Type, ImagePlus, FileUp, Trash2, ChevronUp, ChevronDown, Loader2,
-  Bold, Italic, UnderlineIcon, Strikethrough,
-  AlignLeft, AlignCenter, AlignRight,
-  List, ListOrdered, Heading2, Heading3,
-  Highlighter, Palette,
-  Link,
-} from "lucide-react";
+import { Type, ImagePlus, FileUp, Trash2, ChevronUp, ChevronDown, Loader2, Link } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { MAX_FILE_SIZE } from "@/helpers/constants";
+import RichTextEditor from "./RichTextEditor";
 
 export type ContentBlock =
   | { type: "text"; content: string }
@@ -29,190 +17,6 @@ interface Props {
   blocks: ContentBlock[];
   onChange: (blocks: ContentBlock[]) => void;
   programId: string;
-}
-
-const TEXT_COLORS = [
-  { label: "ดำ", value: "#000000" },
-  { label: "เทาเข้ม", value: "#374151" },
-  { label: "เทา", value: "#6B7280" },
-  { label: "แดง", value: "#EF4444" },
-  { label: "ส้ม", value: "#F97316" },
-  { label: "เหลือง", value: "#EAB308" },
-  { label: "เขียว", value: "#22C55E" },
-  { label: "ฟ้า", value: "#3B82F6" },
-  { label: "น้ำเงิน", value: "#6366F1" },
-  { label: "ม่วง", value: "#A855F7" },
-];
-
-const HIGHLIGHT_COLORS = [
-  { label: "เหลือง", value: "#FEF08A" },
-  { label: "เขียว", value: "#BBF7D0" },
-  { label: "ฟ้า", value: "#BAE6FD" },
-  { label: "ชมพู", value: "#FBCFE8" },
-  { label: "ส้ม", value: "#FED7AA" },
-];
-
-function ToolBtn({
-  onClick, active, title, children,
-}: {
-  onClick: () => void;
-  active?: boolean;
-  title?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      title={title}
-      onMouseDown={(e) => { e.preventDefault(); onClick(); }}
-      className={`h-7 w-7 flex items-center justify-center rounded text-sm transition-colors
-        ${active
-          ? "bg-primary text-primary-foreground"
-          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-        }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-function Divider() {
-  return <div className="w-px h-4 bg-border mx-0.5 self-center" />;
-}
-
-function ColorPicker({
-  icon, colors, onSelect, title,
-}: {
-  icon: React.ReactNode;
-  colors: { label: string; value: string }[];
-  onSelect: (color: string) => void;
-  title: string;
-}) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        title={title}
-        onMouseDown={(e) => { e.preventDefault(); setOpen((v) => !v); }}
-        className="h-7 px-1.5 flex items-center gap-0.5 rounded text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-      >
-        {icon}
-      </button>
-      {open && (
-        <div className="absolute top-8 left-0 z-50 bg-popover border border-border rounded-lg shadow-lg p-2 flex flex-wrap gap-1.5 w-36">
-          {colors.map((c) => (
-            <button
-              key={c.value}
-              type="button"
-              title={c.label}
-              onMouseDown={(e) => { e.preventDefault(); onSelect(c.value); setOpen(false); }}
-              className="h-6 w-6 rounded-full border border-border hover:scale-110 transition-transform"
-              style={{ backgroundColor: c.value }}
-            />
-          ))}
-          <button
-            type="button"
-            title="ล้างสี"
-            onMouseDown={(e) => { e.preventDefault(); onSelect(""); setOpen(false); }}
-            className="h-6 w-6 rounded-full border border-border bg-background text-[9px] text-muted-foreground hover:scale-110 transition-transform flex items-center justify-center"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function RichTextBlock({ block, onUpdate }: {
-  block: { type: "text"; content: string };
-  onUpdate: (content: string) => void;
-}) {
-  const editor = useEditor({
-    extensions: [
-      StarterKit,
-      TextStyle,
-      Color,
-      Underline,
-      Highlight.configure({ multicolor: true }),
-      TextAlign.configure({ types: ["heading", "paragraph"] }),
-    ],
-    content: block.content || "<p></p>",
-    onUpdate: ({ editor }) => {
-      onUpdate(editor.getHTML());
-    },
-    editorProps: {
-      attributes: {
-        class: "outline-none min-h-[80px] px-3 py-2 text-sm leading-relaxed",
-      },
-    },
-  });
-
-  if (!editor) return null;
-
-  return (
-    <div className="border border-border rounded-lg overflow-visible">
-      <div className="flex items-center gap-0.5 flex-wrap border-b border-border px-1.5 py-1 bg-muted/40">
-        <ToolBtn title="หัวข้อ H2" active={editor.isActive("heading", { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
-          <Heading2 className="h-3.5 w-3.5" />
-        </ToolBtn>
-        <ToolBtn title="หัวข้อ H3" active={editor.isActive("heading", { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>
-          <Heading3 className="h-3.5 w-3.5" />
-        </ToolBtn>
-        <Divider />
-        <ToolBtn title="หนา" active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()}>
-          <Bold className="h-3.5 w-3.5" />
-        </ToolBtn>
-        <ToolBtn title="เอียง" active={editor.isActive("italic")} onClick={() => editor.chain().focus().toggleItalic().run()}>
-          <Italic className="h-3.5 w-3.5" />
-        </ToolBtn>
-        <ToolBtn title="ขีดเส้นใต้" active={editor.isActive("underline")} onClick={() => editor.chain().focus().toggleUnderline().run()}>
-          <UnderlineIcon className="h-3.5 w-3.5" />
-        </ToolBtn>
-        <ToolBtn title="ขีดทับ" active={editor.isActive("strike")} onClick={() => editor.chain().focus().toggleStrike().run()}>
-          <Strikethrough className="h-3.5 w-3.5" />
-        </ToolBtn>
-        <Divider />
-        <ColorPicker
-          title="สีข้อความ"
-          icon={<><Palette className="h-3.5 w-3.5" /><span className="text-[9px]">▾</span></>}
-          colors={TEXT_COLORS}
-          onSelect={(color) => color
-            ? editor.chain().focus().setColor(color).run()
-            : editor.chain().focus().unsetColor().run()
-          }
-        />
-        <ColorPicker
-          title="ไฮไลต์"
-          icon={<><Highlighter className="h-3.5 w-3.5" /><span className="text-[9px]">▾</span></>}
-          colors={HIGHLIGHT_COLORS}
-          onSelect={(color) => color
-            ? editor.chain().focus().setHighlight({ color }).run()
-            : editor.chain().focus().unsetHighlight().run()
-          }
-        />
-        <Divider />
-        <ToolBtn title="ชิดซ้าย" active={editor.isActive({ textAlign: "left" })} onClick={() => editor.chain().focus().setTextAlign("left").run()}>
-          <AlignLeft className="h-3.5 w-3.5" />
-        </ToolBtn>
-        <ToolBtn title="กึ่งกลาง" active={editor.isActive({ textAlign: "center" })} onClick={() => editor.chain().focus().setTextAlign("center").run()}>
-          <AlignCenter className="h-3.5 w-3.5" />
-        </ToolBtn>
-        <ToolBtn title="ชิดขวา" active={editor.isActive({ textAlign: "right" })} onClick={() => editor.chain().focus().setTextAlign("right").run()}>
-          <AlignRight className="h-3.5 w-3.5" />
-        </ToolBtn>
-        <Divider />
-        <ToolBtn title="รายการจุด" active={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()}>
-          <List className="h-3.5 w-3.5" />
-        </ToolBtn>
-        <ToolBtn title="รายการตัวเลข" active={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
-          <ListOrdered className="h-3.5 w-3.5" />
-        </ToolBtn>
-      </div>
-      <EditorContent editor={editor} />
-    </div>
-  );
 }
 
 let _idCounter = 0;
@@ -314,10 +118,7 @@ export default function AboutContentEditor({ blocks, onChange, programId }: Prop
           </div>
 
           {block.type === "text" && (
-            <RichTextBlock
-              block={block}
-              onUpdate={(content) => updateBlock(i, { ...block, content })}
-            />
+            <RichTextEditor value={block.content} onChange={(content) => updateBlock(i, { ...block, content })} />
           )}
           {block.type === "image" && (
             <div className="space-y-2">

@@ -64,6 +64,9 @@ export interface ScoringLevel {
   icon: string;
   sortOrder: number;
   type: ScoringLevelType;
+  condition: string | null;
+  isActive: boolean;
+  programId: string | null;
 }
 
 
