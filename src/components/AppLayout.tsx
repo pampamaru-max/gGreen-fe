@@ -1,6 +1,7 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import natureBg from "@/assets/login2.jpg";
 import nightBg from "@/assets/night-bg.jpg";
+import gLogo from "@/assets/g-logo.png";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useTheme } from "@/contexts/ThemeContext";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
@@ -82,10 +83,15 @@ export function AppLayout() {
           <header className="flex items-center justify-between px-3 sm:px-4 sticky top-2 z-50 mx-4 rounded-2xl shadow-sm" style={{ height: "48px", background: headerBg, backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", border: headerBorder }}>
             <div className="flex items-center gap-2 sm:gap-3">
               <SidebarTrigger className="hidden md:flex" />
-              <h1 className="text-sm font-bold text-foreground tracking-tight">
-                <span className="text-primary">G</span>-Green
-                <span className="hidden sm:inline text-muted-foreground font-normal"> · ระบบประเมินผล</span>
-              </h1>
+              <div className="flex items-center gap-2">
+                <img src={gLogo} alt="G-Green" className="h-7 w-7 object-contain drop-shadow-sm" />
+                <div className="flex flex-col leading-none">
+                  <span className="text-sm font-bold tracking-tight" style={{ background: "linear-gradient(135deg, var(--green-heading) 0%, var(--green-body) 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+                    G-Green
+                  </span>
+                  <span className="hidden sm:inline text-[10px] text-muted-foreground font-medium tracking-wide">ระบบประเมินผล</span>
+                </div>
+              </div>
             </div>
 
             <HoverCard openDelay={150} closeDelay={100}>

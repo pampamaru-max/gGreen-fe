@@ -5,6 +5,7 @@ import { PageLoading } from "@/components/ui/page-loading";
 import { Button } from "@/components/ui/button";
 import apiClient from "@/lib/axios";
 import { ScoringLevelType } from "./SettingsScoringCriteria";
+import { ScoringLevel } from "./ProjectRegistration";
 
 interface YesNoStats {
   passCount: number;
@@ -23,16 +24,6 @@ interface CategoryResult {
   indicatorMaxTotal: number;
 }
 
-interface ScoringLevel {
-  id: number;
-  name: string;
-  color: string;
-  icon: string;
-  minScore: number;
-  maxScore: number;
-  type: ScoringLevelType;
-}
-
 interface EvaluationResult {
   id: string;
   evaluationId: string;
@@ -44,7 +35,8 @@ interface EvaluationResult {
   specialLevelId: number | null;
   categoryResults: CategoryResult[];
   calculatedAt: string;
-  scoringLevel: ScoringLevel | null;
+  normalLevel: ScoringLevel | null;
+  specialLevel: ScoringLevel | null;
   // yes/no fields
   passCount?: number;
   totalIndicators?: number;
@@ -80,7 +72,7 @@ const EvaluationSummaryPage = () => {
         setResult(data);
 
         // ถ้า scoringLevel เป็น null → ดึง scoring-levels มา match เอง
-        if (!data.scoringLevel) {
+        if (!data.normalLevel) {
           const isYesNoProgram = data.totalScore === 0 && data.totalMaxScore === 0;
           const [evalRes, levelsRes] = await Promise.all([
             isYesNoProgram ? apiClient.get(`evaluation/${evaluationId}`) : Promise.resolve(null),
@@ -145,13 +137,13 @@ const EvaluationSummaryPage = () => {
     );
   }
 
-  const { scoringLevel, totalScore, totalMaxScore, categoryResults } = result;
+  const { normalLevel, totalScore, totalMaxScore, categoryResults } = result;
   const isYesNo = !!yesNoStats;
   const pct = isYesNo
     ? yesNoStats!.passPct
     : (totalMaxScore > 0 ? Math.round((totalScore / totalMaxScore) * 100) : 0);
-  const levelColor = isYesNo ? yesNoStats!.levelColor : (scoringLevel?.color ?? "#6b7280");
-  const levelName = isYesNo ? (yesNoStats!.levelName ?? "ไม่ระบุ") : (scoringLevel?.name ?? "ไม่ระบุ");
+  const levelColor = isYesNo ? yesNoStats!.levelColor : (normalLevel?.color ?? "#6b7280");
+  const levelName = isYesNo ? (yesNoStats!.levelName ?? "ไม่ระบุ") : (normalLevel?.name ?? "ไม่ระบุ");
 
   const glass = {
     background: "var(--glass-bg)",
@@ -223,9 +215,9 @@ const EvaluationSummaryPage = () => {
                   {levelName}
                 </span>
               </div>
-              {scoringLevel && (
+              {normalLevel && (
                 <p className="mt-3 text-xs text-muted-foreground">
-                  เกณฑ์: {scoringLevel.minScore} – {scoringLevel.maxScore}%
+                  เกณฑ์: {normalLevel.minScore} – {normalLevel.maxScore}%
                 </p>
               )}
             </div>

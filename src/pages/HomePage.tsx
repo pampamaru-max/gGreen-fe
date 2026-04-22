@@ -64,7 +64,7 @@ export default function HomePage() {
 
         <div className="relative z-10">
           <div className="flex items-center gap-2 sm:gap-3 mb-3">
-            <img src={dcceLogo} alt="กรมการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม" className="h-9 w-9 sm:h-12 sm:w-12 object-contain shrink-0" />
+            <img src={dcceLogo} alt="กรมการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม" className="h-16 w-16 sm:h-20 sm:w-20 object-contain shrink-0" />
             <p className="leading-relaxed text-xs sm:text-sm font-medium" style={{ color: "var(--green-body)" }}>
               กรมการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม
               <br />

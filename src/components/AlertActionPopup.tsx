@@ -71,8 +71,8 @@ export function AlertActionPopup({
       )}
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle className="text-pretty">{title}</AlertDialogTitle>
-          <AlertDialogDescription className="text-pretty">{description}</AlertDialogDescription>
+          <AlertDialogTitle className="text-pretty [overflow-wrap:anywhere]">{title}</AlertDialogTitle>
+          <AlertDialogDescription className="text-pretty [overflow-wrap:anywhere]">{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           {buttonLeft ?? (

@@ -511,6 +511,7 @@ export default function EvaluateeHome() {
                   const typeKey = item.evaluation_type ?? "new";
                   const typeCfg = EVAL_TYPE_CONFIG[typeKey];
                   const hasCommittee = !!item.total_committee_score || item.has_committee_score;
+                  const canPrint = item.committee_result_is_pass !== false;
 
                   return (
                     <div key={item.id} className="rounded-xl border border-border/50 bg-background/60 p-3 space-y-2.5">
@@ -571,8 +572,10 @@ export default function EvaluateeHome() {
                         </Button>
                         {hasCommittee && (
                           <Button variant="outline" size="icon"
-                            onClick={() => window.open(`/certificate/print/${item.id}`, "_blank")}
-                            className="h-9 w-9 rounded-xl border-amber-200 bg-amber-50/50 text-amber-600 hover:bg-amber-100 shrink-0">
+                            onClick={() => canPrint && window.open(`/certificate/print/${item.id}`, "_blank")}
+                            disabled={!canPrint}
+                            title={canPrint ? "พิมพ์ใบประกาศ" : "ระดับนี้ไม่ออกใบประกาศนียบัตร"}
+                            className={`h-9 w-9 rounded-xl shrink-0 ${canPrint ? "border-amber-200 bg-amber-50/50 text-amber-600 hover:bg-amber-100" : "border-slate-200 bg-slate-50/50 text-slate-400 cursor-not-allowed"}`}>
                             <Printer className="h-4 w-4" />
                           </Button>
                         )}
@@ -611,6 +614,7 @@ export default function EvaluateeHome() {
                       );
                       const typeKey = item.evaluation_type ?? "new";
                       const typeCfg = EVAL_TYPE_CONFIG[typeKey];
+                      const canPrintDesktop = item.committee_result_is_pass !== false;
                       return (
                         <TableRow key={item.id} className="hover:bg-muted/20 transition-colors border-b border-border/30 last:border-0 group">
                           <TableCell className="text-center font-medium">{item.year ? item.year + 543 : "-"}</TableCell>
@@ -645,8 +649,10 @@ export default function EvaluateeHome() {
                               </Button>
                               {(!!item.total_committee_score || item.has_committee_score) && (
                                 <Button variant="outline" size="icon"
-                                  onClick={() => window.open(`/certificate/print/${item.id}`, "_blank")}
-                                  className="h-10 w-10 rounded-xl border-amber-100 bg-amber-50/50 text-amber-600 hover:bg-amber-100 transition-all shadow-sm">
+                                  onClick={() => canPrintDesktop && window.open(`/certificate/print/${item.id}`, "_blank")}
+                                  disabled={!canPrintDesktop}
+                                  title={canPrintDesktop ? "พิมพ์ใบประกาศ" : "ระดับนี้ไม่ออกใบประกาศนียบัตร"}
+                                  className={`h-10 w-10 rounded-xl transition-all shadow-sm ${canPrintDesktop ? "border-amber-100 bg-amber-50/50 text-amber-600 hover:bg-amber-100" : "border-slate-100 bg-slate-50/50 text-slate-400 cursor-not-allowed"}`}>
                                   <Printer className="h-5 w-5" />
                                 </Button>
                               )}

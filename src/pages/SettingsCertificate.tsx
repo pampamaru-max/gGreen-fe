@@ -50,24 +50,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import LoadingOverlay from "@/components/loading/LoadingOverlay";
-
-interface ScoringLevel {
-  id: number;
-  name: string;
-  min_score: number;
-  max_score: number;
-  color: string;
-  icon: string;
-  sort_order: number;
-  type: ScoringLevelType;
-  program_id: string | null;
-}
+import { ScoringLevel } from "./ProjectRegistration";
 
 interface DbProgram {
   id: string;
   name: string;
   icon: string;
   sort_order: number;
+  scoringType?: 'score' | 'yes_no';
 }
 
 interface CertElement {
@@ -86,8 +76,9 @@ interface CertElement {
 
 interface CertTemplate {
   id?: number;
-  normal_level_id: number;
+  normal_level_id?: number | null;
   special_level_id?: number | null;
+  program_id?: string | null;
   title: string;
   subtitle: string;
   body_text: string;
@@ -117,10 +108,11 @@ const getLayout = (template: CertTemplate): CertElement[] => {
 };
 
 const defaultTemplate = (
-  normalLevelId: number,
+  normalLevelId: number | null,
   specialLevelId: number | null,
   color: string,
   signer?: { name: string; title: string },
+  programId?: string | null,
 ): CertTemplate => {
   const commonLayout: CertElement[] = [
     {
@@ -176,6 +168,7 @@ const defaultTemplate = (
   return {
     normal_level_id: normalLevelId,
     special_level_id: specialLevelId,
+    program_id: programId ?? null,
     title: "ใบประกาศนียบัตร",
     subtitle: "โครงการ G-Green",
     body_text: "ขอมอบใบประกาศนียบัตรฉบับนี้ให้แก่",
@@ -1557,7 +1550,7 @@ const CopyTemplateDialog = ({
             <SelectContent>
               {templates.map((t) => (
                 <SelectItem key={t.id} value={String(t.id)}>
-                  {t.program.name} - {t.name}
+                  {t.program?.name} - {t.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -1604,19 +1597,44 @@ const LevelCertCard = ({
   level,
   template,
   onSave,
+  onToggleIsPass,
 }: {
   setSelectedTemplate: (template: CertTemplate) => void;
   setOpenCopyTemplateDialog: (open: boolean) => void;
-  level: ScoringLevel;
+  level: ScoringLevel & { isYesNo?: boolean };
   template: CertTemplate;
   onSave: (t: CertTemplate) => void;
+  onToggleIsPass?: (levelId: number, current: boolean) => void;
 }) => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const IC = getIcon(level.icon);
   const saved = !!template.id;
 
+  const isDisabled = !level.isYesNo && level.isPass === false;
+
   return (
-    <div className="rounded-xl border bg-card p-4">
+    <div className={`rounded-xl border transition-all overflow-hidden ${isDisabled ? "border-dashed border-slate-300" : "bg-card"}`}>
+      {/* Toggle row — always full opacity, outside the faded layer */}
+      {!level.isYesNo && onToggleIsPass && (
+        <div className={`flex items-center justify-between px-4 py-2.5 border-b ${isDisabled ? "bg-slate-100 border-slate-300" : "bg-muted/30"}`}>
+          <div>
+            <p className="text-sm font-semibold text-foreground">ออกใบประกาศได้</p>
+            <p className="text-xs text-muted-foreground">ปิด = ปุ่มปริ้นจะ disable</p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={level.isPass}
+            onClick={() => onToggleIsPass(level.id, level.isPass)}
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none shadow-sm ${level.isPass ? "bg-emerald-500" : "bg-slate-400"}`}
+          >
+            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${level.isPass ? "translate-x-5" : "translate-x-0"}`} />
+          </button>
+        </div>
+      )}
+
+      {/* Card content — faded when disabled */}
+      <div className={`p-4 transition-all ${isDisabled ? "opacity-50 grayscale" : ""}`}>
       <div className="grid lg:grid-cols-2 gap-4">
         <div className="space-y-3">
           <div className="flex items-center gap-3">
@@ -1630,10 +1648,21 @@ const LevelCertCard = ({
               <IC className="h-5 w-5" />
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-foreground">{level.name}</p>
-              <p className="text-xs text-muted-foreground">
-                ช่วงคะแนน: {level.min_score}% – {level.max_score}%
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="font-semibold text-foreground">{level.name}</p>
+                {isDisabled && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-200 text-slate-500 border border-slate-300">
+                    ไม่ออกใบประกาศ
+                  </span>
+                )}
+              </div>
+              {level.isYesNo ? (
+                <p className="text-xs text-muted-foreground">รูปแบบสอดคล้อง / ไม่สอดคล้อง</p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  ช่วงคะแนน: {level.minScore}% – {level.maxScore}%
+                </p>
+              )}
             </div>
           </div>
           <div className="space-y-2 text-sm">
@@ -1647,14 +1676,12 @@ const LevelCertCard = ({
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">สถานะ</span>
-              <span
-                className={`font-medium ${saved ? "text-green-600" : "text-amber-500"}`}
-              >
+              <span className={`font-medium ${saved ? "text-green-600" : "text-amber-500"}`}>
                 {saved ? "✓ บันทึกแล้ว" : "ยังไม่ได้ตั้งค่า"}
               </span>
             </div>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
             <EditTemplateDialog
               template={template}
               levelName={level.name}
@@ -1695,6 +1722,7 @@ const LevelCertCard = ({
           </div>
         </div>
       </div>
+      </div>
     </div>
   );
 };
@@ -1711,17 +1739,7 @@ const SettingsCertificate = () => {
     queryKey: ["scoring-levels"],
     queryFn: async () => {
       const { data } = await apiClient.get<any[]>("scoring-levels");
-      return data.map((l) => ({
-        id: l.id,
-        name: l.name,
-        min_score: l.minScore ?? l.min_score,
-        max_score: l.maxScore ?? l.max_score,
-        color: l.color,
-        icon: l.icon,
-        sort_order: l.sortOrder ?? l.sort_order,
-        type: l.type,
-        program_id: l.programId ?? l.program_id,
-      })) as ScoringLevel[];
+      return data;
     },
   });
 
@@ -1734,21 +1752,28 @@ const SettingsCertificate = () => {
         name: p.name,
         icon: p.icon,
         sort_order: p.sortOrder ?? p.sort_order,
+        scoringType: p.scoringType ?? 'score',
       })) as DbProgram[];
     },
   });
 
   const { data: templatesRaw = [], isLoading: templatesLoading } = useQuery({
-    queryKey: ["certificate-templates"],
+    queryKey: ["certificate-templates", levels, programs],
+    enabled: levels.length > 0 && programs.length > 0,
     queryFn: async () => {
       const { data } = await apiClient.get<any[]>("certificate-templates");
       return data.map((t) => {
         const normalLevel = levels.find((l) => l.id ===  t.normalLevelId);
         const specialLevel = levels.find((l) => l.id === t.specialLevelId);
+        const programId = t.programId ?? t.program_id ?? null;
+        const linkedProgram = programId
+          ? programs.find((p) => String(p.id) === String(programId))
+          : programs.find((p) => String(p.id) === String((specialLevel ?? normalLevel)?.program_id));
         return {
           id: t.id,
           normal_level_id: t.normalLevelId ?? t.normal_level_id,
           special_level_id: t.specialLevelId ?? t.special_level_id,
+          program_id: programId,
           title: t.title,
           subtitle: t.subtitle,
           body_text: t.bodyText ?? t.body_text,
@@ -1760,47 +1785,57 @@ const SettingsCertificate = () => {
           primary_color: t.primaryColor ?? t.primary_color,
           orientation: t.orientation,
           layout: t.layout,
-          program: programs.find((p) => p.id === (specialLevel ?? normalLevel).program_id),
+          program: linkedProgram,
           scoringLevel: specialLevel ?? normalLevel,
-          name: specialLevel ? `${normalLevel.name} ${specialLevel.name}` : normalLevel.name,
+          name: programId
+            ? (linkedProgram?.name ?? 'สอดคล้อง')
+            : specialLevel ? `${normalLevel.name} ${specialLevel.name}` : normalLevel?.name ?? '',
         };
       });
     },
   });
 
   const sortedTemplates = templatesRaw.sort((a, b) => {
-    const aType = a.scoringLevel.type;
-    const bType = b.scoringLevel.type;
+    const aType = a.scoringLevel?.type;
+    const bType = b.scoringLevel?.type;
+    if (a.program !== b.program) return (a.program?.sort_order ?? 0) - (b.program?.sort_order ?? 0);
     if (aType !== bType) {
-      return aType === ScoringLevelType.NORMAL ? -1 : 1;
+      return aType === ScoringLevelType.new ? -1 : aType === ScoringLevelType.upgrade ? -1 : 1;
     }
-    return a.scoringLevel.sort_order - b.scoringLevel.sort_order;
+    return (a.scoringLevel?.sortOrder ?? 0) - (b.scoringLevel?.sortOrder ?? 0);
   });
 
-  const templates: Record<number, CertTemplate> = {};
+  const templates: Record<string, CertTemplate> = {};
   templatesRaw.forEach((t) => {
-    templates[
-      t.special_level_id
-        ? `${t.normal_level_id}-${t.special_level_id}`
-        : t.normal_level_id
-    ] = t;
+    if (t.program_id) {
+      templates[`prog_${t.program_id}`] = t;
+    } else {
+      templates[
+        t.special_level_id
+          ? `${t.normal_level_id}-${t.special_level_id}`
+          : t.normal_level_id
+      ] = t;
+    }
   });
 
   const saveMutation = useMutation({
     mutationFn: async ({
       normalLevelId,
       specialLevelId,
+      programId,
       template,
       updateAllSigners,
     }: {
-      normalLevelId?: number;
+      normalLevelId?: number | null;
       specialLevelId?: number | null;
+      programId?: string | null;
       template: CertTemplate;
       updateAllSigners?: boolean;
     }) => {
       const toApiPayload = (t: Omit<CertTemplate, "id">) => ({
-        normalLevelId: normalLevelId,
-        specialLevelId: specialLevelId,
+        normalLevelId: normalLevelId ?? undefined,
+        specialLevelId: specialLevelId ?? undefined,
+        programId: programId ?? undefined,
         title: t.title,
         subtitle: t.subtitle,
         bodyText: t.body_text,
@@ -1814,9 +1849,11 @@ const SettingsCertificate = () => {
         layout: t.layout,
       });
 
-      const existing = specialLevelId
-        ? templates[`${normalLevelId}-${specialLevelId}`]
-        : templates[normalLevelId];
+      const existing = programId
+        ? templates[`prog_${programId}`]
+        : specialLevelId
+          ? templates[`${normalLevelId}-${specialLevelId}`]
+          : templates[normalLevelId];
       if (existing?.id) {
         delete existing['program'];
         delete existing['scoringLevel'];
@@ -1834,7 +1871,7 @@ const SettingsCertificate = () => {
         // Sync signer info to all other EXISTING templates
         const otherTemplates = templatesRaw.filter(
           (t) =>
-            t.normal_level_id !== normalLevelId &&
+            (programId ? t.program_id !== programId : t.normal_level_id !== normalLevelId) &&
             t.special_level_id !== specialLevelId &&
             t.id,
         );
@@ -1865,24 +1902,34 @@ const SettingsCertificate = () => {
     },
   });
 
+  const handleToggleIsPass = async (levelId: number, current: boolean) => {
+    try {
+      await apiClient.patch(`scoring-levels/${levelId}`, { isPass: !current });
+      queryClient.invalidateQueries({ queryKey: ["scoring-levels"] });
+      toast({ title: !current ? "เปิดใช้งาน: ออกใบประกาศได้" : "ปิดใช้งาน: ปุ่มปริ้นจะ disable", variant: "success" });
+    } catch (e: any) {
+      toast({ title: "เกิดข้อผิดพลาด", description: e.message, variant: "destructive" });
+    }
+  };
+
   const handleSave = (
-    normalLevelId: number,
+    normalLevelId: number | null,
     template: CertTemplate,
-    specialLevelId?: number,
+    specialLevelId?: number | null,
+    programId?: string | null,
   ) => {
-    // Check if signer info changed compared to current data
-    const current =
-      templates[
-        specialLevelId ? `${normalLevelId}-${specialLevelId}` : normalLevelId
-      ];
+    const current = programId
+      ? templates[`prog_${programId}`]
+      : templates[specialLevelId ? `${normalLevelId}-${specialLevelId}` : normalLevelId];
     const signerChanged =
       current &&
       (current.signer_name !== template.signer_name ||
         current.signer_title !== template.signer_title);
-        
+
     saveMutation.mutate({
       normalLevelId,
       specialLevelId,
+      programId,
       template,
       updateAllSigners: !!signerChanged,
     });
@@ -1918,11 +1965,12 @@ const SettingsCertificate = () => {
           )}
 
           {programs.map((program) => {
+            const isYesNo = program.scoringType === 'yes_no';
             const programLevels = levels
-              .filter((l) => l.program_id === program.id)
-              .sort((a, b) => a.sort_order - b.sort_order);
-            const normalLevels = programLevels.filter((l) => l.type === ScoringLevelType.NORMAL);
-            const specialLevels = programLevels.filter((l) => l.type === ScoringLevelType.SPECIAL);
+              .filter((l) => l.programId === program.id)
+              .sort((a, b) => a.sortOrder - b.sortOrder);
+            const normalLevels = programLevels.filter((l) => l.type === ScoringLevelType.new);
+            const specialLevels = programLevels.filter((l) => l.type !== ScoringLevelType.new);
             const combinedLevels = specialLevels.flatMap((special) =>
               normalLevels.map((normal) => ({
                 ...special,
@@ -1930,8 +1978,27 @@ const SettingsCertificate = () => {
                 normal_level_id: normal.id,
               })),
             );
-            const allProgLevels: (ScoringLevel & { normal_level_id?: number; })[] = [...normalLevels, ...combinedLevels];
-            const configuredCount = allProgLevels.filter((l) => !!templates[l.type === ScoringLevelType.SPECIAL ? `${l.normal_level_id}-${l.id}` : l.id]).length;
+
+            // For yes_no programs, use a synthetic level representing "สอดคล้อง"
+            const yesNoSyntheticLevel: ScoringLevel & { normal_level_id?: number; isYesNo?: boolean } = {
+              id: 0,
+              name: 'สอดคล้อง',
+              minScore: 0,
+              maxScore: 0,
+              color: '#22c55e',
+              icon: 'award',
+              sortOrder: 0,
+              type: ScoringLevelType.new,
+              isYesNo: true,
+            };
+
+            const allProgLevels: (ScoringLevel & { normal_level_id?: number; isYesNo?: boolean })[] = isYesNo
+              ? [yesNoSyntheticLevel]
+              : [...normalLevels, ...combinedLevels];
+
+            const configuredCount = isYesNo
+              ? (templates[`prog_${program.id}`] ? 1 : 0)
+              : allProgLevels.filter((l) => !!templates[l.type !== ScoringLevelType.new ? `${l.normal_level_id}-${l.id}` : l.id]).length;
 
             // Find first available signer info to use as default for new templates
             const firstTemplateWithSigner = templatesRaw.find(
@@ -1976,41 +2043,45 @@ const SettingsCertificate = () => {
                           }
                         />
                       )}
-                      {allProgLevels.length === 0 ? (
-                        <div className="text-center py-6 text-muted-foreground">
-                          <FileText className="mx-auto h-8 w-8 mb-2 opacity-30" />
-                          <p className="text-sm">
-                            ยังไม่มีเกณฑ์คะแนนในโครงการนี้
-                            กรุณาตั้งค่าเกณฑ์คะแนนก่อน
-                          </p>
-                        </div>
-                      ) : (
-                        allProgLevels.map((level) => {
-                          const normalId =
-                            level.type === ScoringLevelType.NORMAL
-                              ? level.id
-                              : level.normal_level_id;
-                          const specialId =
-                            level.type === ScoringLevelType.SPECIAL
-                              ? level.id
-                              : null;
+                      {allProgLevels.map((level) => {
+                        if (isYesNo) {
                           const template =
-                            templates[specialId ? `${normalId}-${specialId}` : normalId] ||
-                            defaultTemplate(normalId, specialId, level.color, defaultSigner);
+                            templates[`prog_${program.id}`] ||
+                            defaultTemplate(null, null, level.color, defaultSigner, program.id);
                           return (
                             <LevelCertCard
-                              key={`${level.normal_level_id ?? level.id}-${template.special_level_id}`}
+                              key={`yesno_${program.id}`}
                               level={level}
                               setSelectedTemplate={setSelectedTemplate}
-                              setOpenCopyTemplateDialog={
-                                setOpenCopyTemplateDialog
-                              }
+                              setOpenCopyTemplateDialog={setOpenCopyTemplateDialog}
                               template={template}
-                              onSave={(t) => handleSave(normalId, t, specialId)}
+                              onSave={(t) => handleSave(null, t, null, program.id)}
                             />
                           );
-                        })
-                      )}
+                        }
+                        const normalId =
+                          level.type === ScoringLevelType.new
+                            ? level.id
+                            : level.normal_level_id;
+                        const specialId =
+                          level.type !== ScoringLevelType.new
+                            ? level.id
+                            : null;
+                        const template =
+                          templates[specialId ? `${normalId}-${specialId}` : normalId] ||
+                          defaultTemplate(normalId, specialId, level.color, defaultSigner);
+                        return (
+                          <LevelCertCard
+                            key={`${level.normal_level_id ?? level.id}-${template.special_level_id}`}
+                            level={level}
+                            setSelectedTemplate={setSelectedTemplate}
+                            setOpenCopyTemplateDialog={setOpenCopyTemplateDialog}
+                            template={template}
+                            onSave={(t) => handleSave(normalId, t, specialId)}
+                            onToggleIsPass={handleToggleIsPass}
+                          />
+                        );
+                      })}
                     </div>
                   </CollapsibleContent>
                 </div>
@@ -2024,7 +2095,7 @@ const SettingsCertificate = () => {
                 ระดับที่ยังไม่ได้ผูกกับโครงการ
               </p>
               {levels
-                .filter((l) => !l.program_id)
+                .filter((l) => !l.programId)
                 .map((level) => {
                   const template =
                     templates[level.id] || defaultTemplate(level.id, null, level.color);
