@@ -36,6 +36,7 @@ interface RegistrationRow {
   committee_total_score?: number;
   self_max_score?: number;
   committee_max_score?: number;
+  committee_result_is_pass?: boolean | null;
 }
 
 const EvaluationPage = () => {
@@ -346,13 +347,18 @@ const EvaluationPage = () => {
                         <BarChart2 className="h-4 w-4" />
                       </Button>
                     )}
-                    {row.has_committee_score && row.evaluation_id && (
-                      <Button variant="outline" size="icon"
-                        onClick={() => window.open(`/certificate/print/${row.evaluation_id}`, "_blank")}
-                        className="h-9 w-9 rounded-xl border-amber-200 bg-amber-50/50 text-amber-600 hover:bg-amber-100 shrink-0">
-                        <Printer className="h-4 w-4" />
-                      </Button>
-                    )}
+                    {row.has_committee_score && row.evaluation_id && (() => {
+                      const canPrint = row.committee_result_is_pass !== false;
+                      return (
+                        <Button variant="outline" size="icon"
+                          onClick={() => canPrint && window.open(`/certificate/print/${row.evaluation_id}`, "_blank")}
+                          disabled={!canPrint}
+                          title={canPrint ? "พิมพ์ใบประกาศ" : "ระดับนี้ไม่ออกใบประกาศนียบัตร"}
+                          className={`h-9 w-9 rounded-xl shrink-0 ${canPrint ? "border-amber-200 bg-amber-50/50 text-amber-600 hover:bg-amber-100" : "border-slate-200 bg-slate-50/50 text-slate-400 cursor-not-allowed"}`}>
+                          <Printer className="h-4 w-4" />
+                        </Button>
+                      );
+                    })()}
                   </div>
                 </div>
               ))}
@@ -417,11 +423,17 @@ const EvaluationPage = () => {
                               : row.evaluation_id ? <Pencil className="h-4 w-4 text-primary" />
                               : <Plus className="h-4 w-4 text-primary" />}
                           </Button>
-                          {row.has_committee_score && row.evaluation_id && (
-                            <Button variant="ghost" size="icon" onClick={() => window.open(`/certificate/print/${row.evaluation_id}`, "_blank")} title="พิมพ์ใบประกาศ">
-                              <Printer className="h-4 w-4 text-emerald-600" />
-                            </Button>
-                          )}
+                          {row.has_committee_score && row.evaluation_id && (() => {
+                            const canPrint = row.committee_result_is_pass !== false;
+                            return (
+                              <Button variant="ghost" size="icon"
+                                onClick={() => canPrint && window.open(`/certificate/print/${row.evaluation_id}`, "_blank")}
+                                disabled={!canPrint}
+                                title={canPrint ? "พิมพ์ใบประกาศ" : "ระดับนี้ไม่ออกใบประกาศนียบัตร"}>
+                                <Printer className={`h-4 w-4 ${canPrint ? "text-emerald-600" : "text-slate-400"}`} />
+                              </Button>
+                            );
+                          })()}
                         </div>
                       </TableCell>
                     </TableRow>

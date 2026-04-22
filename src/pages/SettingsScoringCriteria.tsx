@@ -147,7 +147,7 @@ const LevelFormDialog = ({
       color,
       icon,
       type,
-      condition
+      condition,
     });
     setOpen(false);
   };
