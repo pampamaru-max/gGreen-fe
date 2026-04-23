@@ -31,8 +31,15 @@ apiClient.interceptors.response.use(
     return response;
   },
   (error) => {
-    // Handle global errors here
-    return Promise.reject(error);
+    if (error?.response?.status === 401 && typeof window !== 'undefined') {
+      const currentPath = window.location.pathname + window.location.search;
+      const isLoginPage = currentPath.startsWith('/login');
+      if (!isLoginPage) {
+        localStorage.removeItem('auth_token');
+        window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}&reason=session_expired`;
+      }
+    }
+    return Promise.reject(error.response?.data ?? error);
   }
 );
 

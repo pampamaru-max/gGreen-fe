@@ -4,7 +4,7 @@ import {
   ClipboardCheck, Loader2, CheckCircle2, ArrowLeft,
   Clock, FileText, AlertCircle, XCircle, RotateCcw,
   FilePlus, RefreshCw, TrendingUp,
-  Trophy, Medal, Award, Star,
+  Trophy, Medal, Award, Star, Save,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,10 +15,11 @@ import {
 import { ChevronDown } from "lucide-react";
 import type { UploadedFile, IndicatorNavItem } from "@/components/CategoryCard";
 import { ScoreSummary } from "@/components/evaluation/ScoreSummary";
+import { AnimatedScore } from "@/components/ui/animated-score";
 import { Category } from "@/data/evaluationData";
 
 // Category extended with scoreType / upgrade-renew settings from DB
-interface EvalCategory extends Category {
+export interface EvalCategory extends Category {
   scoreType?: string;
   upgradeMode?: string | null;
   renewMode?: string | null;
@@ -26,12 +27,16 @@ interface EvalCategory extends Category {
 import apiClient from "@/lib/axios";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { ScoringLevelType } from "./SettingsScoringCriteria";
+import { findScoringLevelMatch, isNewType, isRenewType, isUpgradType, labelScoreType, queryArray } from "@/helpers/functions";
 
 const EVAL_TYPE_CONFIG: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
   new:     { label: "ประเมินใหม่",             icon: <FilePlus   className="h-3 w-3" />, className: "bg-blue-50 text-blue-700 border-blue-200"     },
   renew:   { label: "ต่ออายุใบประกาศนียบัตร", icon: <RefreshCw  className="h-3 w-3" />, className: "bg-amber-50 text-amber-700 border-amber-200"   },
   upgrade: { label: "ยกระดับคะแนน",           icon: <TrendingUp className="h-3 w-3" />, className: "bg-purple-50 text-purple-700 border-purple-200" },
 };
+
+const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = { Trophy, Medal, Award, Star };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -59,6 +64,11 @@ export interface ScoringLevel {
   color: string;
   icon: string;
   sortOrder: number;
+  type: ScoringLevelType;
+  condition: string | null;
+  isActive: boolean;
+  isPass: boolean;
+  programId: string | null;
 }
 
 
@@ -100,6 +110,8 @@ export default function ProjectRegistration() {
   // notification ของ indicator ที่กรรมการ comment/ให้คะแนนใหม่
   const [newCommitteeIndicatorIds, setNewCommitteeIndicatorIds] = useState<Map<string, { prevScore: number | null; newScore: number | null }>>(new Map());
   const [expandedCategoryId, setExpandedCategoryId] = useState<string | number | null>(null);
+  const [lastSavedAt, setLastSavedAt]               = useState<Date | null>(null);
+  const [dirtyIndicatorIds, setDirtyIndicatorIds]   = useState<Set<string>>(new Set());
   // copy score
   const [copyHistoryEvals, setCopyHistoryEvals] = useState<Array<{ evaluationId: string; year: number; status: string; evaluationType: string }>>([]);
   const [copyHistoryLoaded, setCopyHistoryLoaded] = useState(false);
@@ -181,8 +193,8 @@ export default function ProjectRegistration() {
           setCategories(cats);
 
           try {
-            const { data: levData } = await apiClient.get(`scoring-levels?programId=${programId}`);
-            setScoringLevels((levData ?? []).sort((a: ScoringLevel, b: ScoringLevel) => a.sortOrder - b.sortOrder));
+            const { data: levData } = await apiClient.get(`scoring-levels?programId=${programId}&${queryArray('type', Array.from(new Set([urlEvalType, ScoringLevelType.new])))}`);
+            setScoringLevels((levData ?? []));
           } catch { /* no scoring levels */ }
 
           const { data: newEval } = await apiClient.post("evaluation", {
@@ -196,13 +208,15 @@ export default function ProjectRegistration() {
           return;
         }
 
-        // กรณีมี urlEvalId — โหลด form + scoring-levels + evaluation พร้อมกัน
+        // กรณีมี urlEvalId — โหลด form + evaluation พร้อมกัน
         const evalFetchUrl = `evaluation/${urlEvalId}`;
-        const [formRes, levRes, evalRes] = await Promise.all([
+        const [formRes, evalRes] = await Promise.all([
           apiClient.get(`programs/${programId}/evaluation-form`),
-          apiClient.get(`scoring-levels?programId=${programId}`).catch(() => ({ data: [] })),
           apiClient.get(evalFetchUrl).catch(() => ({ data: null })),
         ]);
+
+        const evalData = evalRes.data;
+        const levRes = await apiClient.get(`scoring-levels?programId=${programId}&${queryArray('type', Array.from(new Set([evalData.evaluationType, ScoringLevelType.new])))}`).catch(() => ({ data: [] }));
 
         // ประมวลผล form structure
         const formData = formRes.data;
@@ -225,10 +239,9 @@ export default function ProjectRegistration() {
         setCategories(cats);
 
         // ประมวลผล scoring levels
-        setScoringLevels((levRes.data ?? []).sort((a: ScoringLevel, b: ScoringLevel) => a.sortOrder - b.sortOrder));
+        setScoringLevels((levRes.data ?? []));
 
         // ประมวลผล existing evaluation
-        const evalData = evalRes.data;
         if (evalData) {
           setEvaluationId(evalData.id);
           setEvaluationStatus(evalData.status);
@@ -277,11 +290,11 @@ export default function ProjectRegistration() {
   }, [programId]);
 
   // ── Score handlers ─────────────────────────────────────────────────────────
-  const handleScoreChange     = (id: string, v: number)  => setScores(p => ({ ...p, [id]: v }));
-  const handleFilesChange     = (id: string, f: UploadedFile[]) => setUploadedFiles(p => ({ ...p, [id]: f }));
-  const handleDetailChange    = (id: string, v: string)  => setImplDetails(p => ({ ...p, [id]: v }));
+  const handleScoreChange     = (id: string, v: number)  => { setScores(p => ({ ...p, [id]: v })); setDirtyIndicatorIds(p => new Set(p).add(id)); };
+  const handleFilesChange     = (id: string, f: UploadedFile[]) => { setUploadedFiles(p => ({ ...p, [id]: f })); setDirtyIndicatorIds(p => new Set(p).add(id)); };
+  const handleDetailChange    = (id: string, v: string)  => { setImplDetails(p => ({ ...p, [id]: v })); setDirtyIndicatorIds(p => new Set(p).add(id)); };
 
-  // POST /evaluation/score — auto-save per indicator
+  // POST /evaluation/score — save per indicator
   const handleSaveIndicator = useCallback(async (indicatorId: string) => {
     if (!programId) return;
     const { data } = await apiClient.post("evaluation/score", {
@@ -293,8 +306,33 @@ export default function ProjectRegistration() {
       ...(evaluationId ? { evaluationId } : { evaluationType, year }),
     });
     if (data?.evaluationId && !evaluationId) setEvaluationId(data.evaluationId);
+    setDirtyIndicatorIds(p => { const n = new Set(p); n.delete(indicatorId); return n; });
+    setLastSavedAt(new Date());
     toast.success("บันทึกเรียบร้อยแล้ว");
   }, [evaluationId, evaluationType, scores, implDetails, uploadedFiles, programId]);
+
+  // ── Autosave dirty indicators every 30s ───────────────────────────────────
+  useEffect(() => {
+    const readOnly = evaluationStatus === "submitted" || evaluationStatus === "completed";
+    if (readOnly || !evaluationId || !programId) return;
+    const interval = setInterval(async () => {
+      const dirty = Array.from(dirtyIndicatorIds);
+      if (dirty.length === 0) return;
+      try {
+        await Promise.all(dirty.map(id =>
+          apiClient.post("evaluation/score", {
+            programId, indicatorId: id, evaluationId,
+            score: scores[id] ?? 0,
+            notes: implDetails[id] ?? "",
+            fileUrls: uploadedFiles[id] ?? [],
+          })
+        ));
+        setDirtyIndicatorIds(new Set());
+        setLastSavedAt(new Date());
+      } catch { /* silent — จะลองใหม่รอบถัดไป */ }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [evaluationId, evaluationStatus, programId, dirtyIndicatorIds, scores, implDetails, uploadedFiles]);
 
   // POST /evaluation/:id/submit — final submit
   const handleSubmitAll = async () => {
@@ -316,9 +354,6 @@ export default function ProjectRegistration() {
   };
 
   // ── Visible categories — filtered by evaluationType + program settings ─────
-  const isNewType    = (t?: string) => !t || t === "score" || t === "yes_no" || t === "score_new" || t === "yes_no_new";
-  const isUpgradType = (t?: string) => t === "score_upgrad" || t === "yes_no_upgrad" || t === "upgrade";
-  const isRenewType  = (t?: string) => t === "score_renew" || t === "yes_no_renew";
 
   const visibleCategories = useMemo(() => {
     if (evaluationType === "upgrade") {
@@ -396,8 +431,8 @@ export default function ProjectRegistration() {
     );
   }, [visibleCategories, scores]);
 
-  const grandTotal    = summaryData.reduce((s, c) => s + c.score, 0);
-  const grandMax      = summaryData.reduce((s, c) => s + c.totalPossible, 0);
+  const grandTotal    = summaryData.reduce((s, c) => c.scoreType === 'score_new' ? (s + c.score) : s, 0);
+  const grandMax      = summaryData.reduce((s, c) => c.scoreType === 'score_new' ? (s + c.totalPossible) : s, 0);
   // yes/no totals — used when grandMax === 0
   const grandPassCount  = summaryData.reduce((s, c: any) => s + (c.passCount ?? 0), 0);
   const grandPassTotal  = summaryData.reduce((s, c: any) => s + (c.totalIndicators ?? 0), 0);
@@ -405,11 +440,47 @@ export default function ProjectRegistration() {
   // unified values for display
   const displayTotal    = isYesNoProgram ? grandPassCount  : grandTotal;
   const displayMax      = isYesNoProgram ? grandPassTotal  : grandMax;
-  const displayPct      = displayMax > 0 ? Math.round((displayTotal / displayMax) * 100) : 0;
+  const displayPct      = displayMax > 0 
+    ? (isYesNoProgram 
+        ? (displayTotal === displayMax ? 100 : Math.floor((displayTotal / displayMax) * 100))
+        : Math.round((displayTotal / displayMax) * 100)) 
+    : 0;
   const displayUnit     = isYesNoProgram ? "ผ่าน" : "";
   const grandCommitteeTotal = committeeSummaryData
-    ? committeeSummaryData.reduce((s, c) => s + c.score, 0)
+    ? committeeSummaryData.reduce((s, c) => c.scoreType === 'score_new' ? (s + c.score) : s, 0)
     : undefined;
+
+  const grandCommitteePassCount = committeeSummaryData
+    ? committeeSummaryData.reduce((s, c: any) => s + (c.passCount ?? 0), 0)
+    : undefined;
+
+  const displayCommitteeTotal = isYesNoProgram ? grandCommitteePassCount : grandCommitteeTotal;
+  const displayCommitteeMax   = isYesNoProgram ? grandPassTotal : grandMax;
+
+  const grandTotalSp = summaryData.reduce((s, c) => c.scoreType !== 'score_new' ? (s + c.score) : s, 0);
+  const grandMaxSP = summaryData.reduce((s, c) => c.scoreType !== 'score_new' ? (s + c.totalPossible) : s, 0);
+  const displayPctSp      = grandMaxSP > 0 ? Math.round((grandTotalSp / grandMaxSP) * 100) : 0;
+  const grandCommitteeTotalSp = committeeSummaryData? committeeSummaryData.reduce((s, c) => c.scoreType !== 'score_new' ? (s + c.totalPossible) : s, 0) : undefined;
+
+  const activeLevel = useMemo(() => {
+    return findScoringLevelMatch(scoringLevels, evaluationType, displayPct, displayPctSp, isYesNoProgram);
+  }, [scoringLevels, evaluationType, displayPct, displayPctSp, isYesNoProgram]);
+
+  const committeePct = useMemo(() => {
+    if (displayCommitteeTotal === undefined || displayCommitteeMax === 0) return 0;
+    if (isYesNoProgram) return displayCommitteeTotal === displayCommitteeMax ? 100 : Math.floor((displayCommitteeTotal / displayCommitteeMax) * 100);
+    return Math.round((displayCommitteeTotal / displayCommitteeMax) * 100);
+  }, [displayCommitteeTotal, displayCommitteeMax, isYesNoProgram]);
+
+  const committeePctSp = useMemo(() => {
+    if (grandCommitteeTotalSp === undefined || grandMaxSP === 0) return 0;
+    return Math.round((grandCommitteeTotalSp / grandMaxSP) * 100);
+  }, [grandCommitteeTotalSp, grandMaxSP])
+
+  const committeeActiveLevel = useMemo(() => {
+    if (displayCommitteeTotal === undefined) return null;
+    return findScoringLevelMatch(scoringLevels, evaluationType, committeePct, committeePctSp, isYesNoProgram);
+  }, [scoringLevels, evaluationType, committeePct, committeePctSp, isYesNoProgram, displayCommitteeTotal]);
 
   // ── Wizard flat list ───────────────────────────────────────────────────────
   const flatIndicators = useMemo(() => {
@@ -552,168 +623,199 @@ export default function ProjectRegistration() {
           <Button variant="ghost" size="icon" onClick={() => navigate("/register")} className="shrink-0 h-8 w-8">
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shrink-0">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary shrink-0">
             <ClipboardCheck className="h-4 w-4 text-primary-foreground" />
           </div>
-          <h2 className="flex-1 min-w-0 text-sm font-bold text-foreground truncate">ประเมิน {programName}</h2>
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="text-right">
-              <p className="text-[0.5625rem] font-semibold text-muted-foreground uppercase tracking-wider">คะแนนรวม</p>
-              <p className="text-base font-bold text-primary leading-tight">
-                {displayTotal}{displayUnit && <span className="text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}
-                <span className="text-xs font-normal text-muted-foreground">/{displayMax}</span>
-              </p>
-              {displayMax > 0 && <p className="text-[0.5625rem] text-muted-foreground">{displayPct}%</p>}
-              {!isEvalReadOnly && !evalLoading && (
-                <DropdownMenu open={copyDropdownOpen} onOpenChange={handleCopyDropdownOpen}>
-                  <DropdownMenuTrigger asChild>
-                    <button className="mt-0.5 text-[0.5625rem] text-blue-500 hover:text-blue-700 underline underline-offset-2 cursor-pointer bg-transparent border-0 p-0 leading-tight">
-                      คัดลอกคะแนน
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="min-w-[180px]">
-                    {!copyHistoryLoaded ? (
-                      <div className="px-3 py-2 text-xs text-muted-foreground">กำลังโหลด...</div>
-                    ) : copyHistoryEvals.length === 0 ? (
-                      <div className="px-3 py-2 text-xs text-muted-foreground">ไม่พบประวัติการประเมิน</div>
-                    ) : (
-                      <>
-                        <div className="px-3 py-1.5 text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wider border-b">
-                          เลือกปีที่ต้องการคัดลอก
+          <div className="flex-1 min-w-0">
+            <h2 data-testid="evaluation-form-title" className="text-sm font-bold leading-tight truncate" style={{ color: "var(--green-heading)" }}>ประเมิน {programName}</h2>
+            <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+              {evaluationType && EVAL_TYPE_CONFIG[evaluationType] && (
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.625rem] font-semibold border ${EVAL_TYPE_CONFIG[evaluationType].className}`}>
+                  {EVAL_TYPE_CONFIG[evaluationType].icon}{EVAL_TYPE_CONFIG[evaluationType].label}
+                </span>
+              )}
+              {currentEvalStatus && (
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.625rem] font-semibold border ${currentEvalStatus.badge}`}>
+                  {currentEvalStatus.icon}{currentEvalStatus.label}
+                </span>
+              )}
+              {year && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[0.625rem] font-medium border border-border bg-muted/60 text-muted-foreground">
+                  พ.ศ. {year + 543}
+                </span>
+              )}
+              <span className="text-[0.625rem]" style={{ color: "var(--green-muted)" }}>
+                {visibleCategories.length} หมวด · {totalTopics} ประเด็น · {totalIndicators} ตัวชี้วัด{!isYesNoProgram ? ` · เต็ม ${grandMax}` : ""}
+              </span>
+            </div>
+            {!isEvalReadOnly && (
+              <div className="mt-1 flex items-center gap-2">
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.625rem] font-medium border ${dirtyIndicatorIds.size > 0 ? "border-amber-300 bg-amber-50 text-amber-600" : "border-green-200 bg-green-50 text-green-600"}`}>
+                  <Save className="h-2.5 w-2.5" />
+                  {dirtyIndicatorIds.size > 0
+                    ? `ยังไม่บันทึก ${dirtyIndicatorIds.size} รายการ`
+                    : lastSavedAt
+                      ? `บันทึกล่าสุด ${lastSavedAt.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}`
+                      : "autosave เปิดอยู่"}
+                </span>
+              </div>
+            )}
+          </div>
+          {/* Scores and Actions */}
+          <div className="flex flex-col items-end gap-2 shrink-0">
+            <div className="flex items-center gap-2">
+              <div className="flex flex-col items-end">
+                <p className="text-[0.5625rem] font-semibold text-muted-foreground uppercase tracking-wider">คะแนนรวม</p>
+                <div className="flex flex-col w-full">
+                  <p className="flex w-full justify-between items-center text-base font-bold text-primary leading-tight">
+                    {evaluationType !== ScoringLevelType.new && scoringLevels.some((sl) => sl.type === evaluationType) ?
+                      <span className="mr-2 text-start text-xs font-normal text-amber-700">{labelScoreType(visibleCategories, ScoringLevelType.new)}</span> : <span></span>
+                    }
+                    <span>
+                      <AnimatedScore value={displayTotal}>
+                        {displayTotal}{displayUnit && <span className="text-end text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}
+                      </AnimatedScore>
+                      <span className="text-end text-xs font-normal text-muted-foreground">/{displayMax}</span>
+                    </span>
+                  </p>
+                  {displayMax > 0 && <p className="text-end text-[0.5625rem] text-muted-foreground">{displayPct}%</p>}
+                </div>
+                {evaluationType !== ScoringLevelType.new && scoringLevels.some((sl) => sl.type === evaluationType) &&
+                  <div className="flex flex-col w-full">
+                    <p className="flex w-full justify-between items-center text-base font-bold text-primary leading-tight">
+                      <span className="mr-2 text-start text-xs font-normal text-amber-700">{labelScoreType(visibleCategories, evaluationType)}</span>
+                      <span>
+                        <AnimatedScore value={grandTotalSp}>
+                          {grandTotalSp}{displayUnit && <span className="text-end text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}
+                        </AnimatedScore>
+                        <span className="text-end text-xs font-normal text-muted-foreground">/{grandMaxSP}</span>
+                      </span>
+                    </p>
+                    {displayMax > 0 && <p className="text-end text-[0.5625rem] text-muted-foreground">{displayPctSp}%</p>}
+                  </div>
+                }
+                
+                {activeLevel && (
+                  <div className="mt-1">
+                    <div className="score-active-wrap scale-[0.8] origin-right">
+                      <div className="score-sparkles">
+                        <div className="score-sparkle" />
+                        <div className="score-sparkle" />
+                        <div className="score-sparkle" />
+                        <div className="score-sparkle" />
+                        <div className="score-sparkle" />
+                      </div>
+                      {(() => {
+                        const IconComp = ICON_MAP[activeLevel.icon] ?? Trophy;
+                        return (
+                          <div className="score-active-badge inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-white font-bold shrink-0"
+                            style={{ background: `linear-gradient(135deg, ${activeLevel.color}cc 0%, ${activeLevel.color} 100%)`, boxShadow: `0 2px 10px ${activeLevel.color}40` }}>
+                            <IconComp className="score-active-icon h-3.5 w-3.5 shrink-0" />
+                            <span className="text-xs">{activeLevel.name}</span>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
+
+                {!isEvalReadOnly && !evalLoading && (
+                  <DropdownMenu open={copyDropdownOpen} onOpenChange={handleCopyDropdownOpen}>
+                    <DropdownMenuTrigger asChild>
+                      <button className="mt-0.5 text-[0.5625rem] text-blue-500 hover:text-blue-700 underline underline-offset-2 cursor-pointer bg-transparent border-0 p-0 leading-tight">
+                        คัดลอกคะแนน
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="min-w-[180px]">
+                      {!copyHistoryLoaded ? (
+                        <div className="px-3 py-2 text-xs text-muted-foreground">กำลังโหลด...</div>
+                      ) : copyHistoryEvals.length === 0 ? (
+                        <div className="px-3 py-2 text-xs text-muted-foreground">ไม่พบประวัติการประเมิน</div>
+                      ) : (
+                        <>
+                          <div className="px-3 py-1.5 text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wider border-b">
+                            เลือกปีที่ต้องการคัดลอก
+                          </div>
+                          {copyHistoryEvals.map((e) => (
+                            <DropdownMenuItem
+                              key={e.evaluationId}
+                              onClick={() => handleCopyScoreFromEval(e.evaluationId)}
+                              className="gap-2 text-sm"
+                            >
+                              <span className="font-semibold">พ.ศ. {e.year + 543}</span>
+                              {e.evaluationType && EVAL_TYPE_CONFIG[e.evaluationType] && (
+                                <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[0.625rem] font-medium border ${EVAL_TYPE_CONFIG[e.evaluationType].className}`}>
+                                  {EVAL_TYPE_CONFIG[e.evaluationType].label}
+                                </span>
+                              )}
+                            </DropdownMenuItem>
+                          ))}
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
+              {displayCommitteeTotal !== undefined && (
+                <>
+                  <div className="w-px self-stretch bg-border mx-1" />
+                  <div className="flex flex-col items-end">
+                    <p className="text-[0.5625rem] font-semibold text-muted-foreground uppercase tracking-wider">กรรมการ</p>
+                    <p className="text-base font-bold text-muted-foreground leading-tight">
+                      <AnimatedScore value={displayCommitteeTotal ?? 0}>{displayCommitteeTotal}{displayUnit && <span className="text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}</AnimatedScore>
+                      <span className="text-xs font-normal text-muted-foreground">/{displayCommitteeMax}</span>
+                    </p>
+                    {displayCommitteeMax > 0 && <p className="text-[0.5625rem] text-muted-foreground">{committeePct}%</p>}
+                    
+                    {committeeActiveLevel && (
+                      <div className="mt-1">
+                        <div className="score-active-wrap scale-[0.8] origin-right">
+                          <div className="score-sparkles">
+                            <div className="score-sparkle" />
+                            <div className="score-sparkle" />
+                            <div className="score-sparkle" />
+                            <div className="score-sparkle" />
+                            <div className="score-sparkle" />
+                          </div>
+                          {(() => {
+                            const IconComp = ICON_MAP[committeeActiveLevel.icon] ?? Trophy;
+                            return (
+                              <div className="score-active-badge inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-white font-bold shrink-0"
+                                style={{ background: `linear-gradient(135deg, ${committeeActiveLevel.color}cc 0%, ${committeeActiveLevel.color} 100%)`, boxShadow: `0 2px 10px ${committeeActiveLevel.color}40` }}>
+                                <IconComp className="score-active-icon h-3.5 w-3.5 shrink-0" />
+                                <span className="text-xs">{committeeActiveLevel.name}</span>
+                              </div>
+                            );
+                          })()}
                         </div>
-                        {copyHistoryEvals.map((e) => (
-                          <DropdownMenuItem
-                            key={e.evaluationId}
-                            onClick={() => handleCopyScoreFromEval(e.evaluationId)}
-                            className="gap-2 text-sm"
-                          >
-                            <span className="font-semibold">พ.ศ. {e.year + 543}</span>
-                            {e.evaluationType && EVAL_TYPE_CONFIG[e.evaluationType] && (
-                              <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[0.625rem] font-medium border ${EVAL_TYPE_CONFIG[e.evaluationType].className}`}>
-                                {EVAL_TYPE_CONFIG[e.evaluationType].label}
-                              </span>
-                            )}
-                          </DropdownMenuItem>
-                        ))}
-                      </>
+                      </div>
                     )}
+                  </div>
+                </>
+              )}
+            </div>
+            
+            <div className="flex items-center gap-1.5">
+              {!isEvalReadOnly && !evalLoading && categories.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1 text-purple-600 border-purple-300 hover:bg-purple-50 text-[10px] h-7 px-2 shrink-0">
+                      🎲 <ChevronDown className="h-3 w-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-44">
+                    <DropdownMenuItem onClick={() => handleFillMode("full")}>⭐ สุ่มคะแนนเต็ม</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleFillMode("good")}>😊 สุ่มคะแนนดีแต่ไม่เต็ม</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleFillMode("mid")}>😐 สุ่มคะแนนกลางๆ</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleFillMode("bad")}>😕 สุ่มคะแนนแย่ๆ</DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => handleFillMode("clear")} className="text-destructive">🗑 ล้างคะแนน</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
             </div>
-            {grandCommitteeTotal !== undefined && (
-              <>
-                <div className="w-px h-7 bg-border shrink-0" />
-                <div className="text-right">
-                  <p className="text-[0.5625rem] font-semibold text-muted-foreground uppercase tracking-wider">กรรมการ</p>
-                  <p className="text-base font-bold text-muted-foreground leading-tight">
-                    {grandCommitteeTotal}<span className="text-xs font-normal text-muted-foreground">/{grandMax}</span>
-                  </p>
-                </div>
-              </>
-            )}
-            {!isEvalReadOnly && !evalLoading && categories.length > 0 && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-1 text-purple-600 border-purple-300 hover:bg-purple-50 text-xs h-8 px-2 shrink-0">
-                    🎲 <ChevronDown className="h-3 w-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-44">
-                  <DropdownMenuItem onClick={() => handleFillMode("full")}>⭐ สุ่มคะแนนเต็ม</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleFillMode("good")}>😊 สุ่มคะแนนดีแต่ไม่เต็ม</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleFillMode("mid")}>😐 สุ่มคะแนนกลางๆ</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleFillMode("bad")}>😕 สุ่มคะแนนแย่ๆ</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => handleFillMode("clear")} className="text-destructive">🗑 ล้างคะแนน</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
           </div>
         </div>
-        {/* badges + subinfo */}
-        <div className="flex items-center gap-1.5 flex-wrap mt-1 ml-[44px]">
-          {evaluationType && EVAL_TYPE_CONFIG[evaluationType] && (
-            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.625rem] font-semibold border ${EVAL_TYPE_CONFIG[evaluationType].className}`}>
-              {EVAL_TYPE_CONFIG[evaluationType].icon}{EVAL_TYPE_CONFIG[evaluationType].label}
-            </span>
-          )}
-          {currentEvalStatus && (
-            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.625rem] font-semibold border ${currentEvalStatus.badge}`}>
-              {currentEvalStatus.icon}{currentEvalStatus.label}
-            </span>
-          )}
-          {year && (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[0.625rem] font-medium border border-border bg-muted/60 text-muted-foreground">
-              พ.ศ. {year + 543}
-            </span>
-          )}
-          <span className="text-[0.625rem] text-muted-foreground">
-            {visibleCategories.length} หมวด · {totalTopics} ประเด็น · {totalIndicators} ตัวชี้วัด{!isYesNoProgram ? ` · เต็ม ${grandMax}` : ""}
-          </span>
-        </div>
-
-        {/* Scoring level strip */}
-        {!evalLoading && (scoringLevels.length > 0 || programScoringType === 'yes_no') && (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2.5 pt-2.5 border-t border-border/40">
-            <div className="flex-1 min-w-0">
-              {programScoringType === 'yes_no' ? (
-                (() => {
-                  const allPass = displayMax > 0 && displayTotal === displayMax;
-                  const color = allPass ? "#059669" : "#E11D48";
-                  return (
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-white font-bold shrink-0"
-                      style={{ background: `linear-gradient(135deg, ${color}cc 0%, ${color} 100%)`, boxShadow: `0 2px 10px ${color}40` }}>
-                      {allPass ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> : <XCircle className="h-3.5 w-3.5 shrink-0" />}
-                      <span className="text-xs">{allPass ? "สอดคล้อง" : "ไม่สอดคล้อง"}</span>
-                    </div>
-                  );
-                })()
-              ) : (() => {
-                const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = { Trophy, Medal, Award, Star };
-                const pct = displayMax > 0 ? Math.round((displayTotal / displayMax) * 100) : 0;
-                const activeLevel = [...scoringLevels].reverse().find(l => pct >= l.minScore && pct <= l.maxScore);
-                const others = scoringLevels.filter(l => l.id !== activeLevel?.id);
-                return (
-                  <div className="flex flex-wrap items-center gap-2">
-                    {activeLevel && (() => {
-                      const IconComp = ICON_MAP[activeLevel.icon] ?? Trophy;
-                      return (
-                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-white font-bold shrink-0"
-                          style={{ background: `linear-gradient(135deg, ${activeLevel.color}cc 0%, ${activeLevel.color} 100%)`, boxShadow: `0 2px 10px ${activeLevel.color}40` }}>
-                          <IconComp className="h-3.5 w-3.5 shrink-0" />
-                          <span className="text-xs">{activeLevel.name}</span>
-                          <span className="text-[0.625rem] font-normal opacity-85">({activeLevel.minScore}–{activeLevel.maxScore}%)</span>
-                        </div>
-                      );
-                    })()}
-                    {others.map(level => {
-                      const IconComp = ICON_MAP[level.icon] ?? Trophy;
-                      return (
-                        <div key={level.id} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.625rem] border"
-                          style={{ borderColor: `${level.color}25`, color: `${level.color}60` }}>
-                          <IconComp className="h-3 w-3 shrink-0" /><span>{level.name}</span>
-                          <span className="opacity-70">({level.minScore}–{level.maxScore}%)</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
-            </div>
-            {displayMax > 0 && (
-              <div className="shrink-0 text-right">
-                <p className="text-[0.5625rem] text-muted-foreground uppercase tracking-wider font-semibold">
-                  {programScoringType === 'yes_no' ? "วิธีคำนวณ (สอดคล้อง)" : isYesNoProgram ? "วิธีคำนวณ (ผ่าน/ไม่ผ่าน)" : "วิธีคำนวณ (คะแนน)"}
-                </p>
-                {programScoringType === 'yes_no' && <p className="text-[0.5625rem] font-bold text-red-600">*ต้องสอดคล้องครบทุกข้อ</p>}
-                {programScoringType !== 'yes_no' && !isYesNoProgram && grandMax > 0 && (
-                  <p className="text-[0.5625rem] font-bold text-red-600">{grandMax === 100 ? "*คำนวนแบบคะแนนเต็มหมวด" : "*คำนวนแบบคะแนนไม่เต็มหมวด"}</p>
-                )}
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Banner */}
         {currentEvalStatus?.banner && (
@@ -788,6 +890,8 @@ export default function ProjectRegistration() {
                 </div>
               ) : (
                 <Button
+                  data-testid="submit-evaluation-btn"
+                  aria-label="ส่งแบบประเมินตนเอง"
                   onClick={handleSubmitAll}
                   disabled={submitting || !allScored}
                   size="lg"

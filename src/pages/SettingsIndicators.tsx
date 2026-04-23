@@ -27,7 +27,8 @@ import {
 import AddTopicWithIndicatorsDialog from "@/components/AddTopicWithIndicatorsDialog";
 import { AlertActionPopup } from "@/components/AlertActionPopup";
 import { formatNumber, mergeUniqueById } from "@/helpers/functions";
-import { LoadingOverlay } from "@/components/loading/LoadingOverlay";
+import LoadingOverlay from "@/components/loading/LoadingOverlay";
+import Loading from "@/components/loading/Loading";
 
 interface DbProgram {
   id: string;
@@ -537,10 +538,10 @@ function IndicatorTreeNode({
                           {ind.isHeader ? <FolderTree className="h-4 w-4 text-primary/70" /> : <ListChecks className="h-4 w-4 text-muted-foreground"/>}
                           </div>
                           <div className="flex flex-col flex-1 pr-4">
-                          <span className={`font-bold text-[15px] leading.sunug ${ind.isHeader ? 'text-primary' : 'text-foreground'}`}>{ind.name}</span>
+                          <span className={`font-bold text-[15px] truncate leading.sunug ${ind.isHeader ? 'text-primary' : 'text-foreground'}`}>{ind.name}</span>
 
                             {ind.description && (
-                              <span className="text-[13px] text-muted-foreground mt-1 whitespace-pre-wrap leading-relaxed">{ind.description}</span>
+                              <span className="text-[13px] truncate text-muted-foreground mt-1 whitespace-pre-wrap leading-relaxed">{ind.description}</span>
                             )}
                           </div>
                       </div>
@@ -635,7 +636,8 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
   const [categories, setCategories] = useState<DbCategory[]>([]);
   const [topics, setTopics] = useState<DbTopic[]>([]);
   const [indicators, setIndicators] = useState<DbIndicator[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<{programs: boolean, categories: boolean, topics: boolean, indicators: boolean}>({programs: true, categories: true, topics: true, indicators: true});
+  const [saving, setSaving] = useState(false);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const [openEditIndDialog, setOpenEditIndDialog] = useState(false);
@@ -735,8 +737,15 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
     }
   }
 
-  useEffect(() => { fetchData({programs: true}).finally(() => setLoading(false)); },[])
+  useEffect(() => { fetchData({programs: true}).finally(() => setLoading(prev => ({...prev, programs: false}))); },[])
   useEffect(() => { if(selectedProgramId && !fetchedCategories.has(selectedProgramId)) fetchData({ categories: true }); },[selectedProgramId])
+
+  useEffect(() => { 
+    if(selectedProgramId && !fetchedCategories.has(selectedProgramId)) {
+      setLoading(prev => ({...prev, categories: true}));
+      fetchData({ categories: true }).finally(() => setLoading(prev => ({...prev, categories: false})));
+    }
+  },[selectedProgramId])
 
     // ✅ 1. เมื่อได้หมวดหมู่มาแล้ว ให้ซุ่มโหลด "ประเด็น" ของทุกหมวดหมู่ทันที
   useEffect(() => {
@@ -750,6 +759,20 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
   }, [categories]);
 
   // ✅ 2. เมื่อได้ประเด็นมาแล้ว ให้ซุ่มโหลด "ตัวชี้วัด" ของทุกประเด็นทันที
+  useEffect(() => {
+    if(selectedCategoryId && !fetchedTopics.has(selectedCategoryId)) {
+      setLoading(prev => ({...prev, topics: true}));
+      fetchData({ topics: true }).finally(() => setLoading(prev => ({...prev, topics: false})));
+    }
+  },[selectedCategoryId])
+
+  useEffect(() => {
+    if(selectedTopicId && !fetchedIndicators.has(selectedTopicId)) {
+      setLoading(prev => ({...prev, indicators: true}));
+      fetchData({ indicators: true }).finally(() => setLoading(prev => ({...prev, indicators: false})));
+    }
+  },[selectedTopicId]);
+
   useEffect(() => {
     if (topics.length > 0) {
       topics.forEach(topic => {
@@ -875,7 +898,7 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
   };
 
   const handleDeleteTopic = async (catId: number, topicId: string) => {
-    setLoading(true);
+    setSaving(true);
     try {
       await apiClient.delete(`topics/${topicId}`);
       toast({ title: "ลบสำเร็จ", variant: "success" });
@@ -885,7 +908,7 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", variant: "destructive" });
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
@@ -913,8 +936,29 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
     }
   };
 
-  const handleEditIndicator = async (indId: string, data: any) => {
-    setLoading(true);
+  const handleEditIndicator = async (
+    indId: string,
+    data: { name: string; maxScore: number; description: string; detail: string; notes: string; evidenceDescription: string; scoringCriteria: ScoringCriterion[], isHeader: any, parentId: any }
+  ) => {
+    setSaving(true);
+    const ind = indicators.find(i => i.id === indId);
+    if (ind) {
+      const topic = topics.find(t => t.id === ind.topicId);
+      if (topic) {
+        const cat = categories.find(c => c.id === topic.categoryId);
+        if (cat && !isYesNoType(cat.scoreType)) {
+          const remaining = getCatRemainingBudget(topic.categoryId, indId);
+          if (data.maxScore > remaining) {
+            toast({
+              title: "คะแนนเกินที่กำหนด",
+              description: `คะแนนเต็มของตัวชี้วัดนี้ (${data.maxScore}) เกินคะแนนที่เหลือในหมวด "${cat.name}" (เหลือได้ ${remaining} คะแนน)`,
+              variant: "destructive",
+            });
+            return;
+          }
+        }
+      }
+    }
     try {
       await apiClient.patch(`indicators/${indId}`, {
         name: data.name,
@@ -935,12 +979,12 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", variant: "destructive" });
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
   const handleDeleteIndicator = async (topicId: string, indId: string) => {
-    setLoading(true);
+    setSaving(true);
     try {
       await apiClient.delete(`indicators/${indId}`);
       toast({ title: "ลบสำเร็จ", variant: "success" });
@@ -949,7 +993,7 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", variant: "destructive" });
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
@@ -978,7 +1022,7 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
 
   return (
     <div className="h-full flex flex-col gap-3 p-4">
-      <LoadingOverlay visible={loading} />
+      <LoadingOverlay visible={saving} />
       <div className="px-6 py-4 rounded-2xl shrink-0" style={{ background: "var(--glass-bg)", backdropFilter: "blur(14px)", border: "1px solid var(--glass-border)" }}>
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-700">
@@ -993,6 +1037,7 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
 
       <div className="flex-1 min-h-0 rounded-2xl overflow-hidden" style={{ background: "var(--glass-bg)", backdropFilter: "blur(14px)", border: "1px solid var(--glass-border)" }}>
         <div className="h-full overflow-y-auto px-6 py-6 space-y-6">
+        <Loading loading={loading.programs} />
         {programs.map((program) => {
           const typeOrder = (st: string) => (st.includes("_upgrad") || st === "upgrade") ? 1 : st.includes("_renew") ? 2 : 0;
           const programCategories = categories.filter(c => c.programId === program.id).sort((a, b) => typeOrder(a.scoreType as string) - typeOrder(b.scoreType as string) || a.sortOrder - b.sortOrder);
@@ -1003,13 +1048,14 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
                 <CollapsibleTrigger asChild>
                   <button className="flex w-full items-center gap-3 px-5 py-4 hover:bg-accent/10 transition-colors group" onClick={() => setSelectedProgramId(program.id)}>
                     <ChevronRight className="h-5 w-5 text-accent-foreground/70 transition-transform duration-300 group-data-[state=open]:rotate-90" />
-                    <p className="font-bold text-foreground text-left flex-1 text-base">{program.name}</p>
+                    <p className="font-bold text-foreground text-left flex-1 text-base truncate">{program.name}</p>
                     <span className="text-xs text-muted-foreground px-3 py-1 bg-background rounded-full border">{program.categories} หมวด</span>
                   </button>
                 </CollapsibleTrigger>
 
                 <CollapsibleContent>
                   <div className="px-5 pb-5 pt-2 space-y-3">
+                    <Loading loading={loading.categories && selectedProgramId === program.id} />
                     {programCategories.map((cat) => {
                       const color = "210 70% 45%";
                       const isYesNoCat = isYesNoType(cat.scoreType);
@@ -1053,6 +1099,7 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
                           </CollapsibleTrigger>
 
                           <CollapsibleContent>
+                              <Loading loading={loading.topics && selectedCategoryId === cat.id} />
                             <div className="flex flex-col bg-background/50 border-t border-border/50">
                               {catTopics.length > 0 ? catTopics.map((topic) => {
                                 const topicInds = indicators.filter((i) => i.topicId === topic.id).sort((a, b) => a.sortOrder - b.sortOrder);
@@ -1065,7 +1112,7 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
                                           <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform duration-300 group-data-[state=open]:rotate-90" />
                                         </button>
                                       </CollapsibleTrigger>
-                                      <span className="text-sm font-semibold text-foreground flex-1 cursor-pointer" onClick={() => setSelectedTopicId(topic.id)}>{topic.name}</span>
+                                      <span className="text-sm font-semibold text-foreground flex-1 truncate cursor-pointer" onClick={() => setSelectedTopicId(topic.id)}>{topic.name}</span>
                                       <div className="flex gap-1 opacity-40 hover:opacity-100 transition-opacity">
                                         <EditTopicDialog topic={topic} onSave={(name) => handleEditTopic(cat.id, topic.id, name)} />
                                         <AlertActionPopup action={() => handleDeleteTopic(cat.id, topic.id)} type="delete" title="ยืนยันลบ" description={`ลบ "${topic.name}" หรือไม่?`}/>
@@ -1074,7 +1121,8 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
 
                                     <CollapsibleContent>
                                       <div className="bg-background pl-6 pr-2 py-3 border-l-2 border-muted ml-4 mb-2 space-y-2">
-                                          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleReorderGroup(topic.id, null, e)}>
+                                          <Loading loading={loading.indicators && selectedTopicId === topic.id} />
+                                      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleReorderGroup(topic.id, null, e)}>
                                             <SortableContext items={topicInds.filter(i=>!i.parentId).map(i=>i.id)} strategy={verticalListSortingStrategy}>
                                               <div className="space-y-1.5">
                                                 {topicInds.filter(i=>!i.parentId).map((rootNode) => {

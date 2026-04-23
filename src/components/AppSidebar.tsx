@@ -1,4 +1,4 @@
-import { ClipboardCheck, Settings, FolderTree, ListChecks, FolderKanban, Award, FileText, LogOut, User, FileBarChart, Users, ShieldCheck, FileArchive, Shield, Clock, ALargeSmall, Sun, Moon } from "lucide-react";
+import { ClipboardCheck, Settings, FolderTree, ListChecks, FolderKanban, Award, FileText, LogOut, User, FileBarChart, Users, ShieldCheck, FileArchive, Shield, Clock, ALargeSmall, Sun, Moon, Leaf } from "lucide-react";
 import { FONT_SIZE_MIN, FONT_SIZE_MAX } from "@/lib/fontsize";
 import { useTheme } from "@/contexts/ThemeContext";
 import { NavLink } from "@/components/NavLink";
@@ -57,7 +57,9 @@ export function AppSidebar({ fontSize, setFontSize }: AppSidebarProps) {
   const currentPath = location.pathname;
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
-  const { isAdmin, loading: roleLoading } = useUserRole();
+  const { isAdmin, role, loading: roleLoading } = useUserRole();
+  // evaluatee ใช้ /register เป็น home, role อื่นใช้ /evaluation
+  const evaluationHome = role === "user" ? "/register" : "/evaluation";
 
   const isSettingsActive = currentPath.startsWith("/settings");
   const isReportsActive = currentPath.startsWith("/reports");
@@ -76,12 +78,24 @@ export function AppSidebar({ fontSize, setFontSize }: AppSidebarProps) {
               {/* ประเมิน G-Green */}
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <NavLink to="/evaluation" className="hover:bg-muted/50" activeClassName="bg-muted text-primary font-medium">
+                  <NavLink to={evaluationHome} className="hover:bg-muted/50" activeClassName="bg-muted text-primary font-medium">
                     <ClipboardCheck className="mr-2 h-4 w-4" />
                     {!collapsed && <span>ประเมิน G-Green</span>}
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+
+              {/* ข้อมูลการใช้ทรัพยากร - evaluatee and evaluator only */}
+              {!isAdmin && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink to="/resource-usage" className="hover:bg-muted/50" activeClassName="bg-muted text-primary font-medium">
+                      <Leaf className="mr-2 h-4 w-4" />
+                      {!collapsed && <span>ข้อมูลการใช้ทรัพยากร</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
 
               {/* ข้อมูลการจัดการการสมัคร - admin only */}
               {isAdmin && (
@@ -203,13 +217,13 @@ export function AppSidebar({ fontSize, setFontSize }: AppSidebarProps) {
                 <button
                   onClick={() => setFontSize(Math.min(fontSize + 1, FONT_SIZE_MAX))}
                   disabled={fontSize >= FONT_SIZE_MAX}
-                  className="w-full flex items-center justify-center py-0.5 rounded text-[10px] font-bold text-primary hover:bg-primary/10 disabled:opacity-30 transition-all"
+                  className="w-full flex items-center justify-center py-0.5 rounded text-sm font-bold text-primary hover:bg-primary/10 disabled:opacity-30 transition-all"
                 >▲</button>
-                <span className="text-[9px] font-mono text-primary font-bold">{fontSize}</span>
+                <span className="text-sm font-mono text-primary font-bold">{fontSize}</span>
                 <button
                   onClick={() => setFontSize(Math.max(fontSize - 1, FONT_SIZE_MIN))}
                   disabled={fontSize <= FONT_SIZE_MIN}
-                  className="w-full flex items-center justify-center py-0.5 rounded text-[10px] font-bold text-muted-foreground hover:bg-muted/50 disabled:opacity-30 transition-all"
+                  className="w-full flex items-center justify-center py-0.5 rounded text-sm font-bold text-muted-foreground hover:bg-muted/50 disabled:opacity-30 transition-all"
                 >▼</button>
               </div>
             ) : (
@@ -276,8 +290,8 @@ export function AppSidebar({ fontSize, setFontSize }: AppSidebarProps) {
                 <div className="h-7 w-7 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(58,125,44,0.15)" }}>
                   <User className="h-3.5 w-3.5" style={{ color: "#3a7d2c" }} />
                 </div>
-                <span className="text-xs font-medium truncate" style={{ color: "var(--green-heading)" }}>
-                  {user?.email ?? ""}
+                <span className="text-xs font-bold truncate" style={{ color: "var(--green-heading)" }}>
+                  {user?.name || user?.email || ""}
                 </span>
               </div>
             </SidebarMenuItem>

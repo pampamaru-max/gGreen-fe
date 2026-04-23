@@ -64,7 +64,7 @@ export default function HomePage() {
 
         <div className="relative z-10">
           <div className="flex items-center gap-2 sm:gap-3 mb-3">
-            <img src={dcceLogo} alt="กรมการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม" className="h-9 w-9 sm:h-12 sm:w-12 object-contain shrink-0" />
+            <img src={dcceLogo} alt="กรมการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม" className="h-16 w-16 sm:h-20 sm:w-20 object-contain shrink-0" />
             <p className="leading-relaxed text-xs sm:text-sm font-medium" style={{ color: "var(--green-body)" }}>
               กรมการเปลี่ยนแปลงสภาพภูมิอากาศและสิ่งแวดล้อม
               <br />
@@ -145,8 +145,8 @@ export default function HomePage() {
                     <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl flex items-center justify-center transition-colors" style={{ background: "rgba(58,125,44,0.15)" }}>
                       <IconComp className="h-5 w-5 sm:h-6 sm:w-6" style={{ color: "#3a7d2c" }} />
                     </div>
-                    <span className="text-xs sm:text-sm font-semibold" style={{ color: "var(--green-heading)" }}>{p.name}</span>
-                    <span className="text-xs leading-tight hidden sm:block" style={{ color: "var(--green-muted)" }}>{p.description}</span>
+                    <span className="text-xs sm:text-sm font-semibold w-full break-words leading-snug" style={{ color: "var(--green-heading)" }}>{p.name}</span>
+                    <span className="text-xs leading-tight hidden sm:block w-full break-words" style={{ color: "var(--green-muted)" }}>{p.description}</span>
                   </div>
                 );
               })}

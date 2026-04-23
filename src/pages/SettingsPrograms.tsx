@@ -10,10 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import AboutContentEditor, { type ContentBlock } from "@/components/AboutContentEditor";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  Plus, Pencil, GripVertical, X, Upload, FileText, Loader2,
+  Plus, Pencil, GripVertical, X, Upload, FileText, Loader2, Clock,
   Building2, UtensilsCrossed, Home, Factory, Trees, Recycle, Award, Star,
   ClipboardCheck, Leaf, ShoppingBag, Landmark, Globe, Sun, Wind, Droplets,
   Sprout, Hotel, FlameKindling, Bike, Bus, Car, Package, Truck,
@@ -22,6 +23,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { AlertActionPopup } from "@/components/AlertActionPopup";
 import { MAX_FILE_SIZE } from "@/helpers/constants";
+
 const glassCard = {
   background: "var(--glass-bg)",
   backdropFilter: "blur(14px)",
@@ -102,6 +104,10 @@ type Program = {
   guidelines: GuidelineItem[];
   reports: GuidelineItem[];
   sort_order: number;
+  isActive: boolean;
+  activeFrom: string | null;
+  activeTo: string | null;
+  updatedAt?: Date;
 };
 
 /** Backward compat: convert old string[] to GuidelineItem[] */
@@ -116,7 +122,7 @@ function normalizeGuidelines(raw: unknown): GuidelineItem[] {
   });
 }
 
-const emptyProgram: Omit<Program, "sort_order"> = {
+const emptyProgram: Omit<Program, "sort_order" | "isActive" | "activeFrom" | "activeTo"> = {
   id: "",
   name: "",
   description: "",
@@ -124,6 +130,26 @@ const emptyProgram: Omit<Program, "sort_order"> = {
   about: [],
   guidelines: [],
   reports: [],
+};
+
+/** Compute the effective display status of a program right now */
+function getProgramStatus(p: Program): "active" | "inactive" | "sched-on" | "sched-off" {
+  const now = new Date();
+  const from = p.activeFrom ? new Date(p.activeFrom) : null;
+  const to = p.activeTo ? new Date(p.activeTo) : null;
+  if (from || to) {
+    const started = !from || now >= from;
+    const notEnded = !to || now <= to;
+    return started && notEnded ? "sched-on" : "sched-off";
+  }
+  return p.isActive ? "active" : "inactive";
+}
+
+const STATUS_META = {
+  active:    { label: "แสดงอยู่",   cls: "bg-green-100 text-green-700 border-green-200" },
+  inactive:  { label: "ซ่อนอยู่",   cls: "bg-gray-100 text-gray-500 border-gray-200" },
+  "sched-on":  { label: "ตั้งเวลา (เปิด)", cls: "bg-blue-100 text-blue-700 border-blue-200" },
+  "sched-off": { label: "ตั้งเวลา (ปิด)", cls: "bg-orange-100 text-orange-700 border-orange-200" },
 };
 
 /* ── Sortable guideline card ── */
@@ -208,24 +234,245 @@ function SortableGuidelineCard({
   );
 }
 
+/* ── Schedule Dialog ── */
+type ScheduleMode = "manual" | "scheduled";
+type ScheduleForm = { mode: ScheduleMode; isActive: boolean; activeFrom: string; activeTo: string };
+
+function formatThaiDate(iso: string) {
+  return new Date(iso).toLocaleString("th-TH", {
+    day: "numeric", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
+
+function SchedulePreview({ activeFrom, activeTo }: { activeFrom: string; activeTo: string }) {
+  const from = activeFrom ? new Date(activeFrom) : null;
+  const to = activeTo ? new Date(activeTo) : null;
+
+  let lines: { icon: string; text: string; color: string }[] = [];
+
+  if (!from && !to) {
+    lines = [{ icon: "⚠️", text: "ยังไม่ได้กำหนดช่วงเวลา — โครงการจะไม่แสดง", color: "text-orange-600" }];
+  } else if (from && to) {
+    lines = [
+      { icon: "✅", text: `เริ่มแสดง: ${formatThaiDate(from.toISOString())}`, color: "text-green-700" },
+      { icon: "🔴", text: `หยุดแสดง: ${formatThaiDate(to.toISOString())}`, color: "text-red-600" },
+    ];
+  } else if (from) {
+    lines = [
+      { icon: "✅", text: `เริ่มแสดง: ${formatThaiDate(from.toISOString())}`, color: "text-green-700" },
+      { icon: "♾️", text: "ไม่มีวันหมดอายุ", color: "text-muted-foreground" },
+    ];
+  } else {
+    lines = [
+      { icon: "⏳", text: "แสดงอยู่ตั้งแต่ตอนนี้", color: "text-green-700" },
+      { icon: "🔴", text: `หยุดแสดง: ${formatThaiDate(to!.toISOString())}`, color: "text-red-600" },
+    ];
+  }
+
+  return (
+    <div className="rounded-lg border bg-muted/40 px-3 py-2.5 space-y-1">
+      <p className="text-xs font-medium text-muted-foreground mb-1.5">ตัวอย่างผลลัพธ์</p>
+      {lines.map((l, i) => (
+        <p key={i} className={`text-xs ${l.color}`}>{l.icon} {l.text}</p>
+      ))}
+    </div>
+  );
+}
+
+function ScheduleDialog({
+  program,
+  open,
+  onOpenChange,
+  onSave,
+  isSaving,
+}: {
+  program: Program;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onSave: (data: { isActive?: boolean; activeFrom: string | null; activeTo: string | null }) => void;
+  isSaving: boolean;
+}) {
+  const toLocalInput = (iso: string | null) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const hasSchedule = !!(program.activeFrom || program.activeTo);
+  const [form, setForm] = useState<ScheduleForm>({
+    mode: hasSchedule ? "scheduled" : "manual",
+    isActive: program.isActive,
+    activeFrom: toLocalInput(program.activeFrom),
+    activeTo: toLocalInput(program.activeTo),
+  });
+
+  const handleOpen = (v: boolean) => {
+    if (v) {
+      setForm({
+        mode: hasSchedule ? "scheduled" : "manual",
+        isActive: program.isActive,
+        activeFrom: toLocalInput(program.activeFrom),
+        activeTo: toLocalInput(program.activeTo),
+      });
+    }
+    onOpenChange(v);
+  };
+
+  const handleSave = () => {
+    if (form.mode === "manual") {
+      onSave({ isActive: form.isActive, activeFrom: null, activeTo: null });
+    } else {
+      const toIso = (s: string) => s ? new Date(s).toISOString() : null;
+      onSave({ activeFrom: toIso(form.activeFrom), activeTo: toIso(form.activeTo) });
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpen}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="text-base">ตั้งค่าการแสดงผล</DialogTitle>
+          <p className="text-xs text-muted-foreground truncate">{program.name}</p>
+        </DialogHeader>
+
+        <Tabs value={form.mode} onValueChange={(v) => setForm((f) => ({ ...f, mode: v as ScheduleMode }))}>
+          <TabsList className="w-full">
+            <TabsTrigger value="manual" className="flex-1">กดเอง</TabsTrigger>
+            <TabsTrigger value="scheduled" className="flex-1">ตั้งเวลา</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="manual" className="space-y-4 mt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-medium">สถานะ</Label>
+                <p className="text-xs text-muted-foreground">{form.isActive ? "แสดงบนหน้าหลัก" : "ซ่อนจากหน้าหลัก"}</p>
+              </div>
+              <Switch
+                checked={form.isActive}
+                onCheckedChange={(v) => setForm((f) => ({ ...f, isActive: v }))}
+              />
+            </div>
+            {hasSchedule && (
+              <p className="text-xs text-orange-600 bg-orange-50 rounded px-2 py-1.5 border border-orange-200">
+                การบันทึกจะล้างตารางเวลาที่ตั้งไว้
+              </p>
+            )}
+          </TabsContent>
+
+          <TabsContent value="scheduled" className="space-y-3 mt-4">
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-green-700">✅ เริ่มแสดงวันที่</Label>
+              <p className="text-xs text-muted-foreground -mt-1">ปล่อยว่าง = แสดงทันที</p>
+              <Input
+                type="datetime-local"
+                value={form.activeFrom}
+                onChange={(e) => setForm((f) => ({ ...f, activeFrom: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-red-600">🔴 หยุดแสดงวันที่</Label>
+              <p className="text-xs text-muted-foreground -mt-1">ปล่อยว่าง = ไม่มีวันหมดอายุ</p>
+              <Input
+                type="datetime-local"
+                value={form.activeTo}
+                onChange={(e) => setForm((f) => ({ ...f, activeTo: e.target.value }))}
+              />
+            </div>
+            <SchedulePreview activeFrom={form.activeFrom} activeTo={form.activeTo} />
+          </TabsContent>
+        </Tabs>
+
+        <DialogFooter className="mt-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>ยกเลิก</Button>
+          <Button onClick={handleSave} disabled={isSaving}>
+            {isSaving ? "กำลังบันทึก..." : "บันทึก"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 /* ── Sortable program card ── */
-function SortableProgramCard({ program, onEdit, onDelete }: { program: Program; onEdit: (p: Program) => void; onDelete: (p: Program) => void }) {
+function SortableProgramCard({
+  program,
+  onEdit,
+  onDelete,
+  onToggleActive,
+  onSchedule,
+  isTogglingId,
+}: {
+  program: Program;
+  onEdit: (p: Program) => void;
+  onDelete: (p: Program) => void;
+  onToggleActive: (p: Program) => void;
+  onSchedule: (p: Program) => void;
+  isTogglingId: string | null;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: program.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+
+  const status = getProgramStatus(program);
+  const { label, cls } = STATUS_META[status];
+  const isScheduled = !!(program.activeFrom || program.activeTo);
+  const isToggling = isTogglingId === program.id;
+
   return (
-    <div ref={setNodeRef} style={{ ...style, ...glassCard }} className="rounded-xl">
-      <div className="p-4 flex items-center justify-between">
+    <div ref={setNodeRef} style={{ ...style, ...glassCard }} className="flex flex-1 overflow-hidden rounded-xl">
+      <div className="p-4 flex w-full items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <button type="button" className="cursor-grab touch-none" style={{ color: "#3a7d2c" }} {...attributes} {...listeners}>
+          <button type="button" className="cursor-grab touch-none shrink-0" style={{ color: "#3a7d2c" }} {...attributes} {...listeners}>
             <GripVertical className="h-4 w-4" />
           </button>
           <div className="min-w-0">
-            <p className="font-semibold text-sm" style={{ color: "var(--green-heading)" }}>{program.name}</p>
+            <p className="font-semibold text-sm truncate" style={{ color: "var(--green-heading)" }}>{program.name}</p>
             <p className="text-xs truncate" style={{ color: "var(--green-muted)" }}>{program.description}</p>
           </div>
         </div>
-        <div className="flex items-center gap-1 shrink-0">
-          <Button variant="ghost" size="icon" className="edit-button hover:bg-white/50" onClick={() => onEdit(program)}>
+
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Status badge */}
+          <span className={`hidden sm:inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${cls}`}>
+            {isScheduled && <Clock className="h-3 w-3" />}
+            {label}
+          </span>
+
+          {/* Toggle active (manual only — if scheduled, open schedule dialog instead) */}
+          {!isScheduled ? (
+            <Switch
+              checked={program.isActive}
+              onCheckedChange={() => onToggleActive(program)}
+              disabled={isToggling}
+              className="data-[state=checked]:bg-green-600"
+            />
+          ) : (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 hover:bg-blue-100"
+              title="จัดการตารางเวลา"
+              onClick={() => onSchedule(program)}
+            >
+              <Clock className="h-4 w-4 text-blue-600" />
+            </Button>
+          )}
+
+          {/* Schedule button */}
+          {!isScheduled && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 hover:bg-accent"
+              title="ตั้งเวลาเปิด/ปิด"
+              onClick={() => onSchedule(program)}
+            >
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </Button>
+          )}
+
+          <Button variant="ghost" size="icon" className="edit-button h-8 w-8 hover:bg-white/50" onClick={() => onEdit(program)}>
             <Pencil className="h-4 w-4" style={{ color: "#3a7d2c" }} />
           </Button>
           <AlertActionPopup
@@ -239,6 +486,7 @@ function SortableProgramCard({ program, onEdit, onDelete }: { program: Program; 
     </div>
   );
 }
+
 export default function SettingsPrograms() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -248,8 +496,10 @@ export default function SettingsPrograms() {
   const [newReportTitle, setNewReportTitle] = useState("");
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
   const [uploadingReportIndex, setUploadingReportIndex] = useState<number | null>(null);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(KeyboardSensor));
+  const [scheduleDialogProgram, setScheduleDialogProgram] = useState<Program | null>(null);
+  const [isTogglingId, setIsTogglingId] = useState<string | null>(null);
 
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(KeyboardSensor));
   const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const reportFileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
@@ -276,6 +526,9 @@ export default function SettingsPrograms() {
       return data.map((p: any) => ({
         ...p,
         sort_order: p.sortOrder,
+        isActive: p.isActive ?? true,
+        activeFrom: p.activeFrom ?? null,
+        activeTo: p.activeTo ?? null,
         about: (p.about as ContentBlock[]) ?? [],
         guidelines: normalizeGuidelines(p.guidelines),
         reports: normalizeGuidelines(p.reports),
@@ -315,9 +568,9 @@ export default function SettingsPrograms() {
   const upsertMutation = useMutation({
     mutationFn: async (program: Omit<Program, "sort_order"> & { sort_order?: number }) => {
       if (editingProgram) {
-        const { name, description, icon, about, guidelines, reports, sort_order } = program;
+        const { name, description, icon, about, guidelines, reports, sort_order, updatedAt } = program;
         await apiClient.patch(`programs/${editingProgram.id}`, {
-          name, description, icon, about, guidelines, reports,
+          name, description, icon, about, guidelines, reports, updatedAt,
           sortOrder: sort_order ?? programs.length,
         });
       } else {
@@ -353,6 +606,34 @@ export default function SettingsPrograms() {
     },
   });
 
+  const scheduleMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { isActive?: boolean; activeFrom: string | null; activeTo: string | null } }) => {
+      await apiClient.patch(`programs/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["programs"] });
+      setScheduleDialogProgram(null);
+      toast({ title: "บันทึกการตั้งค่าสำเร็จ", variant: "success" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "บันทึกไม่สำเร็จ", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const handleToggleActive = async (program: Program) => {
+    setIsTogglingId(program.id);
+    try {
+      await apiClient.patch(`programs/${program.id}`, { isActive: !program.isActive });
+      queryClient.setQueryData<Program[]>(["programs"], (old) =>
+        old?.map((p) => p.id === program.id ? { ...p, isActive: !p.isActive } : p) ?? []
+      );
+    } catch {
+      toast({ title: "เปลี่ยนสถานะไม่สำเร็จ", variant: "destructive" });
+    } finally {
+      setIsTogglingId(null);
+    }
+  };
+
   const openAdd = () => {
     setEditingProgram(null);
     setForm(emptyProgram);
@@ -370,6 +651,7 @@ export default function SettingsPrograms() {
       about: [...p.about],
       guidelines: p.guidelines.map((g) => ({ ...g, files: [...g.files] })),
       reports: p.reports.map((r) => ({ ...r, files: [...r.files] })),
+      updatedAt: p.updatedAt,
     });
     setNewGuidelineTitle("");
     setDialogOpen(true);
@@ -399,10 +681,7 @@ export default function SettingsPrograms() {
       const newFiles: GuidelineFile[] = [];
       const errorFiles: string[] = [];
       for (const file of Array.from(files)) {
-        if(file.size > MAX_FILE_SIZE) {
-          errorFiles.push(file.name);
-          continue;
-        }
+        if (file.size > MAX_FILE_SIZE) { errorFiles.push(file.name); continue; }
         const formData = new FormData();
         formData.append("file", file);
         formData.append("folder", `guidelines/${form.id || "new"}`);
@@ -414,17 +693,11 @@ export default function SettingsPrograms() {
       }
       setForm((f) => ({
         ...f,
-        guidelines: f.guidelines.map((g, i) =>
-          i === guidelineIndex ? { ...g, files: [...g.files, ...newFiles] } : g,
-        ),
+        guidelines: f.guidelines.map((g, i) => i === guidelineIndex ? { ...g, files: [...g.files, ...newFiles] } : g),
       }));
       if (errorFiles.length > 0) {
-        toast({
-          title: "บางไฟล์ไม่ถูกอัปโหลด",
-          description: `ไฟล์เหล่านี้ใหญ่เกิน 10MB และไม่ได้ถูกอัปโหลด: ${errorFiles.join(", ")}`,
-          variant: "destructive"
-        });
-      }      
+        toast({ title: "บางไฟล์ไม่ถูกอัปโหลด", description: `ไฟล์เหล่านี้ใหญ่เกิน 10MB: ${errorFiles.join(", ")}`, variant: "destructive" });
+      }
     } catch (err: any) {
       toast({ title: "อัปโหลดไฟล์ไม่สำเร็จ", description: err.message, variant: "destructive" });
     } finally {
@@ -435,13 +708,10 @@ export default function SettingsPrograms() {
   const removeFile = (guidelineIndex: number, fileIndex: number) => {
     setForm((f) => ({
       ...f,
-      guidelines: f.guidelines.map((g, i) =>
-        i === guidelineIndex ? { ...g, files: g.files.filter((_, fi) => fi !== fileIndex) } : g
-      ),
+      guidelines: f.guidelines.map((g, i) => i === guidelineIndex ? { ...g, files: g.files.filter((_, fi) => fi !== fileIndex) } : g),
     }));
   };
 
-  /* ── Report handlers (mirror guideline handlers) ── */
   const addReport = () => {
     if (!newReportTitle.trim()) return;
     setForm((f) => ({ ...f, reports: [...f.reports, { title: newReportTitle.trim(), files: [] }] }));
@@ -466,10 +736,7 @@ export default function SettingsPrograms() {
       const newFiles: GuidelineFile[] = [];
       const errorFiles: string[] = [];
       for (const file of Array.from(files)) {
-        if(file.size > MAX_FILE_SIZE) {
-          errorFiles.push(file.name);
-          continue;
-        }
+        if (file.size > MAX_FILE_SIZE) { errorFiles.push(file.name); continue; }
         const formData = new FormData();
         formData.append("file", file);
         formData.append("folder", `reports/${form.id || "new"}`);
@@ -481,17 +748,11 @@ export default function SettingsPrograms() {
       }
       setForm((f) => ({
         ...f,
-        reports: f.reports.map((r, i) =>
-          i === reportIndex ? { ...r, files: [...r.files, ...newFiles] } : r
-        ),
+        reports: f.reports.map((r, i) => i === reportIndex ? { ...r, files: [...r.files, ...newFiles] } : r),
       }));
       if (errorFiles.length > 0) {
-        toast({
-          title: "บางไฟล์ไม่ถูกอัปโหลด",
-          description: `ไฟล์เหล่านี้ใหญ่เกิน 10MB และไม่ได้ถูกอัปโหลด: ${errorFiles.join(", ")}`,
-          variant: "destructive"
-        });
-      } 
+        toast({ title: "บางไฟล์ไม่ถูกอัปโหลด", description: `ไฟล์เหล่านี้ใหญ่เกิน 10MB: ${errorFiles.join(", ")}`, variant: "destructive" });
+      }
     } catch (err: any) {
       toast({ title: "อัปโหลดไฟล์ไม่สำเร็จ", description: err.message, variant: "destructive" });
     } finally {
@@ -502,9 +763,7 @@ export default function SettingsPrograms() {
   const removeReportFile = (reportIndex: number, fileIndex: number) => {
     setForm((f) => ({
       ...f,
-      reports: f.reports.map((r, i) =>
-        i === reportIndex ? { ...r, files: r.files.filter((_, fi) => fi !== fileIndex) } : r
-      ),
+      reports: f.reports.map((r, i) => i === reportIndex ? { ...r, files: r.files.filter((_, fi) => fi !== fileIndex) } : r),
     }));
   };
 
@@ -513,12 +772,12 @@ export default function SettingsPrograms() {
       toast({ title: "กรุณากรอก Slug และชื่อโครงการ", variant: "destructive" });
       return;
     }
-    upsertMutation.mutate(form);
+    upsertMutation.mutate(form as any);
   };
 
   return (
     <div className="h-full flex flex-col gap-3 p-4">
-      {/* Page header — glass, frozen */}
+      {/* Page header */}
       <div className="px-6 py-4 rounded-2xl shrink-0" style={glassCard}>
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ background: "#3a7d2c" }}>
@@ -551,6 +810,9 @@ export default function SettingsPrograms() {
                       program={p}
                       onEdit={openEdit}
                       onDelete={(prog) => deleteMutation.mutate(prog.id)}
+                      onToggleActive={handleToggleActive}
+                      onSchedule={(prog) => setScheduleDialogProgram(prog)}
+                      isTogglingId={isTogglingId}
                     />
                   ))}
                 </div>
@@ -560,6 +822,7 @@ export default function SettingsPrograms() {
         </div>
       </div>
 
+      {/* Edit/Create dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden p-0 flex flex-col">
           <div className="px-6 pt-6 pb-3 flex-shrink-0">
@@ -568,133 +831,124 @@ export default function SettingsPrograms() {
             </DialogHeader>
           </div>
           <div className="overflow-y-auto scrollbar-thin flex-1 px-6 pb-2 mr-2">
-          <Tabs defaultValue="about" className="w-full">
-            <TabsList className="w-full">
-              <TabsTrigger value="about" className="flex-1">เกี่ยวกับโครงการ</TabsTrigger>
-              <TabsTrigger value="guidelines" className="flex-1">แนวทาง</TabsTrigger>
-              <TabsTrigger value="reports" className="flex-1">รายงาน</TabsTrigger>
-            </TabsList>
-            <TabsContent value="about" className="space-y-4 mt-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Slug (ID)</Label>
-                  <Input
-                    value={form.id}
-                    onChange={(e) => setForm((f) => ({ ...f, id: e.target.value }))}
-                    placeholder="green-hotel"
-                    disabled={!!editingProgram}
-                  />
+            <Tabs defaultValue="about" className="w-full">
+              <TabsList className="w-full">
+                <TabsTrigger value="about" className="flex-1">เกี่ยวกับโครงการ</TabsTrigger>
+                <TabsTrigger value="guidelines" className="flex-1">แนวทาง</TabsTrigger>
+                <TabsTrigger value="reports" className="flex-1">รายงาน</TabsTrigger>
+              </TabsList>
+              <TabsContent value="about" className="space-y-4 mt-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Slug (ID)</Label>
+                    <Input
+                      value={form.id}
+                      onChange={(e) => setForm((f) => ({ ...f, id: e.target.value }))}
+                      placeholder="green-hotel"
+                      disabled={!!editingProgram}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>ไอคอน</Label>
+                    <IconPicker value={form.icon} onChange={(v) => setForm((f) => ({ ...f, icon: v }))} />
+                  </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>ไอคอน</Label>
-                  <IconPicker
-                    value={form.icon}
-                    onChange={(v) => setForm((f) => ({ ...f, icon: v }))}
-                  />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label>ชื่อโครงการ</Label>
-                <Input
-                  value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  placeholder="Green Hotel"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>คำอธิบายสั้น</Label>
-                <Input
-                  value={form.description}
-                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                  placeholder="โรงแรมที่เป็นมิตรกับสิ่งแวดล้อม"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>เกี่ยวกับโครงการ</Label>
-                <AboutContentEditor
-                  blocks={form.about}
-                  onChange={(about) => setForm((f) => ({ ...f, about }))}
-                  programId={form.id || "new"}
-                />
-              </div>
-            </TabsContent>
-            <TabsContent value="guidelines" className="space-y-4 mt-4">
-              <div className="space-y-3">
-                <Label>
-                  แนวทางการดำเนินงาน<br />
-                  <span className="text-destructive text-xs"> รองรับ PDF, Word, Excel, PowerPoint และรูปภาพ (ไม่เกิน 10MB)</span>
-                </Label>
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleGuidelineDragEnd}>
-                  <SortableContext items={form.guidelines.map((_, i) => `guideline-${i}`)} strategy={verticalListSortingStrategy}>
-                    {form.guidelines.map((g, i) => (
-                      <SortableGuidelineCard
-                        key={`guideline-${i}`}
-                        id={`guideline-${i}`}
-                        guideline={g}
-                        index={i}
-                        onTitleChange={updateGuidelineTitle}
-                        onRemove={removeGuideline}
-                        onRemoveFile={removeFile}
-                        onUpload={handleFileUpload}
-                        fileInputRefs={fileInputRefs}
-                        uploadingIndex={uploadingIndex}
-                      />
-                    ))}
-                  </SortableContext>
-                </DndContext>
-
-                {/* Add new guideline */}
-                <div className="flex gap-2">
+                  <Label>ชื่อโครงการ</Label>
                   <Input
-                    value={newGuidelineTitle}
-                    onChange={(e) => setNewGuidelineTitle(e.target.value)}
-                    placeholder="เพิ่มหัวข้อแนวทาง..."
-                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addGuideline())}
+                    value={form.name}
+                    onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                    placeholder="Green Hotel"
                   />
-                  <Button variant="outline" size="sm" onClick={addGuideline} type="button">
-                    เพิ่ม
-                  </Button>
                 </div>
-              </div>
-            </TabsContent>
-            <TabsContent value="reports" className="space-y-4 mt-4">
-              <div className="space-y-3">
-                <Label>
-                  รายงาน<br />
-                  <span className="text-destructive text-xs"> รองรับ PDF, Word, Excel, PowerPoint และรูปภาพ (ไม่เกิน 10MB)</span>
-                </Label>
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleReportDragEnd}>
-                  <SortableContext items={form.reports.map((_, i) => `report-${i}`)} strategy={verticalListSortingStrategy}>
-                    {form.reports.map((r, i) => (
-                      <SortableGuidelineCard
-                        key={`report-${i}`}
-                        id={`report-${i}`}
-                        guideline={r}
-                        index={i}
-                        onTitleChange={updateReportTitle}
-                        onRemove={removeReport}
-                        onRemoveFile={removeReportFile}
-                        onUpload={handleReportFileUpload}
-                        fileInputRefs={reportFileInputRefs}
-                        uploadingIndex={uploadingReportIndex}
-                      />
-                    ))}
-                  </SortableContext>
-                </DndContext>
-                <div className="flex gap-2">
+                <div className="space-y-1.5">
+                  <Label>คำอธิบายสั้น</Label>
                   <Input
-                    value={newReportTitle}
-                    onChange={(e) => setNewReportTitle(e.target.value)}
-                    placeholder="เพิ่มหัวข้อรายงาน..."
-                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addReport())}
+                    value={form.description}
+                    onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                    placeholder="โรงแรมที่เป็นมิตรกับสิ่งแวดล้อม"
                   />
-                  <Button variant="outline" size="sm" onClick={addReport} type="button">
-                    เพิ่ม
-                  </Button>
                 </div>
-              </div>
-            </TabsContent>
-          </Tabs>
+                <div className="space-y-1.5">
+                  <Label>เกี่ยวกับโครงการ</Label>
+                  <AboutContentEditor
+                    blocks={form.about}
+                    onChange={(about) => setForm((f) => ({ ...f, about }))}
+                    programId={form.id || "new"}
+                  />
+                </div>
+              </TabsContent>
+              <TabsContent value="guidelines" className="space-y-4 mt-4">
+                <div className="space-y-3">
+                  <Label>
+                    แนวทางการดำเนินงาน<br />
+                    <span className="text-destructive text-xs"> รองรับ PDF, Word, Excel, PowerPoint และรูปภาพ (ไม่เกิน 10MB)</span>
+                  </Label>
+                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleGuidelineDragEnd}>
+                    <SortableContext items={form.guidelines.map((_, i) => `guideline-${i}`)} strategy={verticalListSortingStrategy}>
+                      {form.guidelines.map((g, i) => (
+                        <SortableGuidelineCard
+                          key={`guideline-${i}`}
+                          id={`guideline-${i}`}
+                          guideline={g}
+                          index={i}
+                          onTitleChange={updateGuidelineTitle}
+                          onRemove={removeGuideline}
+                          onRemoveFile={removeFile}
+                          onUpload={handleFileUpload}
+                          fileInputRefs={fileInputRefs}
+                          uploadingIndex={uploadingIndex}
+                        />
+                      ))}
+                    </SortableContext>
+                  </DndContext>
+                  <div className="flex gap-2">
+                    <Input
+                      value={newGuidelineTitle}
+                      onChange={(e) => setNewGuidelineTitle(e.target.value)}
+                      placeholder="เพิ่มหัวข้อแนวทาง..."
+                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addGuideline())}
+                    />
+                    <Button variant="outline" size="sm" onClick={addGuideline} type="button">เพิ่ม</Button>
+                  </div>
+                </div>
+              </TabsContent>
+              <TabsContent value="reports" className="space-y-4 mt-4">
+                <div className="space-y-3">
+                  <Label>
+                    รายงาน<br />
+                    <span className="text-destructive text-xs"> รองรับ PDF, Word, Excel, PowerPoint และรูปภาพ (ไม่เกิน 10MB)</span>
+                  </Label>
+                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleReportDragEnd}>
+                    <SortableContext items={form.reports.map((_, i) => `report-${i}`)} strategy={verticalListSortingStrategy}>
+                      {form.reports.map((r, i) => (
+                        <SortableGuidelineCard
+                          key={`report-${i}`}
+                          id={`report-${i}`}
+                          guideline={r}
+                          index={i}
+                          onTitleChange={updateReportTitle}
+                          onRemove={removeReport}
+                          onRemoveFile={removeReportFile}
+                          onUpload={handleReportFileUpload}
+                          fileInputRefs={reportFileInputRefs}
+                          uploadingIndex={uploadingReportIndex}
+                        />
+                      ))}
+                    </SortableContext>
+                  </DndContext>
+                  <div className="flex gap-2">
+                    <Input
+                      value={newReportTitle}
+                      onChange={(e) => setNewReportTitle(e.target.value)}
+                      placeholder="เพิ่มหัวข้อรายงาน..."
+                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addReport())}
+                    />
+                    <Button variant="outline" size="sm" onClick={addReport} type="button">เพิ่ม</Button>
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
           <div className="px-6 py-4 flex-shrink-0 border-t">
             <DialogFooter>
@@ -706,7 +960,17 @@ export default function SettingsPrograms() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Schedule dialog */}
+      {scheduleDialogProgram && (
+        <ScheduleDialog
+          program={scheduleDialogProgram}
+          open={!!scheduleDialogProgram}
+          onOpenChange={(v) => { if (!v) setScheduleDialogProgram(null); }}
+          onSave={(data) => scheduleMutation.mutate({ id: scheduleDialogProgram.id, data })}
+          isSaving={scheduleMutation.isPending}
+        />
+      )}
     </div>
   );
 }
-

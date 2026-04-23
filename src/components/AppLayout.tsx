@@ -1,6 +1,7 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import natureBg from "@/assets/login2.jpg";
 import nightBg from "@/assets/night-bg.jpg";
+import gLogo from "@/assets/g-logo.png";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useTheme } from "@/contexts/ThemeContext";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
@@ -64,33 +65,43 @@ export function AppLayout() {
       <img
         src={isDark ? nightBg : natureBg}
         alt=""
-        className="fixed inset-0 w-full h-full object-cover pointer-events-none select-none transition-opacity duration-500"
-        style={{ zIndex: 0, filter: isDark ? "brightness(0.6) saturate(0.8)" : "brightness(1.05) saturate(1.3)" }}
+        className="fixed inset-0 w-full object-cover pointer-events-none select-none transition-opacity duration-500"
+        style={{
+          zIndex: 0,
+          height: "100%",
+          minHeight: "100dvh",
+          filter: isDark ? "brightness(0.6) saturate(0.8)" : "brightness(1.05) saturate(1.3)",
+        }}
       />
-      <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0, background: isDark ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.1)" }} />
+      <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0, minHeight: "100dvh", background: isDark ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.1)" }} />
       <FirefliesLayer />
 
-      <div className="relative h-screen flex w-full overflow-hidden" style={{ zIndex: 2 }}>
+      <div className="relative flex w-full overflow-hidden" style={{ zIndex: 2, height: "100dvh" }}>
         <AppSidebar fontSize={fontSize} setFontSize={setFontSize} />
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
           {/* Header */}
           <header className="flex items-center justify-between px-3 sm:px-4 sticky top-2 z-50 mx-4 rounded-2xl shadow-sm" style={{ height: "48px", background: headerBg, backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", border: headerBorder }}>
             <div className="flex items-center gap-2 sm:gap-3">
               <SidebarTrigger className="hidden md:flex" />
-              <h1 className="text-sm font-bold text-foreground tracking-tight">
-                <span className="text-primary">G</span>-Green
-                <span className="hidden sm:inline text-muted-foreground font-normal"> · ระบบประเมินผล</span>
-              </h1>
+              <div className="flex items-center gap-2">
+                <img src={gLogo} alt="G-Green" className="h-7 w-7 object-contain drop-shadow-sm" />
+                <div className="flex flex-col leading-none">
+                  <span className="text-sm font-bold tracking-tight" style={{ background: "linear-gradient(135deg, var(--green-heading) 0%, var(--green-body) 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+                    G-Green
+                  </span>
+                  <span className="hidden sm:inline text-[10px] text-muted-foreground font-medium tracking-wide">ระบบประเมินผล</span>
+                </div>
+              </div>
             </div>
 
             <HoverCard openDelay={150} closeDelay={100}>
               <HoverCardTrigger asChild>
                 <div className="flex items-center gap-2 cursor-default select-none">
-                  <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center ring-1 ring-primary/20 hover:ring-primary/50 hover:bg-primary/15 transition-all">
-                    <User className="h-3.5 w-3.5 text-primary" />
+                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center ring-1 ring-primary/20 hover:ring-primary/50 hover:bg-primary/15 transition-all">
+                    <User className="h-4 w-4 text-primary" />
                   </div>
-                  <span className="text-xs text-muted-foreground max-w-[120px] sm:max-w-[200px] truncate hidden xs:block">
-                    {me?.name || user?.email || ""}
+                  <span className="text-xs font-semibold text-foreground max-w-[120px] sm:max-w-[200px] truncate">
+                    {me?.name || user?.name || user?.email || ""}
                   </span>
                 </div>
               </HoverCardTrigger>
@@ -166,7 +177,7 @@ export function AppLayout() {
       </div>
 
       {/* Bottom nav สำหรับ mobile */}
-      <MobileBottomNav />
+      <MobileBottomNav fontSize={fontSize} setFontSize={setFontSize} />
     </SidebarProvider>
   );
 }

@@ -13,6 +13,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { AlertActionPopup } from "@/components/AlertActionPopup";
+import { ScoringLevel } from "./ProjectRegistration";
 
 interface DbCategory {
   id: number;
@@ -33,17 +34,6 @@ interface DbProgram {
   name: string;
   icon: string;
   sortOrder: number;
-}
-
-interface ScoringLevel {
-  id: number;
-  name: string;
-  minScore: number;
-  maxScore: number;
-  color: string;
-  icon: string;
-  sortOrder: number;
-  programId: string | null;
 }
 
 // ─── Segmented Toggle ────────────────────────────────────────────────────────
@@ -413,7 +403,7 @@ const CategoryItem = ({ cat, topicCount, indicatorCount, onEdit, onDelete }: Cat
       <div className="flex items-center gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <p className="font-medium text-sm text-foreground">{cat.name}</p>
+            <p className="font-medium text-sm text-foreground truncate">{cat.name}</p>
             <Badge variant="outline" className={`text-xs ${scoreBadge.cls}`}>{scoreBadge.label}</Badge>
           </div>
           <p className="text-xs text-muted-foreground">
@@ -533,6 +523,8 @@ const ProgramCard = ({
 
   const hasSpecialCats = upgradCategories.length > 0 || renewCategories.length > 0;
 
+  const suffixType = '_' + (addingType ?? "score_new").split('_').pop();
+  
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <div className="rounded-xl border border-accent/30 bg-accent/10 shadow-sm overflow-hidden">
@@ -540,7 +532,7 @@ const ProgramCard = ({
           <button className="flex w-full items-center gap-3 p-4 text-left hover:bg-muted/50 transition-colors">
             {open ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-foreground">{program.name}</p>
+              <p className="font-bold text-foreground truncate">{program.name}</p>
               <p className="text-xs text-muted-foreground">{categories.length} หมวด</p>
             </div>
             <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
@@ -664,6 +656,7 @@ const ProgramCard = ({
                 onOpenChange={(v) => { if (!v) setAddingType(null); }}
                 scoreType={addingType ?? "score_new"}
                 nextSortOrder={nextSortOrder}
+                orderList={categories.filter(c => c.scoreType.endsWith(suffixType)).map(c => c.sortOrder)}
                 onAdd={(data) => { onAddCategory(data, program.id); setAddingType(null); }}
               />
 
