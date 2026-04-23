@@ -21,7 +21,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import * as XLSX from "xlsx";
+import * as XLSX from "xlsx-js-style";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   BarChart, Bar
@@ -462,72 +462,297 @@ export default function ResourceUsageFormPage() {
   const handleExport = () => {
     const wb = XLSX.utils.book_new();
     const thYear = recordYear + 543;
+    const E = '';
 
-    // Sheet 1 — General info
-    const info = [
-      [`บันทึกข้อมูลการใช้ทรัพยากร ปี พ.ศ. ${thYear}`],
-      [],
-      ['พื้นที่ในสำนักงาน', '', 'ตร.ม.'],
-      ['เฉพาะอาคาร', officeBuilding],
-      ['เฉพาะพื้นที่นอกอาคาร', officeOutdoor],
-      ['จำนวนพนักงาน', '', 'คน'],
-      ['พนักงานประจำ', staffPermanent],
-      ['พนักงานชั่วคราว', staffTemp],
-      ['ผู้รับจ้างช่วง', staffContract],
-      ['รวมทั้งสิ้น', staffTotal],
-    ];
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(info), 'ข้อมูลทั่วไป');
-
-    // Sheet 2 — Section 1
-    const s1Header = ['รายการ', 'หน่วย', ...MONTHS_TH, 'รวม'];
-    const s1Rows = [
-      ['1. น้ำประปา', 'ลบ.ม.', ...section1.water, s1Total('water')],
-      ['2. ไฟฟ้า', 'kWh', ...section1.electricity, s1Total('electricity')],
-      ['3. กระดาษ', 'รีม', ...section1.paper, s1Total('paper')],
-      ['4.1 ขยะทั่วไป', 'กก.', ...section1.wasteGeneral, s1Total('wasteGeneral')],
-      ['4.2 ขยะรีไซเคิล', 'กก.', ...section1.wasteRecyclable, s1Total('wasteRecyclable')],
-      ['4.3 เศษอาหาร', 'กก.', ...section1.wasteFood, s1Total('wasteFood')],
-      ['5.1 น้ำมันดีเซล', 'ลิตร', ...section1.fuelDiesel, s1Total('fuelDiesel')],
-      ['5.2 น้ำมันเบนซิน', 'ลิตร', ...section1.fuelGasoline, s1Total('fuelGasoline')],
-      ['5.3 ก๊าซโซฮอลล์', 'ลิตร', ...section1.fuelGasohol, s1Total('fuelGasohol')],
-    ];
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([s1Header, ...s1Rows]), 'ส่วนที่ 1');
-
-    // Sheet 3 — Section 2 Baseline
-    const sbHeader = ['ข้อมูล', 'หน่วย', ...MONTHS_TH, 'รวม'];
-    const sbRows = [
-      ['1. วันเปิดบริการ', 'วัน', ...section2Baseline.operatingDays, sbTotal('operatingDays')],
-      ['2. จำนวนพนักงาน', 'คน', ...section2Baseline.staffCount, sbTotal('staffCount')],
-      ['3. มีเทน septic tank', 'kgCH4', ...section2Baseline.methaneSeptic, sbTotal('methaneSeptic')],
-      ['4. ปริมาณน้ำใช้', 'ลบ.ม.', ...section2Baseline.waterUsed, sbTotal('waterUsed')],
-      ['5. น้ำเสีย 80%', 'ลบ.ม.', ...section2Baseline.wastewater80, sbTotal('wastewater80')],
-      ['ประเภทบำบัด', '', ...section2Baseline.wastewaterType, ''],
-      ['6. มีเทนบ่อบำบัด', 'kgCH4', ...section2Baseline.methaneWastewater, sbTotal('methaneWastewater')],
-    ];
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([sbHeader, ...sbRows]), 'ส่วนที่ 2 ข้อมูลพื้นฐาน');
-
-    // Sheet 4 — GHG emissions
-    const ghgHeader = ['รายการ', 'หน่วย', ...MONTHS_TH.flatMap(m => [`ปริมาณ-${m}`, `CF-${m}`]), 'รวม (kgCO2e)'];
-    const ghgRows = GHG_ITEMS.map(item => {
-      const monthCells = MONTHS_TH.flatMap((_, i) => [section2Ghg[item.key].amounts[i], section2Ghg[item.key].cfs[i]]);
-      return [item.label, item.unit, ...monthCells, calcItemTotal(section2Ghg[item.key])];
+    // ─── Style factory ────────────────────────────────────────────────
+    const thin = (hex = 'D9D9D9') => ({ style: 'thin' as const, color: { rgb: `FF${hex}` } });
+    const bdr  = (hex = 'D9D9D9') => ({ top: thin(hex), bottom: thin(hex), left: thin(hex), right: thin(hex) });
+    const mk   = (fill: string | null, bold: boolean, align: string, color: string, sz: number, bc = 'D9D9D9', italic = false) => ({
+      ...(fill ? { fill: { patternType: 'solid' as const, fgColor: { rgb: `FF${fill}` } } } : {}),
+      font:      { bold, italic, sz, color: { rgb: `FF${color}` } },
+      alignment: { horizontal: align, vertical: 'center' as const, wrapText: align === 'center' },
+      border:    bdr(bc),
     });
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([ghgHeader, ...ghgRows]), 'ส่วนที่ 2 GHG');
 
-    // Sheet 5 — Summary
-    const sumData = calcSummary(section2Ghg);
-    const sumRows = [
-      ['สรุปข้อมูลปริมาณการปลดปล่อยก๊าซเรือนกระจก'],
-      [],
-      ['ขอบเขตดำเนินงาน', 'tCO2e', '%GHG'],
-      ['ประเภท 1 (Scope 1)', sumData.scope1Tco2e.toFixed(4), sumData.scope1Pct.toFixed(2)],
-      ['ประเภท 2 (Scope 2)', sumData.scope2Tco2e.toFixed(4), sumData.scope2Pct.toFixed(2)],
-      ['ประเภท 3 (Scope 3)', sumData.scope3Tco2e.toFixed(4), sumData.scope3Pct.toFixed(2)],
-      ['รวม', sumData.totalTco2e.toFixed(4), '100.00'],
+    const TITLE  = mk('4E8A3A', true,  'left',   'FFFFFF', 13);
+    const SEC    = mk('70AD47', true,  'left',   'FFFFFF', 11, '70AD47');
+    const HDR    = mk('548235', true,  'center', 'FFFFFF', 10, 'FFFFFF');
+    const HDR_L  = mk('548235', true,  'left',   'FFFFFF', 10, 'FFFFFF');
+    const LBL    = mk(null,     false, 'left',   '000000', 10);
+    const NUM    = mk(null,     false, 'right',  '000000', 10);
+    const LBL_A  = mk('F5F5F5', false, 'left',   '000000', 10);
+    const NUM_A  = mk('F5F5F5', false, 'right',  '000000', 10);
+    const TOT    = mk('FFF2CC', true,  'right',  '7B6300', 10, 'FFC000');
+    const TOT_L  = mk('FFF2CC', true,  'left',   '7B6300', 10, 'FFC000');
+    const S1T    = mk('E2EFDA', true,  'left',   '375623', 10, '70AD47');
+    const S1TR   = mk('E2EFDA', true,  'right',  '375623', 10, '70AD47');
+    const S2T    = mk('DDEEFF', true,  'left',   '1A4C8A', 10, '5B9BD5');
+    const S2TR   = mk('DDEEFF', true,  'right',  '1A4C8A', 10, '5B9BD5');
+    const S3T    = mk('FFEEDD', true,  'left',   '7A3C00', 10, 'E07B28');
+    const S3TR   = mk('FFEEDD', true,  'right',  '7A3C00', 10, 'E07B28');
+    const GRD    = mk('FFC000', true,  'left',   '000000', 11, 'B8860B');
+    const GRD_R  = mk('FFC000', true,  'right',  '000000', 11, 'B8860B');
+    const NOTE   = mk(null,     false, 'left',   '808080',  9, 'EEEEEE', true);
+    const S1_TAG = mk('C6EFCE', true,  'center', '276221', 10);
+    const S2_TAG = mk('BDD7EE', true,  'center', '1F497D', 10);
+    const S3_TAG = mk('FCE4D6', true,  'center', '833C00', 10);
+
+    const sr = (ws: any, r1: number, c1: number, r2: number, c2: number, style: any) => {
+      for (let r = r1; r <= r2; r++) {
+        for (let c = c1; c <= c2; c++) {
+          const a = XLSX.utils.encode_cell({ r, c });
+          if (!ws[a]) ws[a] = { v: E, t: 's' };
+          ws[a].s = style;
+        }
+      }
+    };
+
+    // ── Sheet 1: 1-ข้อมูลพื้นฐาน ──────────────────────────────────────
+    const ws1Data = [
+      [`1. ข้อมูลพื้นฐาน ปี พ.ศ. ${thYear}`, E, E],
+      [E, E, E],
+      ['พื้นที่สำนักงาน', E, E],
+      ['รายการ', 'ค่า', 'หน่วย'],
+      ['พื้นที่อาคารสำนักงาน (Indoor)', officeBuilding, 'ตร.ม.'],
+      ['พื้นที่ภายนอกสำนักงาน (Outdoor)', officeOutdoor, 'ตร.ม.'],
+      ['รวมพื้นที่ทั้งหมด', officeTotal, 'ตร.ม.'],
+      [E, E, E],
+      ['จำนวนพนักงาน', E, E],
+      ['ประเภท', 'จำนวน', 'หน่วย'],
+      ['พนักงานประจำ', staffPermanent, 'คน'],
+      ['พนักงานชั่วคราว', staffTemp, 'คน'],
+      ['พนักงานรับจ้างช่วง', staffContract, 'คน'],
+      ['รวมพนักงานทั้งหมด', staffTotal, 'คน'],
     ];
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sumRows), 'สรุป');
+    const ws1 = XLSX.utils.aoa_to_sheet(ws1Data);
+    ws1['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } },
+      { s: { r: 2, c: 0 }, e: { r: 2, c: 2 } },
+      { s: { r: 8, c: 0 }, e: { r: 8, c: 2 } },
+    ];
+    ws1['!cols'] = [{ wch: 34 }, { wch: 12 }, { wch: 10 }];
+    ws1['!rows'] = [{ hpt: 24 }];
+    sr(ws1, 0, 0, 0, 2, TITLE);
+    sr(ws1, 2, 0, 2, 2, SEC);
+    sr(ws1, 3, 0, 3, 0, HDR_L); sr(ws1, 3, 1, 3, 2, HDR);
+    sr(ws1, 4, 0, 4, 0, LBL);   sr(ws1, 4, 1, 4, 2, NUM);
+    sr(ws1, 5, 0, 5, 0, LBL_A); sr(ws1, 5, 1, 5, 2, NUM_A);
+    sr(ws1, 6, 0, 6, 0, TOT_L); sr(ws1, 6, 1, 6, 2, TOT);
+    sr(ws1, 8, 0, 8, 2, SEC);
+    sr(ws1, 9, 0, 9, 0, HDR_L); sr(ws1, 9, 1, 9, 2, HDR);
+    sr(ws1, 10, 0, 10, 0, LBL);   sr(ws1, 10, 1, 10, 2, NUM);
+    sr(ws1, 11, 0, 11, 0, LBL_A); sr(ws1, 11, 1, 11, 2, NUM_A);
+    sr(ws1, 12, 0, 12, 0, LBL);   sr(ws1, 12, 1, 12, 2, NUM);
+    sr(ws1, 13, 0, 13, 0, TOT_L); sr(ws1, 13, 1, 13, 2, TOT);
+    XLSX.utils.book_append_sheet(wb, ws1, '1-ข้อมูลพื้นฐาน');
 
-    XLSX.writeFile(wb, `ข้อมูลการใช้ทรัพยากร_${thYear}.xlsx`);
+    // ── Sheet 2: 2-ทรัพยากรรายเดือน ─────────────────────────────────────
+    const NC2 = 15;
+    const mTot = MONTHS_TH.map((_, i) =>
+      section1.water[i] + section1.electricity[i] + section1.paper[i] +
+      section1.wasteGeneral[i] + section1.wasteRecyclable[i] + section1.wasteFood[i] +
+      section1.fuelDiesel[i] + section1.fuelGasoline[i] + section1.fuelGasohol[i]
+    );
+    const ws2Data = [
+      [`2. ทรัพยากร พลังงาน ของเสีย รายเดือน ปี พ.ศ. ${thYear}`, ...Array(NC2 - 1).fill(E)],
+      Array(NC2).fill(E),
+      ['รายการ', 'หน่วย', ...MONTHS_TH, 'รวมปี'],
+      ['น้ำประปา',           'ลบ.ม.',  ...section1.water,           s1Total('water')],
+      ['ไฟฟ้า',              'kWh',    ...section1.electricity,      s1Total('electricity')],
+      ['กระดาษ',             'รีม',    ...section1.paper,            s1Total('paper')],
+      ['ขยะทั่วไป',          'กก.',    ...section1.wasteGeneral,     s1Total('wasteGeneral')],
+      ['ขยะรีไซเคิล',        'กก.',    ...section1.wasteRecyclable,  s1Total('wasteRecyclable')],
+      ['เศษอาหาร',           'กก.',    ...section1.wasteFood,        s1Total('wasteFood')],
+      ['น้ำมันดีเซล',        'ลิตร',  ...section1.fuelDiesel,       s1Total('fuelDiesel')],
+      ['น้ำมันเบนซิน',       'ลิตร',  ...section1.fuelGasoline,     s1Total('fuelGasoline')],
+      ['น้ำมันแก๊สโซฮอลล์',  'ลิตร',  ...section1.fuelGasohol,      s1Total('fuelGasohol')],
+      ['รวมทุกประเภท',        '-',     ...mTot,                      mTot.reduce((a, b) => a + b, 0)],
+    ];
+    const ws2 = XLSX.utils.aoa_to_sheet(ws2Data);
+    ws2['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: NC2 - 1 } }];
+    ws2['!cols'] = [{ wch: 24 }, { wch: 8 }, ...Array(12).fill({ wch: 10 }), { wch: 12 }];
+    ws2['!rows'] = [{ hpt: 24 }];
+    sr(ws2, 0, 0, 0, NC2 - 1, TITLE);
+    sr(ws2, 2, 0, 2, 0, HDR_L); sr(ws2, 2, 1, 2, NC2 - 1, HDR);
+    for (let r = 3; r <= 11; r++) {
+      const alt = r % 2 === 0;
+      sr(ws2, r, 0, r, 1, alt ? LBL_A : LBL);
+      sr(ws2, r, 2, r, NC2 - 1, alt ? NUM_A : NUM);
+    }
+    sr(ws2, 12, 0, 12, 1, TOT_L); sr(ws2, 12, 2, 12, NC2 - 1, TOT);
+    XLSX.utils.book_append_sheet(wb, ws2, '2-ทรัพยากรรายเดือน');
+
+    // ── Sheet 3: 3-GHG Baseline ──────────────────────────────────────────
+    const NC3 = 15;
+    const wwFactor = section2Baseline.wastewaterType[0];
+    const ws3Data = [
+      [`3. การปลดปล่อยก๊าซเรือนกระจก (Baseline) ปี พ.ศ. ${thYear}`, ...Array(NC3 - 1).fill(E)],
+      Array(NC3).fill(E),
+      ['ข้อมูลพื้นฐานการดำเนินงาน', ...Array(NC3 - 1).fill(E)],
+      ['รายการ', 'หน่วย', ...MONTHS_TH, 'รวม/เฉลี่ย'],
+      ['วันเปิดให้บริการ', 'วัน',   ...section2Baseline.operatingDays, sbTotal('operatingDays')],
+      ['จำนวนพนักงาน',     'คน',    ...section2Baseline.staffCount,    section2Baseline.staffCount[0]],
+      ['ปริมาณน้ำใช้',     'ลบ.ม.', ...section2Baseline.waterUsed,     sbTotal('waterUsed')],
+      Array(NC3).fill(E),
+      ['ผลคำนวณการปลดปล่อยมีเทน (CH₄ → CO₂e)', ...Array(NC3 - 1).fill(E)],
+      ['รายการ', 'หน่วย', ...MONTHS_TH, 'รวม'],
+      ['มีเทน Septic Tank',       'kgCH4',  ...section2Baseline.methaneSeptic,     sbTotal('methaneSeptic')],
+      ['น้ำเสีย (80% ของน้ำใช้)', 'ลบ.ม.',  ...section2Baseline.wastewater80,      sbTotal('wastewater80')],
+      ['มีเทนบ่อบำบัด',           'kgCH4',  ...section2Baseline.methaneWastewater, sbTotal('methaneWastewater')],
+      Array(NC3).fill(E),
+      [`* ค่า EF น้ำเสีย (wastewater factor) ที่ใช้: ${wwFactor}`, ...Array(NC3 - 1).fill(E)],
+    ];
+    const ws3 = XLSX.utils.aoa_to_sheet(ws3Data);
+    ws3['!merges'] = [
+      { s: { r: 0,  c: 0 }, e: { r: 0,  c: NC3 - 1 } },
+      { s: { r: 2,  c: 0 }, e: { r: 2,  c: NC3 - 1 } },
+      { s: { r: 8,  c: 0 }, e: { r: 8,  c: NC3 - 1 } },
+      { s: { r: 14, c: 0 }, e: { r: 14, c: NC3 - 1 } },
+    ];
+    ws3['!cols'] = [{ wch: 36 }, { wch: 8 }, ...Array(12).fill({ wch: 10 }), { wch: 12 }];
+    ws3['!rows'] = [{ hpt: 24 }];
+    sr(ws3, 0, 0, 0, NC3 - 1, TITLE);
+    sr(ws3, 2, 0, 2, NC3 - 1, SEC);
+    sr(ws3, 3, 0, 3, 0, HDR_L); sr(ws3, 3, 1, 3, NC3 - 1, HDR);
+    sr(ws3, 4, 0, 4, 0, LBL);   sr(ws3, 4, 1, 4, NC3 - 1, NUM);
+    sr(ws3, 5, 0, 5, 0, LBL_A); sr(ws3, 5, 1, 5, NC3 - 1, NUM_A);
+    sr(ws3, 6, 0, 6, 0, LBL);   sr(ws3, 6, 1, 6, NC3 - 1, NUM);
+    sr(ws3, 8, 0, 8, NC3 - 1, SEC);
+    sr(ws3, 9, 0, 9, 0, HDR_L); sr(ws3, 9, 1, 9, NC3 - 1, HDR);
+    sr(ws3, 10, 0, 10, 0, LBL);   sr(ws3, 10, 1, 10, NC3 - 1, NUM);
+    sr(ws3, 11, 0, 11, 0, LBL_A); sr(ws3, 11, 1, 11, NC3 - 1, NUM_A);
+    sr(ws3, 12, 0, 12, 0, LBL);   sr(ws3, 12, 1, 12, NC3 - 1, NUM);
+    sr(ws3, 14, 0, 14, 0, NOTE);
+    XLSX.utils.book_append_sheet(wb, ws3, '3-GHG Baseline');
+
+    // ── Sheet 4: 4-ปริมาณ GHG รายเดือน ──────────────────────────────────
+    const NC4 = 18;
+    const s1Items = GHG_ITEMS.filter(i => i.scope === 1);
+    const s2Items = GHG_ITEMS.filter(i => i.scope === 2);
+    const s3Items = GHG_ITEMS.filter(i => i.scope === 3);
+    let scope1Kg = 0, scope2Kg = 0, scope3Kg = 0;
+    s1Items.forEach(i => { scope1Kg += calcItemTotal(section2Ghg[i.key]); });
+    s2Items.forEach(i => { scope2Kg += calcItemTotal(section2Ghg[i.key]); });
+    s3Items.forEach(i => { scope3Kg += calcItemTotal(section2Ghg[i.key]); });
+
+    const makeGhgRow = (item: typeof GHG_ITEMS[0], scopeLabel: string) => {
+      const ef = section2Ghg[item.key].cfs[0];
+      const amounts = MONTHS_TH.map((_, i) => section2Ghg[item.key].amounts[i]);
+      const totalAmt = amounts.reduce((a, b) => a + b, 0);
+      return [scopeLabel, item.label, item.unit, ef, ...amounts, totalAmt, calcItemTotal(section2Ghg[item.key])];
+    };
+    const makeScopeTot = (label: string, kg: number) =>
+      [E, label, E, E, ...Array(12).fill(E), E, kg];
+
+    const ws4Data: any[][] = [
+      [`4. ปริมาณก๊าซเรือนกระจกรายเดือน ปี พ.ศ. ${thYear}`, ...Array(NC4 - 1).fill(E)],
+      Array(NC4).fill(E),
+      ['ขอบเขต', 'รายการ', 'หน่วย', 'EF (kgCO2e/หน่วย)', ...MONTHS_TH, 'รวมปริมาณ', 'รวม kgCO2e'],
+      ...s1Items.map(i => makeGhgRow(i, 'S1')),
+      makeScopeTot('รวมขอบเขต 1 (ประเภทที่ 1)', scope1Kg),
+      ...s2Items.map(i => makeGhgRow(i, 'S2')),
+      makeScopeTot('รวมขอบเขต 2 (ประเภทที่ 2)', scope2Kg),
+      ...s3Items.map(i => makeGhgRow(i, 'S3')),
+      makeScopeTot('รวมขอบเขต 3 (ประเภทที่ 3)', scope3Kg),
+      [E, 'รวมทั้งหมด', E, E, ...Array(12).fill(E), E, scope1Kg + scope2Kg + scope3Kg],
+    ];
+    const ws4 = XLSX.utils.aoa_to_sheet(ws4Data);
+    ws4['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: NC4 - 1 } }];
+    ws4['!cols'] = [{ wch: 9 }, { wch: 36 }, { wch: 9 }, { wch: 15 }, ...Array(12).fill({ wch: 11 }), { wch: 13 }, { wch: 15 }];
+    ws4['!rows'] = [{ hpt: 24 }];
+
+    sr(ws4, 0, 0, 0, NC4 - 1, TITLE);
+    sr(ws4, 2, 0, 2, 0, HDR); sr(ws4, 2, 1, 2, 1, HDR_L); sr(ws4, 2, 2, 2, NC4 - 1, HDR);
+
+    const s1R0 = 3, s1R1 = s1R0 + s1Items.length - 1;
+    const s1Tot = s1R1 + 1;
+    const s2R0 = s1Tot + 1, s2R1 = s2R0 + s2Items.length - 1;
+    const s2Tot = s2R1 + 1;
+    const s3R0 = s2Tot + 1, s3R1 = s3R0 + s3Items.length - 1;
+    const s3Tot = s3R1 + 1;
+    const grandR = s3Tot + 1;
+
+    for (let r = s1R0; r <= s1R1; r++) {
+      sr(ws4, r, 0, r, 0, S1_TAG);
+      const alt = r % 2 === 0;
+      sr(ws4, r, 1, r, 1, alt ? LBL_A : LBL);
+      sr(ws4, r, 2, r, NC4 - 1, alt ? NUM_A : NUM);
+    }
+    sr(ws4, s1Tot, 0, s1Tot, 0, S1T); sr(ws4, s1Tot, 1, s1Tot, NC4 - 2, S1T); sr(ws4, s1Tot, NC4 - 1, s1Tot, NC4 - 1, S1TR);
+
+    for (let r = s2R0; r <= s2R1; r++) {
+      sr(ws4, r, 0, r, 0, S2_TAG);
+      sr(ws4, r, 1, r, 1, LBL);
+      sr(ws4, r, 2, r, NC4 - 1, NUM);
+    }
+    sr(ws4, s2Tot, 0, s2Tot, 0, S2T); sr(ws4, s2Tot, 1, s2Tot, NC4 - 2, S2T); sr(ws4, s2Tot, NC4 - 1, s2Tot, NC4 - 1, S2TR);
+
+    for (let r = s3R0; r <= s3R1; r++) {
+      sr(ws4, r, 0, r, 0, S3_TAG);
+      const alt = r % 2 === 0;
+      sr(ws4, r, 1, r, 1, alt ? LBL_A : LBL);
+      sr(ws4, r, 2, r, NC4 - 1, alt ? NUM_A : NUM);
+    }
+    sr(ws4, s3Tot, 0, s3Tot, 0, S3T); sr(ws4, s3Tot, 1, s3Tot, NC4 - 2, S3T); sr(ws4, s3Tot, NC4 - 1, s3Tot, NC4 - 1, S3TR);
+
+    sr(ws4, grandR, 0, grandR, NC4 - 2, GRD); sr(ws4, grandR, NC4 - 1, grandR, NC4 - 1, GRD_R);
+    XLSX.utils.book_append_sheet(wb, ws4, '4-ปริมาณ GHG รายเดือน');
+
+    // ── Sheet 5: 5-สรุปการปลดปล่อย ──────────────────────────────────────
+    const NC5 = 6;
+    const sumData = calcSummary(section2Ghg);
+    const totalKgAll = sumData.totalTco2e * 1000;
+
+    const monthlyRows = MONTHS_TH.map((m, i) => {
+      const s1 = SCOPE1_KEYS.reduce((sum, k) => sum + section2Ghg[k].amounts[i] * section2Ghg[k].cfs[i], 0);
+      const s2 = SCOPE2_KEYS.reduce((sum, k) => sum + section2Ghg[k].amounts[i] * section2Ghg[k].cfs[i], 0);
+      const s3 = SCOPE3_KEYS.reduce((sum, k) => sum + section2Ghg[k].amounts[i] * section2Ghg[k].cfs[i], 0);
+      const tot = s1 + s2 + s3;
+      return [m, s1, s2, s3, tot, totalKgAll > 0 ? tot / totalKgAll : 0];
+    });
+
+    const ws5Data = [
+      [`5. สรุปการปลดปล่อยก๊าซเรือนกระจก ปี พ.ศ. ${thYear}`, E, E, E, E, E],
+      [E, E, E, E, E, E],
+      ['สรุปตามขอบเขต', E, E, E, E, E],
+      ['ขอบเขต', 'kgCO2e', 'tCO2e', '%GHG', E, E],
+      ['ประเภทที่ 1', sumData.scope1Tco2e * 1000, sumData.scope1Tco2e, sumData.scope1Pct / 100, E, E],
+      ['ประเภทที่ 2', sumData.scope2Tco2e * 1000, sumData.scope2Tco2e, sumData.scope2Pct / 100, E, E],
+      ['ประเภทที่ 3', sumData.scope3Tco2e * 1000, sumData.scope3Tco2e, sumData.scope3Pct / 100, E, E],
+      ['รวมทั้งหมด',  totalKgAll,                 sumData.totalTco2e,  1,                        E, E],
+      [E, E, E, E, E, E],
+      ['รายเดือนแยกตามขอบเขต (kgCO2e)', E, E, E, E, E],
+      ['เดือน', 'ประเภทที่ 1', 'ประเภทที่ 2', 'ประเภทที่ 3', 'รวม', '% ของทั้งปี'],
+      ...monthlyRows,
+      ['รวมทั้งปี', sumData.scope1Tco2e * 1000, sumData.scope2Tco2e * 1000, sumData.scope3Tco2e * 1000, totalKgAll, 1],
+    ];
+    const ws5 = XLSX.utils.aoa_to_sheet(ws5Data);
+    ws5['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: NC5 - 1 } },
+      { s: { r: 2, c: 0 }, e: { r: 2, c: NC5 - 1 } },
+      { s: { r: 9, c: 0 }, e: { r: 9, c: NC5 - 1 } },
+    ];
+    ws5['!cols'] = [{ wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 12 }, { wch: 16 }, { wch: 14 }];
+    ws5['!rows'] = [{ hpt: 24 }];
+
+    sr(ws5, 0, 0, 0, NC5 - 1, TITLE);
+    sr(ws5, 2, 0, 2, NC5 - 1, SEC);
+    sr(ws5, 3, 0, 3, 0, HDR_L); sr(ws5, 3, 1, 3, NC5 - 1, HDR);
+    sr(ws5, 4, 0, 4, 0, LBL);   sr(ws5, 4, 1, 4, NC5 - 1, NUM);
+    sr(ws5, 5, 0, 5, 0, LBL_A); sr(ws5, 5, 1, 5, NC5 - 1, NUM_A);
+    sr(ws5, 6, 0, 6, 0, LBL);   sr(ws5, 6, 1, 6, NC5 - 1, NUM);
+    sr(ws5, 7, 0, 7, 0, TOT_L); sr(ws5, 7, 1, 7, NC5 - 1, TOT);
+    sr(ws5, 9, 0, 9, NC5 - 1, SEC);
+    sr(ws5, 10, 0, 10, 0, HDR_L); sr(ws5, 10, 1, 10, NC5 - 1, HDR);
+    for (let r = 11; r <= 22; r++) {
+      const alt = r % 2 === 0;
+      sr(ws5, r, 0, r, 0, alt ? LBL_A : LBL);
+      sr(ws5, r, 1, r, NC5 - 1, alt ? NUM_A : NUM);
+    }
+    sr(ws5, 23, 0, 23, 0, TOT_L); sr(ws5, 23, 1, 23, NC5 - 1, TOT);
+    XLSX.utils.book_append_sheet(wb, ws5, '5-สรุปการปลดปล่อย');
+
+    XLSX.writeFile(wb, `รายงาน_GHG_Green Office_${thYear}.xlsx`);
   };
 
   if (loading) return <PageLoading />;
