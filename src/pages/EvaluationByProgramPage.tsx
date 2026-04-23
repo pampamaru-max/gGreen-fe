@@ -333,12 +333,12 @@ const EvaluationByProgramPage = () => {
   }, [grandSelfTotalSp, grandMaxSP]);
 
   const activeLevel = useMemo(() => {
-    return findScoringLevelMatch(scoringLevels, evaluationType || ScoringLevelType.new, selfPct, selfPctSp, isYesNoProgram);
+    return findScoringLevelMatch(null, scoringLevels, evaluationType || ScoringLevelType.new, selfPct, selfPctSp, isYesNoProgram);
   }, [scoringLevels, evaluationType, selfPct, selfPctSp, isYesNoProgram]);
 
   const committeeActiveLevel = useMemo(() => {
     if (role === "user") return null;
-    return findScoringLevelMatch(scoringLevels, evaluationType || ScoringLevelType.new, displayCommitteePct, displayCommitteePctSp, isYesNoProgram);
+    return findScoringLevelMatch(null, scoringLevels, evaluationType || ScoringLevelType.new, displayCommitteePct, displayCommitteePctSp, isYesNoProgram);
   }, [scoringLevels, evaluationType, displayCommitteePct, displayCommitteePctSp, isYesNoProgram, role]);
 
   // ── Wizard ──────────────────────────────────────────────────────────────────

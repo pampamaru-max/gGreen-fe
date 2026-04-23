@@ -65,7 +65,7 @@ export interface ScoringLevel {
   icon: string;
   sortOrder: number;
   type: ScoringLevelType;
-  condition: string | null;
+  attempt: number | null;
   isActive: boolean;
   isPass: boolean;
   programId: string | null;
@@ -216,6 +216,7 @@ export default function ProjectRegistration() {
         ]);
 
         const evalData = evalRes.data;
+        setYear(evalData.year);
         const levRes = await apiClient.get(`scoring-levels?programId=${programId}&${queryArray('type', Array.from(new Set([evalData.evaluationType, ScoringLevelType.new])))}`).catch(() => ({ data: [] }));
 
         // ประมวลผล form structure
@@ -468,7 +469,7 @@ export default function ProjectRegistration() {
   const grandCommitteeTotalSp = committeeSummaryData? committeeSummaryData.reduce((s, c) => c.scoreType !== 'score_new' ? (s + c.totalPossible) : s, 0) : undefined;
 
   const activeLevel = useMemo(() => {
-    return findScoringLevelMatch(scoringLevels, evaluationType, displayPct, displayPctSp, isYesNoProgram);
+    return findScoringLevelMatch(null, scoringLevels, evaluationType, displayPct, displayPctSp, isYesNoProgram);
   }, [scoringLevels, evaluationType, displayPct, displayPctSp, isYesNoProgram]);
 
   const committeePct = useMemo(() => {
@@ -484,7 +485,7 @@ export default function ProjectRegistration() {
 
   const committeeActiveLevel = useMemo(() => {
     if (displayCommitteeTotal === undefined) return null;
-    return findScoringLevelMatch(scoringLevels, evaluationType, committeePct, committeePctSp, isYesNoProgram);
+    return findScoringLevelMatch(null, scoringLevels, evaluationType, committeePct, committeePctSp, isYesNoProgram);
   }, [scoringLevels, evaluationType, committeePct, committeePctSp, isYesNoProgram, displayCommitteeTotal]);
 
   // ── Wizard flat list ───────────────────────────────────────────────────────
