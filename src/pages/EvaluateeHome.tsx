@@ -146,6 +146,7 @@ export default function EvaluateeHome() {
   });
 
   const renderScoreWithLevel = (
+    year: number,
     type: ScoringLevelType,
     score: number | null, max: number | null,
     scoreSp: number | null, maxSp: number | null,
@@ -158,7 +159,11 @@ export default function EvaluateeHome() {
     
     const pct = Math.round((numScore / numMax) * 100);
     const pctSp = scoreSp && maxSp ? Math.round((scoreSp / maxSp) * 100) : null;
-    const level = findScoringLevelMatch(levels, type, pct, pctSp);
+    const attempt = allEvaluations
+      .filter((e) => e.evaluation_type === type)
+      .sort((a, b) => a.year - b.year)
+      .findIndex((e)=> e.year === year);
+    const level = findScoringLevelMatch(attempt, levels, type, pct, pctSp);
     
     return (
       <div className="flex flex-col items-center gap-1">
@@ -189,6 +194,9 @@ export default function EvaluateeHome() {
         total_score: null,
         total_max: null,
         total_committee_score: null,
+        total_score_sp: null,
+        total_max_sp: null,
+        total_committee_score_sp: null,
         has_committee_score: false,
         has_self_score: false,
         year: new Date(reg.createdAt).getFullYear(),
@@ -561,6 +569,7 @@ export default function EvaluateeHome() {
                         <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5 flex flex-col items-center">
                           <p className="text-[10px] text-muted-foreground">คะแนนรวม</p>
                           {renderScoreWithLevel(
+                            item.year,
                             item.evaluation_type,
                             item.total_score, item.max_self_score,
                             item.total_score_sp, item.max_self_score_sp,
@@ -570,6 +579,7 @@ export default function EvaluateeHome() {
                         <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5 flex flex-col items-center">
                           <p className="text-[10px] text-muted-foreground">กรรมการ</p>
                           {renderScoreWithLevel(
+                            item.year,
                             item.evaluation_type,
                             item.total_committee_score, item.max_committee_score,
                             item.total_committee_score_sp, item.max_committee_score_sp,
@@ -653,6 +663,7 @@ export default function EvaluateeHome() {
                           <TableCell className="text-center">{getStatusBadge(item.evaluation_status)}</TableCell>
                           <TableCell className="text-center font-bold text-foreground">
                             {renderScoreWithLevel(
+                              item.year,
                               typeKey,
                               item.total_score, item.max_self_score,
                               item.total_score_sp, item.max_self_score_sp,
@@ -664,6 +675,7 @@ export default function EvaluateeHome() {
                           </TableCell>
                           <TableCell className="text-center font-bold text-foreground">
                             {renderScoreWithLevel(
+                              item.year,
                               typeKey,
                               item.total_committee_score, item.max_committee_score,
                               item.total_committee_score_sp, item.max_committee_score_sp,
