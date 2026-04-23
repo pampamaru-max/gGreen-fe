@@ -867,6 +867,152 @@ export function IndicatorDialog({
   );
 }
 
+// ── Recursive Indicator Renderer ──────────────────────────────────────────────
+function RenderIndicator({
+  indicator,
+  allIndicators,
+  depth = 0,
+  color,
+  displayScores,
+  onIndicatorClick,
+  implementationDetails,
+  committeeComments,
+  uploadedFiles,
+  scoreView,
+  committeeScores,
+  scores, // Pass both for committee view
+}: {
+  indicator: any;
+  allIndicators: any[];
+  depth: number;
+  color: string;
+  displayScores: Record<string, number>;
+  onIndicatorClick: (indicator: any) => void;
+  implementationDetails?: Record<string, string>;
+  committeeComments?: Record<string, string>;
+  uploadedFiles: Record<string, UploadedFile[]>;
+  scoreView?: "self" | "committee";
+  committeeScores?: Record<string, number>;
+  scores: Record<string, number>;
+}) {
+  const children = allIndicators
+    .filter((i: any) => String(i.parentId) === String(indicator.id))
+    .sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+
+  const hasChildren = children.length > 0;
+  const isParent = indicator.isHeader || hasChildren;
+
+  const rawScore = displayScores[indicator.id];
+  const indScore = rawScore === -1 ? 0 : (rawScore ?? 0);
+  const isCommitteeUnscored = scoreView === "committee" && committeeScores && rawScore === undefined;
+  const isYesNo = indicator.scoreType?.includes('yes_no');
+  const fileCount = (uploadedFiles[indicator.id] || []).length;
+
+  const indentation = depth * 1.25;
+
+  return (
+    <div className="flex flex-col w-full border-b last:border-b-0 relative">
+      {/* Vertical line for depth */}
+      {depth > 0 && (
+        <div 
+          className="absolute left-0 top-0 bottom-0 w-[1px] bg-muted-foreground/10" 
+          style={{ left: `${depth * 1.25 + 0.5}rem` }} 
+        />
+      )}
+
+      <button
+        onClick={() => {
+          if (isParent) return;
+          onIndicatorClick(indicator);
+        }}
+        className={`flex items-start gap-3 px-4 py-3 w-full text-left transition-all 
+          ${isParent ? "cursor-default bg-muted/5" : "hover:bg-muted/30 cursor-pointer"}`}
+        style={{ paddingLeft: `${indentation + 1}rem` }}
+      >
+        <span className={`h-1.5 w-1.5 rounded-full bg-muted-foreground/30 shrink-0 mt-2`} />
+
+        <div className="flex-1 min-w-0 pt-0.5">
+          <span className={`text-sm leading-snug whitespace-pre-wrap text-foreground`}>
+            {!isParent && depth > 0 && `${allIndicators.filter((i: any) => String(i.parentId) === String(indicator.parentId)).sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).findIndex((i: any) => i.id === indicator.id) + 1}. `}
+            {indicator.name.replace(/\n/g, ' ')}
+          </span>
+          {isParent && indicator.description && (
+            <div 
+              className="text-[11px] text-muted-foreground mt-1 line-clamp-2 font-normal opacity-70"
+              dangerouslySetInnerHTML={{ __html: indicator.description }}
+            />
+          )}
+        </div>
+
+        <div className="flex items-center gap-3 shrink-0 ml-4">
+          {!isParent && (
+            <>
+              <div className="flex items-center gap-1.5">
+                {implementationDetails?.[indicator.id] && <AlignLeft className="h-3.5 w-3.5 text-blue-500/70" />}
+                {fileCount > 0 && <FileText className="h-3.5 w-3.5 text-muted-foreground/70" />}
+                {committeeComments?.[indicator.id] && <MessageSquare className="h-3.5 w-3.5 text-teal-500/70" />}
+              </div>
+
+              {scoreView === "committee" ? (
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {isYesNo ? (scores[indicator.id] === 1 ? "ผ่าน" : (scores[indicator.id] === 0 ? "ไม่ผ่าน" : "–")) : `${scores[indicator.id] ?? 0}/${indicator.maxScore}`}
+                  </span>
+                  <span className="text-muted-foreground/40">→</span>
+                  {rawScore !== undefined && rawScore !== -1 ? (
+                    <span
+                      className="text-sm font-bold tabular-nums min-w-[3rem] text-right"
+                      style={{ color: isYesNo ? (rawScore === 1 ? "hsl(142 60% 40%)" : "hsl(0 72% 51%)") : `hsl(${color})` }}
+                    >
+                      {isYesNo ? (rawScore === 1 ? "ผ่าน" : "ไม่ผ่าน") : `${rawScore}/${indicator.maxScore}`}
+                    </span>
+                  ) : (
+                    <span className="text-xs font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 min-w-[3rem] text-center">
+                      รอ
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <span
+                  className="text-sm font-bold tabular-nums min-w-[3rem] text-right"
+                  style={{ color: (rawScore !== undefined && rawScore !== -1 && (isYesNo ? rawScore >= 0 : rawScore > 0)) ? (isYesNo ? (rawScore === 1 ? "hsl(142 60% 40%)" : "hsl(0 72% 51%)") : `hsl(${color})`) : "hsl(var(--muted-foreground))" }}
+                >
+                  {isYesNo ? (rawScore === 1 ? "ผ่าน" : (rawScore === 0 ? "ไม่ผ่าน" : "รอ")) : `${rawScore ?? 0}/${indicator.maxScore}`}
+                </span>
+              )}
+            </>
+          )}
+          {isParent && hasChildren && (
+            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30" />
+          )}
+        </div>
+      </button>
+
+      {hasChildren && (
+        <div className="flex flex-col w-full">
+          {children.map((child: any) => (
+            <RenderIndicator
+              key={child.id}
+              indicator={child}
+              allIndicators={allIndicators}
+              depth={depth + 1}
+              color={color}
+              displayScores={displayScores}
+              onIndicatorClick={onIndicatorClick}
+              implementationDetails={implementationDetails}
+              committeeComments={committeeComments}
+              uploadedFiles={uploadedFiles}
+              scoreView={scoreView}
+              committeeScores={committeeScores}
+              scores={scores}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDelete, uploadedFiles, onFilesChange, onSave, implementationDetails, onImplementationDetailChange, committeeScores, onCommitteeScoreChange, committeeComments, onCommitteeCommentChange, userRole, scoreView, onIndicatorClick, newIndicatorNotifs, forceOpen }: Props) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -975,80 +1121,31 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
                 <span className="text-sm font-medium text-foreground">{topic.name}</span>
               </div>
               <div className="divide-y">
-                {topic.indicators.map((indicator) => {
-                  const selfScore = scores[indicator.id] === -1 ? 0 : (scores[indicator.id] ?? 0);
-                  const cScore = committeeScores?.[indicator.id];
-                  const fileCount = (uploadedFiles[indicator.id] || []).length;
-                  const isCommitteeMode = scoreView === "committee";
-                  const notif = newIndicatorNotifs?.get(indicator.id);
-                  const isYesNo = indicator.scoreType?.includes('yes_no');
-                  const formatScore = (v: number | null) => {
-                    if (v === null || v === undefined) return '–';
-                    if (isYesNo) return v === 1 ? 'ผ่าน' : 'ไม่ผ่าน';
-                    return String(v);
-                  };
-                  return (
-                    <button
+                {topic.indicators
+                  .filter((i) => !i.parentId || !topic.indicators.some(all => String(all.id) === String(i.parentId)))
+                  .map((indicator) => (
+                    <RenderIndicator
                       key={indicator.id}
-                      onClick={() => {
+                      indicator={indicator}
+                      allIndicators={topic.indicators}
+                      depth={0}
+                      color={color}
+                      displayScores={displayScores}
+                      onIndicatorClick={(ind) => {
                         if (onIndicatorClick) {
-                          onIndicatorClick(indicator);
+                          onIndicatorClick(ind);
                         } else {
-                          setSelectedIndicator(indicator);
+                          setSelectedIndicator(ind);
                         }
                       }}
-                      className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-muted/30 transition-colors"
-                    >
-                      <span className="h-1 w-1 rounded-full bg-muted-foreground/40 shrink-0" />
-                      <span className="flex-1 text-sm text-foreground truncate">{indicator.name}</span>
-                      {implementationDetails?.[indicator.id] && (
-                        <span className="inline-flex items-center px-1 py-0.5 rounded bg-blue-50 text-blue-500 border border-blue-100 shrink-0">
-                          <AlignLeft className="h-3 w-3" />
-                        </span>
-                      )}
-                      {committeeComments?.[indicator.id] && (
-                        <span className="inline-flex items-center px-1 py-0.5 rounded bg-teal-50 text-teal-500 border border-teal-100 shrink-0">
-                          <MessageSquare className="h-3 w-3" />
-                        </span>
-                      )}
-                      {fileCount > 0 && (
-                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <FileText className="h-3.5 w-3.5" />
-                          {fileCount}
-                        </span>
-                      )}
-                      {isCommitteeMode ? (
-                        <div className="flex items-center gap-2 shrink-0">
-                          {/* คะแนนตนเอง */}
-                          <span className="text-xs text-muted-foreground tabular-nums">
-                            {selfScore}/{indicator.maxScore}
-                          </span>
-                          <span className="text-muted-foreground/40">→</span>
-                          {/* คะแนนกรรมการ */}
-                          {cScore !== undefined && cScore !== -1 ? (
-                            <span
-                              className="text-sm font-bold tabular-nums min-w-[3rem] text-right"
-                              style={{ color: isYesNo ? (cScore === 1 ? "hsl(142 60% 40%)" : "hsl(0 72% 51%)") : `hsl(${color})` }}
-                            >
-                              {isYesNo ? (cScore === 1 ? "ผ่าน" : "ไม่ผ่าน") : `${cScore}/${indicator.maxScore}`}
-                            </span>
-                          ) : (
-                            <span className="text-xs font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 min-w-[3rem] text-center">
-                              รอ
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        <span
-                          className="text-sm font-bold tabular-nums min-w-[3rem] text-right"
-                          style={{ color: selfScore > 0 ? `hsl(${color})` : "hsl(var(--muted-foreground))" }}
-                        >
-                          {selfScore}/{indicator.maxScore}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
+                      implementationDetails={implementationDetails}
+                      committeeComments={committeeComments}
+                      uploadedFiles={uploadedFiles}
+                      scoreView={scoreView}
+                      committeeScores={committeeScores}
+                      scores={scores}
+                    />
+                  ))}
               </div>
             </div>
           ))}

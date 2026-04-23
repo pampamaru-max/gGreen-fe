@@ -13,6 +13,8 @@ export interface Indicator {
   notes?: string;
   evidenceDescription?: string;
   scoringCriteria?: ScoringCriterion[];
+  parentId?: string | null;
+  isHeader?: boolean;
 }
 
 export interface Topic {
