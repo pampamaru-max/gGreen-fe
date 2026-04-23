@@ -19,7 +19,7 @@ import { AnimatedScore } from "@/components/ui/animated-score";
 import { Category } from "@/data/evaluationData";
 
 // Category extended with scoreType / upgrade-renew settings from DB
-interface EvalCategory extends Category {
+export interface EvalCategory extends Category {
   scoreType?: string;
   upgradeMode?: string | null;
   renewMode?: string | null;
@@ -28,6 +28,7 @@ import apiClient from "@/lib/axios";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { ScoringLevelType } from "./SettingsScoringCriteria";
+import { findScoringLevelMatch, isNewType, isRenewType, isUpgradType, labelScoreType, queryArray } from "@/helpers/functions";
 
 const EVAL_TYPE_CONFIG: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
   new:     { label: "ประเมินใหม่",             icon: <FilePlus   className="h-3 w-3" />, className: "bg-blue-50 text-blue-700 border-blue-200"     },
@@ -192,8 +193,8 @@ export default function ProjectRegistration() {
           setCategories(cats);
 
           try {
-            const { data: levData } = await apiClient.get(`scoring-levels?programId=${programId}`);
-            setScoringLevels((levData ?? []).sort((a: ScoringLevel, b: ScoringLevel) => a.sortOrder - b.sortOrder));
+            const { data: levData } = await apiClient.get(`scoring-levels?programId=${programId}&${queryArray('type', Array.from(new Set([urlEvalType, ScoringLevelType.new])))}`);
+            setScoringLevels((levData ?? []));
           } catch { /* no scoring levels */ }
 
           const { data: newEval } = await apiClient.post("evaluation", {
@@ -207,13 +208,15 @@ export default function ProjectRegistration() {
           return;
         }
 
-        // กรณีมี urlEvalId — โหลด form + scoring-levels + evaluation พร้อมกัน
+        // กรณีมี urlEvalId — โหลด form + evaluation พร้อมกัน
         const evalFetchUrl = `evaluation/${urlEvalId}`;
-        const [formRes, levRes, evalRes] = await Promise.all([
+        const [formRes, evalRes] = await Promise.all([
           apiClient.get(`programs/${programId}/evaluation-form`),
-          apiClient.get(`scoring-levels?programId=${programId}`).catch(() => ({ data: [] })),
           apiClient.get(evalFetchUrl).catch(() => ({ data: null })),
         ]);
+
+        const evalData = evalRes.data;
+        const levRes = await apiClient.get(`scoring-levels?programId=${programId}&${queryArray('type', Array.from(new Set([evalData.evaluationType, ScoringLevelType.new])))}`).catch(() => ({ data: [] }));
 
         // ประมวลผล form structure
         const formData = formRes.data;
@@ -236,10 +239,9 @@ export default function ProjectRegistration() {
         setCategories(cats);
 
         // ประมวลผล scoring levels
-        setScoringLevels((levRes.data ?? []).sort((a: ScoringLevel, b: ScoringLevel) => a.sortOrder - b.sortOrder));
+        setScoringLevels((levRes.data ?? []));
 
         // ประมวลผล existing evaluation
-        const evalData = evalRes.data;
         if (evalData) {
           setEvaluationId(evalData.id);
           setEvaluationStatus(evalData.status);
@@ -352,9 +354,6 @@ export default function ProjectRegistration() {
   };
 
   // ── Visible categories — filtered by evaluationType + program settings ─────
-  const isNewType    = (t?: string) => !t || t === "score" || t === "yes_no" || t === "score_new" || t === "yes_no_new";
-  const isUpgradType = (t?: string) => t === "score_upgrad" || t === "yes_no_upgrad" || t === "upgrade";
-  const isRenewType  = (t?: string) => t === "score_renew" || t === "yes_no_renew";
 
   const visibleCategories = useMemo(() => {
     if (evaluationType === "upgrade") {
@@ -432,8 +431,8 @@ export default function ProjectRegistration() {
     );
   }, [visibleCategories, scores]);
 
-  const grandTotal    = summaryData.reduce((s, c) => s + c.score, 0);
-  const grandMax      = summaryData.reduce((s, c) => s + c.totalPossible, 0);
+  const grandTotal    = summaryData.reduce((s, c) => c.scoreType === 'score_new' ? (s + c.score) : s, 0);
+  const grandMax      = summaryData.reduce((s, c) => c.scoreType === 'score_new' ? (s + c.totalPossible) : s, 0);
   // yes/no totals — used when grandMax === 0
   const grandPassCount  = summaryData.reduce((s, c: any) => s + (c.passCount ?? 0), 0);
   const grandPassTotal  = summaryData.reduce((s, c: any) => s + (c.totalIndicators ?? 0), 0);
@@ -444,12 +443,16 @@ export default function ProjectRegistration() {
   const displayPct      = displayMax > 0 ? Math.round((displayTotal / displayMax) * 100) : 0;
   const displayUnit     = isYesNoProgram ? "ผ่าน" : "";
   const grandCommitteeTotal = committeeSummaryData
-    ? committeeSummaryData.reduce((s, c) => s + c.score, 0)
+    ? committeeSummaryData.reduce((s, c) => c.scoreType === 'score_new' ? (s + c.score) : s, 0)
     : undefined;
 
+  const grandTotalSp = summaryData.reduce((s, c) => c.scoreType !== 'score_new' ? (s + c.score) : s, 0);
+  const grandMaxSP = summaryData.reduce((s, c) => c.scoreType !== 'score_new' ? (s + c.totalPossible) : s, 0);
+  const displayPctSp      = grandMaxSP > 0 ? Math.round((grandTotalSp / grandMaxSP) * 100) : 0;
+  const grandCommitteeTotalSp = committeeSummaryData? committeeSummaryData.reduce((s, c) => c.scoreType !== 'score_new' ? (s + c.totalPossible) : s, 0) : undefined;
+
   const activeLevel = useMemo(() => {
-    if (scoringLevels.length === 0) return null;
-    return [...scoringLevels].reverse().find(l => displayPct >= l.minScore && displayPct <= l.maxScore);
+    return findScoringLevelMatch(scoringLevels, evaluationType, displayPct, displayPctSp);
   }, [scoringLevels, displayPct]);
 
   const committeePct = useMemo(() => {
@@ -457,9 +460,14 @@ export default function ProjectRegistration() {
     return Math.round((grandCommitteeTotal / grandMax) * 100);
   }, [grandCommitteeTotal, grandMax]);
 
+  const committeePctSp = useMemo(() => {
+    if (grandCommitteeTotalSp === undefined || grandMaxSP === 0) return 0;
+    return Math.round((grandCommitteeTotalSp / grandMaxSP) * 100);
+  }, [grandCommitteeTotalSp, grandMaxSP])
+
   const committeeActiveLevel = useMemo(() => {
-    if (scoringLevels.length === 0 || grandCommitteeTotal === undefined) return null;
-    return [...scoringLevels].reverse().find(l => committeePct >= l.minScore && committeePct <= l.maxScore);
+    if (grandCommitteeTotal === undefined) return null;
+    return findScoringLevelMatch(scoringLevels, evaluationType, committeePct, committeePctSp);
   }, [scoringLevels, committeePct, grandCommitteeTotal]);
 
   // ── Wizard flat list ───────────────────────────────────────────────────────
@@ -646,13 +654,34 @@ export default function ProjectRegistration() {
             <div className="flex items-center gap-2">
               <div className="flex flex-col items-end">
                 <p className="text-[0.5625rem] font-semibold text-muted-foreground uppercase tracking-wider">คะแนนรวม</p>
-                <p className="text-base font-bold text-primary leading-tight">
-                  <AnimatedScore value={displayTotal}>
-                    {displayTotal}{displayUnit && <span className="text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}
-                  </AnimatedScore>
-                  <span className="text-xs font-normal text-muted-foreground">/{displayMax}</span>
-                </p>
-                {displayMax > 0 && <p className="text-[0.5625rem] text-muted-foreground">{displayPct}%</p>}
+                <div className="flex flex-col w-full">
+                  <p className="flex w-full justify-between items-center text-base font-bold text-primary leading-tight">
+                    {evaluationType !== ScoringLevelType.new && scoringLevels.some((sl) => sl.type === evaluationType) ?
+                      <span className="mr-2 text-start text-xs font-normal text-amber-700">{labelScoreType(visibleCategories, ScoringLevelType.new)}</span> : <span></span>
+                    }
+                    <span>
+                      <AnimatedScore value={displayTotal}>
+                        {displayTotal}{displayUnit && <span className="text-end text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}
+                      </AnimatedScore>
+                      <span className="text-end text-xs font-normal text-muted-foreground">/{displayMax}</span>
+                    </span>
+                  </p>
+                  {displayMax > 0 && <p className="text-end text-[0.5625rem] text-muted-foreground">{displayPct}%</p>}
+                </div>
+                {evaluationType !== ScoringLevelType.new && scoringLevels.some((sl) => sl.type === evaluationType) &&
+                  <div className="flex flex-col w-full">
+                    <p className="flex w-full justify-between items-center text-base font-bold text-primary leading-tight">
+                      <span className="mr-2 text-start text-xs font-normal text-amber-700">{labelScoreType(visibleCategories, evaluationType)}</span>
+                      <span>
+                        <AnimatedScore value={grandTotalSp}>
+                          {grandTotalSp}{displayUnit && <span className="text-end text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}
+                        </AnimatedScore>
+                        <span className="text-end text-xs font-normal text-muted-foreground">/{grandMaxSP}</span>
+                      </span>
+                    </p>
+                    {displayMax > 0 && <p className="text-end text-[0.5625rem] text-muted-foreground">{displayPctSp}%</p>}
+                  </div>
+                }
                 
                 {activeLevel && (
                   <div className="mt-1">

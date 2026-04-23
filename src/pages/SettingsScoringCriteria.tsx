@@ -69,7 +69,7 @@ const getIconComponent = (icon: string) => {
 
 interface LevelFormProps {
   initial?: Partial<ScoringLevel>;
-  onSubmit: (data: Omit<ScoringLevel, "id" | "sortOrder" | "isActive" | "programId">) => void;
+  onSubmit: (data: Omit<ScoringLevel, "id" | "sortOrder" | "isActive" | "isPass" | "programId">) => void;
   trigger: React.ReactNode;
   title: string;
   programLevels: ScoringLevel[];
@@ -127,9 +127,10 @@ const LevelFormDialog = ({
     } else if (programLevels.length) {
       const IsInRange = programLevels.find(
         (e) => e.id != levelId &&
-          ((e.minScore <= min && min <= e.maxScore) ||
+          e.condition === condition &&
+          (((e.minScore <= min && min <= e.maxScore) ||
           (e.minScore <= max && max <= e.maxScore) ||
-          (min <= e.minScore && e.maxScore <= max)),
+          (min <= e.minScore && e.maxScore <= max))),
       );
       
       if (IsInRange) {
@@ -498,7 +499,7 @@ const ScoringLevelView = ({
   const sensors = useSensors( useSensor(PointerSensor),useSensor(KeyboardSensor) );
 
   const handleAdd = async (
-    data: Omit<ScoringLevel, "id" | "sortOrder" | "isActive" | "programId">,
+    data: Omit<ScoringLevel, "id" | "sortOrder" | "isActive" | "isPass" | "programId">,
     programId: string,
   ) => {
     const nextOrder =
