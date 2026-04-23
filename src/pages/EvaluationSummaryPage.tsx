@@ -31,6 +31,8 @@ interface EvaluationResult {
   userId: string;
   totalScore: number;
   totalMaxScore: number;
+  totalScoreSpecial: number | null;
+  totalMaxScoreSpecial: number | null;
   normalLevelId: number | null;
   specialLevelId: number | null;
   categoryResults: CategoryResult[];
