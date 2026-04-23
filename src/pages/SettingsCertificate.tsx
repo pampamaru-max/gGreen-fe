@@ -68,6 +68,7 @@ interface CertElement {
   y: number; // percentage 0-100
   fontSize?: number;
   fontWeight?: string;
+  fontFamily?: string;
   color?: string;
   width?: number; // percentage
   height?: number; // percentage
@@ -465,10 +466,10 @@ const CertificatePreview = ({
               height: el.height ? `${el.height}%` : undefined,
               fontSize: el.fontSize ? `${el.fontSize}px` : undefined,
               fontWeight: el.fontWeight === "bold" ? "800" : "400",
+              fontFamily: el.fontFamily ? `'${el.fontFamily}', sans-serif` : "'Sarabun', sans-serif",
               color: el.color || template.primary_color,
               textAlign: el.textAlign || "center",
               transform: "translate(-50%, -50%)",
-              fontFamily: "'Sarabun', sans-serif",
             }}
           >
             {isSelected && (
@@ -915,10 +916,10 @@ const EditTemplateDialog = ({
           <DialogTitle>แก้ไขใบประกาศนียบัตร – {levelName}</DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 py-4">
-          <div className="grid md:grid-cols-[300px_1fr] gap-6">
+        <div className="flex-1 min-h-0 px-6 py-4 overflow-hidden">
+          <div className="grid md:grid-cols-[300px_1fr] gap-6 h-full">
             {/* Settings Sidebar */}
-            <div className="space-y-4 pr-2">
+            <div className="space-y-4 pr-2 overflow-y-auto">
               <div className="space-y-2">
                 <Label className="text-sm font-bold uppercase text-muted-foreground">
                   การตั้งค่าพื้นฐาน
@@ -1111,6 +1112,22 @@ const EditTemplateDialog = ({
                   >
                     + ตำแหน่ง
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addElement("variable", "{start_date}")}
+                    className="h-8 text-[10px]"
+                  >
+                    + วันเริ่มต้น
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addElement("variable", "{end_date}")}
+                    className="h-8 text-[10px]"
+                  >
+                    + วันสิ้นสุด
+                  </Button>
                 </div>
               </div>
 
@@ -1214,6 +1231,52 @@ const EditTemplateDialog = ({
                   </div>
 
                   {selectedEl.type !== "image" && (
+                    <>
+                    <div>
+                      <Label className="text-[10px]">ฟอนต์</Label>
+                      <select
+                        value={selectedEl.fontFamily || "Sarabun"}
+                        onChange={(e) => updateElementWithHistory(selectedEl.id, { fontFamily: e.target.value })}
+                        className="w-full h-8 rounded-md border border-input bg-background px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                        style={{ fontFamily: `'${selectedEl.fontFamily || "Sarabun"}', sans-serif` }}
+                      >
+                        {[
+                          { value: "Sarabun", label: "Sarabun" },
+                          { value: "Noto Sans Thai", label: "Noto Sans Thai" },
+                          { value: "Kanit", label: "Kanit" },
+                          { value: "Prompt", label: "Prompt" },
+                          { value: "Mitr", label: "Mitr" },
+                          { value: "Anuphan", label: "Anuphan" },
+                          { value: "Pridi", label: "Pridi (Serif)" },
+                          { value: "Charm", label: "Charm (ลายมือ)" },
+                        ].map((f) => (
+                          <option key={f.value} value={f.value} style={{ fontFamily: `'${f.value}', sans-serif` }}>
+                            {f.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <Label className="text-[10px]">สีตัวอักษร</Label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <input
+                          type="color"
+                          value={selectedEl.color || form.primary_color}
+                          onChange={(e) =>
+                            updateElementWithHistory(selectedEl.id, { color: e.target.value })
+                          }
+                          className="h-8 w-10 rounded border cursor-pointer p-0.5 shrink-0"
+                        />
+                        <Input
+                          value={selectedEl.color || form.primary_color}
+                          onChange={(e) =>
+                            updateElementWithHistory(selectedEl.id, { color: e.target.value })
+                          }
+                          className="h-8 text-xs flex-1"
+                          placeholder="#000000"
+                        />
+                      </div>
+                    </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <Label className="text-[10px]">ขนาดตัวอักษร</Label>
@@ -1239,16 +1302,6 @@ const EditTemplateDialog = ({
                       <div>
                         <Label className="text-[10px]">สไตล์ & จัดวาง</Label>
                         <div className="flex gap-1">
-                          <input
-                            type="color"
-                            value={selectedEl.color || form.primary_color}
-                            onChange={(e) =>
-                              updateElementWithHistory(selectedEl.id, {
-                                color: e.target.value,
-                              })
-                            }
-                            className="h-8 w-8 rounded border cursor-pointer"
-                          />
                           <Button
                             variant={
                               selectedEl.fontWeight === "bold"
@@ -1309,6 +1362,7 @@ const EditTemplateDialog = ({
                         </div>
                       </div>
                     </div>
+                    </>
                   )}
                   <div className="p-3 bg-white rounded-lg border border-primary/10 space-y-2 mb-4">
                     <Button
@@ -1390,9 +1444,10 @@ const EditTemplateDialog = ({
                              <FileText className="w-3.5 h-3.5 text-blue-500"/>}
                           </div>
                           <span className="text-[11px] truncate flex-1 font-medium text-slate-700">
-                            {el.type === 'variable' 
-                              ? (el.content === "{recipient}" ? "ชื่อผู้ได้รับ" : el.content === "{level}" ? "ระดับรางวัล" : 
-                                 el.content === "{signer_name}" ? "ชื่อผู้ลงนาม" : el.content === "{signer_title}" ? "ตำแหน่ง" : el.content)
+                            {el.type === 'variable'
+                              ? (el.content === "{recipient}" ? "ชื่อผู้ได้รับ" : el.content === "{level}" ? "ระดับรางวัล" :
+                                 el.content === "{signer_name}" ? "ชื่อผู้ลงนาม" : el.content === "{signer_title}" ? "ตำแหน่ง" :
+                                 el.content === "{start_date}" ? "วันเริ่มต้น" : el.content === "{end_date}" ? "วันสิ้นสุด" : el.content)
                               : (el.type === 'image' ? 'รูปภาพ/โลโก้' : el.content)}
                           </span>
                           <Button

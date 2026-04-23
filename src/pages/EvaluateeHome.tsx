@@ -35,6 +35,8 @@ import {
 import apiClient from "@/lib/axios";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertActionPopup } from "@/components/AlertActionPopup";
+import { ScoringLevelType } from "./SettingsScoringCriteria";
+import { findScoringLevelMatch } from "@/helpers/functions";
 
 interface Registration {
   id: string;
@@ -118,6 +120,12 @@ export default function EvaluateeHome() {
         max_self_score : item.self_max_score,
         total_committee_score: item.committee_total_score,
         max_committee_score: item.committee_max_score,
+
+        total_score_sp: item.self_total_score_sp,
+        max_self_score_sp: item.self_max_score_sp,
+        total_committee_score_sp: item.committee_total_score_sp,
+        max_committee_score_sp: item.committee_max_score_sp,
+
         has_committee_score: item.has_committee_score,
         has_self_score: item.has_self_score,
         year: item.year || new Date().getFullYear(),
@@ -137,18 +145,30 @@ export default function EvaluateeHome() {
     enabled: !!programId,
   });
 
-  const renderScoreWithLevel = (score: number | null, max: number | null, levels: any[]) => {
+  const renderScoreWithLevel = (
+    year: number,
+    type: ScoringLevelType,
+    score: number | null, max: number | null,
+    scoreSp: number | null, maxSp: number | null,
+    levels: any[]
+  ) => {
     if (score === null || max === null || max === 0) return "-";
     const numScore = Number(score);
     const numMax = Number(max);
     if (isNaN(numScore) || isNaN(numMax) || numMax === 0) return "-";
     
     const pct = Math.round((numScore / numMax) * 100);
-    const level = [...levels].reverse().find((l: any) => pct >= l.minScore && (l.maxScore === null || pct <= l.maxScore));
+    const pctSp = scoreSp && maxSp ? Math.round((scoreSp / maxSp) * 100) : null;
+    const attempt = allEvaluations
+      .filter((e) => e.evaluation_type === type)
+      .sort((a, b) => a.year - b.year)
+      .findIndex((e)=> e.year === year);
+    const level = findScoringLevelMatch(attempt, levels, type, pct, pctSp);
     
     return (
       <div className="flex flex-col items-center gap-1">
         <span className="text-sm font-bold">{pct}%</span>
+        {pctSp !== null && <span className="text-sm font-bold">{pctSp}%</span>}
         {level && (
           <Badge 
             className="text-[10px] px-2 py-0 h-4 border-none whitespace-nowrap"
@@ -174,6 +194,9 @@ export default function EvaluateeHome() {
         total_score: null,
         total_max: null,
         total_committee_score: null,
+        total_score_sp: null,
+        total_max_sp: null,
+        total_committee_score_sp: null,
         has_committee_score: false,
         has_self_score: false,
         year: new Date(reg.createdAt).getFullYear(),
@@ -545,11 +568,23 @@ export default function EvaluateeHome() {
                       <div className="flex items-center gap-3">
                         <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5 flex flex-col items-center">
                           <p className="text-[10px] text-muted-foreground">คะแนนรวม</p>
-                          {renderScoreWithLevel(item.total_score, item.max_self_score, scoringLevels)}
+                          {renderScoreWithLevel(
+                            item.year,
+                            item.evaluation_type,
+                            item.total_score, item.max_self_score,
+                            item.total_score_sp, item.max_self_score_sp,
+                            scoringLevels
+                          )}
                         </div>
                         <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5 flex flex-col items-center">
                           <p className="text-[10px] text-muted-foreground">กรรมการ</p>
-                          {renderScoreWithLevel(item.total_committee_score, item.max_committee_score, scoringLevels)}
+                          {renderScoreWithLevel(
+                            item.year,
+                            item.evaluation_type,
+                            item.total_committee_score, item.max_committee_score,
+                            item.total_committee_score_sp, item.max_committee_score_sp,
+                            scoringLevels
+                          )}
                         </div>
                       </div>
 
@@ -627,13 +662,25 @@ export default function EvaluateeHome() {
                           </TableCell>
                           <TableCell className="text-center">{getStatusBadge(item.evaluation_status)}</TableCell>
                           <TableCell className="text-center font-bold text-foreground">
-                            {renderScoreWithLevel(item.total_score, item.max_self_score, scoringLevels)}
+                            {renderScoreWithLevel(
+                              item.year,
+                              typeKey,
+                              item.total_score, item.max_self_score,
+                              item.total_score_sp, item.max_self_score_sp,
+                              scoringLevels
+                            )}
                           </TableCell>
                           <TableCell className="text-center">
                             {getCommitteeBadge(item.evaluation_status, !!item.total_committee_score || item.has_committee_score)}
                           </TableCell>
                           <TableCell className="text-center font-bold text-foreground">
-                            {renderScoreWithLevel(item.total_committee_score, item.max_committee_score, scoringLevels)}
+                            {renderScoreWithLevel(
+                              item.year,
+                              typeKey,
+                              item.total_committee_score, item.max_committee_score,
+                              item.total_committee_score_sp, item.max_committee_score_sp,
+                              scoringLevels
+                            )}
                           </TableCell>
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-2">

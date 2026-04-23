@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import apiClient from "@/lib/axios";
 import { useQuery } from "@tanstack/react-query";
 import { FilePlus, RefreshCw, TrendingUp } from "lucide-react";
+import { ScoringLevelType } from "./SettingsScoringCriteria";
+import { findScoringLevelMatch, labelScoreType } from "@/helpers/functions";
 
 const EVAL_TYPE_CONFIG: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
   new:     { label: "ประเมินใหม่",             icon: <FilePlus   className="h-3 w-3" />, className: "bg-blue-50 text-blue-700 border-blue-200"     },
@@ -25,17 +27,23 @@ interface RegistrationRow {
   province: string;
   program_id: string;
   program_name: string;
-  evaluation_type: string | null;
+  evaluation_type: ScoringLevelType;
   self_status: string | null;
   committee_status: string | null;
   has_committee_score: boolean;
   has_self_score: boolean;
   total_score?: number;
+  total_score_sp?: number;
   total_max?: number;
+  total_max_sp?: number;
   self_total_score?: number;
   committee_total_score?: number;
   self_max_score?: number;
   committee_max_score?: number;
+  self_total_score_sp?: number;
+  committee_total_score_sp?: number;
+  self_max_score_sp?: number;
+  committee_max_score_sp?: number;
   committee_result_is_pass?: boolean | null;
 }
 
@@ -53,19 +61,33 @@ const EvaluationPage = () => {
     },
   });
 
-  const renderScoreWithLevel = (score: number | null, max: number | null, programId: string) => {
+  const renderScoreWithLevel = (
+    year: number,
+    type: ScoringLevelType,
+    score: number | null, max: number | null,
+    scoreSp: number | null, maxSp: number | null,
+    programId: string
+  ) => {
     if (score === null || max === null || max === 0) return <span className="text-muted-foreground">-</span>;
     const numScore = Number(score);
     const numMax = Number(max);
     if (isNaN(numScore) || isNaN(numMax) || numMax === 0) return <span className="text-muted-foreground">-</span>;
 
     const pct = Math.round((numScore / numMax) * 100);
+    const pctSp = scoreSp && maxSp ? Math.round((scoreSp / maxSp) * 100) : null;
     const programLevels = allScoringLevels.filter((l: any) => l.programId === programId);
-    const level = [...programLevels].reverse().find((l: any) => pct >= l.minScore && (l.maxScore === null || pct <= l.maxScore));
+    const attempt = rows
+      .filter((e) => e.evaluation_type === type)
+      .sort((a: any, b: any) => a.year - b.year)
+      .findIndex((e: any)=> e.year === year) + 1;
+    // Check if it's likely a yes/no program (if max score is same as count)
+    // Actually we can just pass true if we want default badges for all programs with no levels defined
+    const level = findScoringLevelMatch(attempt, programLevels, type, pct, pctSp, programLevels.length === 0);
     
     return (
       <div className="flex flex-col items-center gap-1">
         <span className="text-sm font-bold">{pct}%</span>
+        {pctSp !== null && <span className="text-sm font-bold">{pctSp}%</span>}
         {level && (
           <Badge 
             className="text-[10px] px-2 py-0 h-4 border-none whitespace-nowrap"
@@ -324,11 +346,23 @@ const EvaluationPage = () => {
                   <div className="flex items-center gap-2">
                     <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5 flex flex-col items-center">
                       <p className="text-[10px] text-muted-foreground">คะแนนรวม</p>
-                      {renderScoreWithLevel(row.self_total_score ?? null, row.self_max_score ?? row.total_max ?? null, row.program_id)}
+                      {renderScoreWithLevel(
+                        (row as any).year,
+                        row.evaluation_type,
+                        row.self_total_score ?? null, row.self_max_score ?? row.total_max ?? null,
+                        row.self_total_score_sp ?? null, row.self_max_score_sp ?? row.total_max_sp ?? null,
+                        row.program_id
+                      )}
                     </div>
                     <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5 flex flex-col items-center">
                       <p className="text-[10px] text-muted-foreground">กรรมการ</p>
-                      {renderScoreWithLevel(row.committee_total_score ?? null, row.committee_max_score ?? row.total_max ?? null, row.program_id)}
+                      {renderScoreWithLevel(
+                        (row as any).year,
+                        row.evaluation_type,
+                        row.committee_total_score ?? null, row.committee_max_score ?? row.total_max ?? null,
+                        row.committee_total_score_sp ?? null, row.committee_max_score_sp ?? row.total_max_sp ?? null,
+                        row.program_id
+                      )}
                     </div>
                   </div>
 
@@ -403,10 +437,22 @@ const EvaluationPage = () => {
                       <TableCell className="text-center">{getSelfAssessmentBadge(row.self_status)}</TableCell>
                       <TableCell className="text-center">{getCommitteeBadge(row.self_status, row.has_committee_score)}</TableCell>
                       <TableCell className="text-center">
-                        {renderScoreWithLevel(row.self_total_score ?? null, row.self_max_score ?? row.total_max ?? null, row.program_id)}
+                        {renderScoreWithLevel(
+                          (row as any).year,
+                          row.evaluation_type,
+                          row.self_total_score ?? null, row.self_max_score ?? row.total_max ?? null,
+                          row.self_total_score_sp ?? null, row.self_max_score_sp ?? row.total_max_sp ?? null,
+                          row.program_id
+                        )}
                       </TableCell>
                       <TableCell className="text-center">
-                        {renderScoreWithLevel(row.committee_total_score ?? null, row.committee_max_score ?? row.total_max ?? null, row.program_id)}
+                        {renderScoreWithLevel(
+                          (row as any).year,
+                          row.evaluation_type,
+                          row.committee_total_score ?? null, row.committee_max_score ?? row.total_max ?? null,
+                          row.committee_total_score_sp ?? null, row.committee_max_score_sp ?? row.total_max_sp ?? null,
+                          row.program_id
+                        )}
                       </TableCell>
                       <TableCell className="text-center">
                         {row.has_committee_score && (

@@ -89,7 +89,7 @@ export function AppLayout() {
                   <span className="text-sm font-bold tracking-tight" style={{ background: "linear-gradient(135deg, var(--green-heading) 0%, var(--green-body) 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
                     G-Green
                   </span>
-                  <span className="hidden sm:inline text-[10px] text-muted-foreground font-medium tracking-wide">ระบบประเมินผล</span>
+                  <span className="hidden sm:inline text-[0.625rem] text-muted-foreground font-medium tracking-wide">ระบบประเมินผล</span>
                 </div>
               </div>
             </div>
@@ -100,7 +100,7 @@ export function AppLayout() {
                   <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center ring-1 ring-primary/20 hover:ring-primary/50 hover:bg-primary/15 transition-all">
                     <User className="h-4 w-4 text-primary" />
                   </div>
-                  <span className="text-xs font-semibold text-foreground max-w-[120px] sm:max-w-[200px] truncate">
+                  <span className="text-xs font-semibold text-foreground whitespace-nowrap">
                     {me?.name || user?.name || user?.email || ""}
                   </span>
                 </div>
@@ -118,7 +118,7 @@ export function AppLayout() {
                         {me?.name || "-"}
                       </p>
                       {roleConfig && (
-                        <span className={`mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${roleConfig.color}`}>
+                        <span className={`mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.625rem] font-semibold border ${roleConfig.color}`}>
                           <ShieldCheck className="h-2.5 w-2.5" />
                           {roleConfig.label}
                         </span>
@@ -152,7 +152,7 @@ export function AppLayout() {
                       <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
                       <div className="flex flex-wrap gap-1">
                         {me.programAccess.map((p) => (
-                          <span key={p} className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground border">
+                          <span key={p} className="px-1.5 py-0.5 rounded text-[0.625rem] font-medium bg-muted text-muted-foreground border">
                             {p}
                           </span>
                         ))}
@@ -163,7 +163,7 @@ export function AppLayout() {
 
                 {/* Footer: ID */}
                 <div className="border-t px-4 py-2 bg-muted/30">
-                  <p className="text-[10px] text-muted-foreground font-mono truncate">ID: {me?.id || "-"}</p>
+                  <p className="text-[0.625rem] text-muted-foreground font-mono truncate">ID: {me?.id || "-"}</p>
                 </div>
               </HoverCardContent>
             </HoverCard>

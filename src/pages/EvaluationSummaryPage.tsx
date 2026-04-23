@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import apiClient from "@/lib/axios";
 import { ScoringLevelType } from "./SettingsScoringCriteria";
 import { ScoringLevel } from "./ProjectRegistration";
+import { findScoringLevelMatch } from "@/helpers/functions";
 
 interface YesNoStats {
   passCount: number;
@@ -31,6 +32,8 @@ interface EvaluationResult {
   userId: string;
   totalScore: number;
   totalMaxScore: number;
+  totalScoreSpecial: number | null;
+  totalMaxScoreSpecial: number | null;
   normalLevelId: number | null;
   specialLevelId: number | null;
   categoryResults: CategoryResult[];
@@ -76,7 +79,7 @@ const EvaluationSummaryPage = () => {
           const isYesNoProgram = data.totalScore === 0 && data.totalMaxScore === 0;
           const [evalRes, levelsRes] = await Promise.all([
             isYesNoProgram ? apiClient.get(`evaluation/${evaluationId}`) : Promise.resolve(null),
-            apiClient.get<{ id: number; name: string; minScore: number; maxScore: number; color: string; type: ScoringLevelType; programId: string | null }[]>("scoring-levels"),
+            apiClient.get<ScoringLevel[]>("scoring-levels"),
           ]);
           const programLevels = levelsRes.data.filter(
             (l) => l.programId === (data.programId ?? programId)
@@ -86,8 +89,8 @@ const EvaluationSummaryPage = () => {
             const scores: any[] = evalRes.data?.evaluationScores ?? [];
             const passCount = scores.filter(s => Number(s.committeeScore) === 1).length;
             const totalIndicators = scores.length;
-            const passPct = totalIndicators > 0 ? Math.round((passCount / totalIndicators) * 100) : 0;
-            const matched = programLevels.find(l => passPct >= l.minScore && passPct <= l.maxScore);
+            const passPct = totalIndicators > 0 ? (passCount === totalIndicators ? 100 : Math.floor((passCount / totalIndicators) * 100)) : 0;
+            const matched = findScoringLevelMatch(programLevels, ScoringLevelType.new, passPct, 0, true);
             setYesNoStats({
               passCount,
               totalIndicators,

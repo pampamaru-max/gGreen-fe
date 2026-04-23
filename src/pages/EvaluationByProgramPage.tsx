@@ -7,7 +7,7 @@ import { ScoreSummary } from "@/components/evaluation/ScoreSummary";
 import { AnimatedScore } from "@/components/ui/animated-score";
 import { ClipboardCheck, Loader2, ArrowLeft, RotateCcw, CheckCircle2, Clock, FileText, AlertCircle, XCircle, FilePlus, RefreshCw, TrendingUp, ChevronDown, Trophy, Medal, Award, Star } from "lucide-react";
 import { ScoringLevelBadges } from "@/components/self-eval/ScoringLevelBadges";
-import type { ScoringLevel } from "@/pages/ProjectRegistration";
+import type { EvalCategory, ScoringLevel } from "@/pages/ProjectRegistration";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -15,6 +15,8 @@ import apiClient from "@/lib/axios";
 import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
+import { ScoringLevelType } from "./SettingsScoringCriteria";
+import { findScoringLevelMatch, labelScoreType, queryArray } from "@/helpers/functions";
 
 const EVAL_TYPE_CONFIG: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
   new:     { label: "ประเมินใหม่",             icon: <FilePlus   className="h-3 w-3" />, className: "bg-blue-50 text-blue-700 border-blue-200"     },
@@ -23,12 +25,6 @@ const EVAL_TYPE_CONFIG: Record<string, { label: string; icon: React.ReactNode; c
 };
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = { Trophy, Medal, Award, Star };
-
-interface EvalCategory extends Category {
-  scoreType?: string;
-  upgradeMode?: string | null;
-  renewMode?: string | null;
-}
 
 const isNewType    = (t?: string) => !t || t === "score" || t === "yes_no" || t === "score_new" || t === "yes_no_new";
 const isUpgradType = (t?: string) => t === "score_upgrad" || t === "yes_no_upgrad" || t === "upgrade";
@@ -106,72 +102,69 @@ const EvaluationByProgramPage = () => {
               name: i.name,
               maxScore: i.maxScore,
               scoreType: c.scoreType || 'score',
-              description: i.description ?? "",
-              detail: i.detail ?? "",
-              notes: i.notes ?? "",
-              evidenceDescription: i.evidenceDescription ?? "",
-              scoringCriteria: Array.isArray(i.scoringCriteria) ? i.scoringCriteria : [],
+              description: i.description || i.description || "",
+              detail: i.detail || i.detail || "",
+              notes: i.notes || i.notes || "",
+              evidenceDescription: i.evidenceDescription || i.evidence_description || "",
+              scoringCriteria: Array.isArray(i.scoringCriteria) ? i.scoringCriteria : (Array.isArray(i.scoring_criteria) ? i.scoring_criteria : []),
+              isHeader: i.isHeader || i.is_header,
+              parentId: i.parentId || i.parent_id,
+              sortOrder: i.sortOrder || i.sort_order || 0,
             })),
           })),
         }));
         setCategories(cats);
 
-        // 2. Scoring levels + evaluation data (parallel)
-        const [levResult, evalResult] = await Promise.allSettled([
-          apiClient.get(`scoring-levels?programId=${programId}`),
-          apiClient.get(`evaluation/${evaluationIdParam}`),
-        ]);
+        // 2. Scoring levels + evaluation data
+        const { data: evalData } = await apiClient.get(`evaluation/${evaluationIdParam}`);
+        const { data: levData } = await apiClient.get(`scoring-levels?programId=${programId}&${queryArray('type', Array.from(new Set([evalData.evaluationType, ScoringLevelType.new])))}`).catch(() => ({ data: [] }));
 
-        if (levResult.status === "fulfilled") {
-          setScoringLevels((levResult.value.data ?? []).sort((a: ScoringLevel, b: ScoringLevel) => a.sortOrder - b.sortOrder));
-        }
+        setScoringLevels((levData ?? []));
 
-        if (evalResult.status === "fulfilled") {
-          const evalData = evalResult.value.data;
-          if (evalData?.userId) setEvaluateeId(evalData.userId);
-          if (evalData) {
-            setEvaluationId(evalData.id);
-            setEvaluationStatus(evalData.status);
-            if (evalData.evaluationType) setEvaluationType(evalData.evaluationType);
-            if (evalData.year) setYear(evalData.year);
-            if (evalData.self_max_score) setSelfMaxFromApi(Number(evalData.self_max_score));
-            if (evalData.committee_max_score) setCommitteeMaxFromApi(Number(evalData.committee_max_score));
+        if (evalData?.userId) setEvaluateeId(evalData.userId);
+        if (evalData) {
+          setEvaluationId(evalData.id);
+          setEvaluationStatus(evalData.status);
+          if (evalData.evaluationType) setEvaluationType(evalData.evaluationType);
+          if (evalData.year) setYear(evalData.year);
+          if (evalData.self_max_score) setSelfMaxFromApi(Number(evalData.self_max_score));
+          if (evalData.committee_max_score) setCommitteeMaxFromApi(Number(evalData.committee_max_score));
 
-            const loaded: Record<string, number> = {};
-            const loadedDetails: Record<string, string> = {};
-            const loadedCommittee: Record<string, number> = {};
-            const loadedComments: Record<string, string> = {};
-            const loadedFiles: Record<string, any[]> = {};
+          const loaded: Record<string, number> = {};
+          const loadedDetails: Record<string, string> = {};
+          const loadedCommittee: Record<string, number> = {};
+          const loadedComments: Record<string, string> = {};
+          const loadedFiles: Record<string, any[]> = {};
 
-            (evalData.evaluationScores ?? []).forEach((s: any) => {
-              loaded[s.indicatorId] = Number(s.score);
-              if (s.notes) loadedDetails[s.indicatorId] = s.notes;
-              if (s.committeeScore !== null && s.committeeScore !== undefined) loadedCommittee[s.indicatorId] = Number(s.committeeScore);
-              if (s.evidenceUrl) loadedComments[s.indicatorId] = s.evidenceUrl;
-              if (Array.isArray(s.fileUrls) && s.fileUrls.length > 0) loadedFiles[s.indicatorId] = s.fileUrls;
-            });
+          (evalData.evaluationScores ?? []).forEach((s: any) => {
+            loaded[s.indicatorId] = Number(s.score);
+            if (s.notes) loadedDetails[s.indicatorId] = s.notes;
+            if (s.committeeScore !== null && s.committeeScore !== undefined) loadedCommittee[s.indicatorId] = Number(s.committeeScore);
+            if (s.evidenceUrl) loadedComments[s.indicatorId] = s.evidenceUrl;
+            if (Array.isArray(s.fileUrls) && s.fileUrls.length > 0) loadedFiles[s.indicatorId] = s.fileUrls;
+          });
 
-            setScores(loaded);
-            setImplementationDetails(loadedDetails);
-            setCommitteeScores(loadedCommittee);
-            setCommitteeComments(loadedComments);
-            setUploadedFiles(loadedFiles);
+          setScores(loaded);
+          setImplementationDetails(loadedDetails);
+          setCommitteeScores(loadedCommittee);
+          setCommitteeComments(loadedComments);
+          setUploadedFiles(loadedFiles);
 
-            // โหลด notification จากผู้ถูกประเมิน (สำหรับกรรมการ)
-            if (role !== "user" && evalData.id) {
-              try {
-                const { data: notifs } = await apiClient.get(
-                  `evaluation/${evalData.id}/notifications?direction=evaluatee_to_committee`
-                );
-                const notifMap = new Map<string, { prevScore: number | null; newScore: number | null }>();
-                (notifs as { indicatorId: string; isRead: boolean; evaluateeScore: number | null; prevEvaluateeScore: number | null }[])
-                  .filter((n) => !n.isRead)
-                  .forEach((n) => notifMap.set(n.indicatorId, { prevScore: n.prevEvaluateeScore, newScore: n.evaluateeScore }));
-                setNewEvaluateeIndicatorIds(notifMap);
-              } catch { /* ไม่มี notification */ }
-            }
+          // โหลด notification จากผู้ถูกประเมิน (สำหรับกรรมการ)
+          if (role !== "user" && evalData.id) {
+            try {
+              const { data: notifs } = await apiClient.get(
+                `evaluation/${evalData.id}/notifications?direction=evaluatee_to_committee`
+              );
+              const notifMap = new Map<string, { prevScore: number | null; newScore: number | null }>();
+              (notifs as { indicatorId: string; isRead: boolean; evaluateeScore: number | null; prevEvaluateeScore: number | null }[])
+                .filter((n) => !n.isRead)
+                .forEach((n) => notifMap.set(n.indicatorId, { prevScore: n.prevEvaluateeScore, newScore: n.evaluateeScore }));
+              setNewEvaluateeIndicatorIds(notifMap);
+            } catch { /* ไม่มี notification */ }
           }
         }
+        
       } catch (err) {
         console.error("fetchData error:", err);
         toast.error("โหลดข้อมูลไม่สำเร็จ");
@@ -298,9 +291,9 @@ const EvaluationByProgramPage = () => {
     });
   }, [committeeScores, visibleCategories]);
 
-  const grandSelfTotal = summaryData.reduce((s, c) => s + c.score, 0);
-  const grandCommitteeTotal = committeeSummaryData?.reduce((s, c) => s + c.score, 0) ?? 0;
-  const grandMax = summaryData.reduce((s, c) => s + c.totalPossible, 0);
+  const grandSelfTotal = summaryData.reduce((s, c) => c.scoreType === 'score_new' ? (s + c.score) : s, 0);
+  const grandCommitteeTotal = committeeSummaryData?.reduce((s, c) => c.scoreType === 'score_new' ? (s + c.score) : s, 0) ?? 0;
+  const grandMax = summaryData.reduce((s, c) => c.scoreType === 'score_new' ? (s + c.totalPossible) : s, 0);
 
   // yes/no totals — used when grandMax === 0
   const grandSelfPassCount       = summaryData.reduce((s, c: any) => s + (c.passCount ?? 0), 0);
@@ -315,23 +308,38 @@ const EvaluationByProgramPage = () => {
   const displaySelfMax           = isYesNoProgram ? grandSelfPassTotal      : (selfMaxFromApi ?? displayMax);
   const displayCommitteeMax      = isYesNoProgram ? grandSelfPassTotal      : (committeeMaxFromApi ?? displayMax);
 
-  const displayCommitteePct      = displayCommitteeMax > 0 ? Math.round((displayCommitteeTotal / displayCommitteeMax) * 100) : 0;
-  const displayUnit               = isYesNoProgram ? "ผ่าน" : "";
+  const displayCommitteePct      = displayCommitteeMax > 0 
+    ? (isYesNoProgram 
+        ? (displayCommitteeTotal === displayCommitteeMax ? 100 : Math.floor((displayCommitteeTotal / displayCommitteeMax) * 100))
+        : Math.round((displayCommitteeTotal / displayCommitteeMax) * 100)) 
+    : 0;
+  const displayUnit              = isYesNoProgram ? "ผ่าน" : "";
+
+  const grandSelfTotalSp = summaryData.reduce((s, c) => c.scoreType !== 'score_new' ? (s + c.score) : s, 0);
+  const grandCommitteeTotalSp    = committeeSummaryData?.reduce((s, c) => c.scoreType !== 'score_new' ? (s + c.totalPossible) : s, 0) ?? 0;
+  const grandMaxSP = summaryData.reduce((s, c) => c.scoreType !== 'score_new' ? (s + c.totalPossible) : s, 0);
+
+  const displayCommitteePctSp    = grandMaxSP > 0 ? Math.round((grandCommitteeTotalSp / grandMaxSP) * 100) : 0;
 
   const selfPct = useMemo(() => {
     if (displaySelfMax === 0) return 0;
+    if (isYesNoProgram) return displaySelfTotal === displaySelfMax ? 100 : Math.floor((displaySelfTotal / displaySelfMax) * 100);
     return Math.round((displaySelfTotal / displaySelfMax) * 100);
-  }, [displaySelfTotal, displaySelfMax]);
+  }, [displaySelfTotal, displaySelfMax, isYesNoProgram]);
+
+  const selfPctSp = useMemo(() => {
+    if (grandMaxSP === 0) return 0;
+    return Math.round((grandSelfTotalSp / grandMaxSP) * 100);
+  }, [grandSelfTotalSp, grandMaxSP]);
 
   const activeLevel = useMemo(() => {
-    if (scoringLevels.length === 0) return null;
-    return [...scoringLevels].reverse().find(l => selfPct >= l.minScore && selfPct <= l.maxScore);
-  }, [scoringLevels, selfPct]);
+    return findScoringLevelMatch(null, scoringLevels, evaluationType || ScoringLevelType.new, selfPct, selfPctSp, isYesNoProgram);
+  }, [scoringLevels, evaluationType, selfPct, selfPctSp, isYesNoProgram]);
 
   const committeeActiveLevel = useMemo(() => {
-    if (scoringLevels.length === 0 || role === "user") return null;
-    return [...scoringLevels].reverse().find(l => displayCommitteePct >= l.minScore && displayCommitteePct <= l.maxScore);
-  }, [scoringLevels, displayCommitteePct, role]);
+    if (role === "user") return null;
+    return findScoringLevelMatch(null, scoringLevels, evaluationType || ScoringLevelType.new, displayCommitteePct, displayCommitteePctSp, isYesNoProgram);
+  }, [scoringLevels, evaluationType, displayCommitteePct, displayCommitteePctSp, isYesNoProgram, role]);
 
   // ── Wizard ──────────────────────────────────────────────────────────────────
   const flatIndicators = useMemo(() => {
@@ -339,7 +347,10 @@ const EvaluationByProgramPage = () => {
     visibleCategories.forEach((cat, catIdx) => {
       cat.topics.forEach((topic) => {
         topic.indicators.forEach((indicator) => {
-          items.push({ indicator, colorIndex: catIdx });
+          const hasChildren = topic.indicators.some(i => i.parentId === indicator.id);
+          if (!indicator.isHeader && !hasChildren) {
+            items.push({ indicator, colorIndex: catIdx });
+          }
         });
       });
     });
@@ -472,7 +483,7 @@ const EvaluationByProgramPage = () => {
             ts + t.indicators.reduce((is, i) => is + ((committeeScores[i.id] ?? -1) === 1 ? 1 : 0), 0), 0), 0);
         const passPct = totalIndicators > 0 ? Math.round((passCount / totalIndicators) * 100) : 0;
         const matchedLevel = programLevels.find(l => passPct >= l.minScore && passPct <= l.maxScore);
-        await apiClient.post(`evaluation/${targetId}/calculate-yesno`, {
+        await apiClient.post(`evaluation/${targetId}/calculate`, {
           passCount,
           totalIndicators,
           passPct,
@@ -564,13 +575,34 @@ const EvaluationByProgramPage = () => {
                 <>
                   <div className="flex flex-col items-end">
                     <p className="text-[0.5625rem] font-semibold text-muted-foreground uppercase tracking-wider">ตนเอง</p>
-                    <p className="text-base font-bold text-muted-foreground leading-tight">
-                      <AnimatedScore value={displaySelfTotal}>
-                        {displaySelfTotal}{displayUnit && <span className="text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}
-                      </AnimatedScore>
-                      <span className="text-xs font-normal text-muted-foreground">/{displaySelfMax}</span>
-                    </p>
-                    {displaySelfMax > 0 && <p className="text-[0.5625rem] text-muted-foreground">{selfPct}%</p>}
+                    <div className="flex flex-col w-full">
+                      <p className="flex w-full justify-between items-center text-base font-bold text-primary leading-tight">
+                        {evaluationType !== ScoringLevelType.new && scoringLevels.some((sl) => sl.type === evaluationType) ?
+                          <span className="mr-2 text-start text-xs font-normal text-amber-700">{labelScoreType(visibleCategories, ScoringLevelType.new)}</span> : <span></span>
+                        }
+                        <span>
+                          <AnimatedScore value={displaySelfTotal}>
+                            {displaySelfTotal}{displayUnit && <span className="text-end text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}
+                          </AnimatedScore>
+                          <span className="text-end text-xs font-normal text-muted-foreground">/{displaySelfMax}</span>
+                        </span>
+                      </p>
+                      {displaySelfMax > 0 && <p className="text-end text-[0.5625rem] text-muted-foreground">{selfPct}%</p>}
+                    </div>
+                    {evaluationType !== ScoringLevelType.new && scoringLevels.some((sl) => sl.type === evaluationType) &&
+                      <div className="flex flex-col w-full">
+                        <p className="flex w-full justify-between items-center text-base font-bold text-primary leading-tight">
+                          <span className="mr-2 text-start text-xs font-normal text-amber-700">{labelScoreType(visibleCategories, evaluationType)}</span>
+                          <span>
+                            <AnimatedScore value={grandSelfTotalSp}>
+                              {grandSelfTotalSp}{displayUnit && <span className="text-end text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}
+                            </AnimatedScore>
+                            <span className="text-end text-xs font-normal text-muted-foreground">/{grandMaxSP}</span>
+                          </span>
+                        </p>
+                        {grandMaxSP > 0 && <p className="text-end text-[0.5625rem] text-muted-foreground">{selfPctSp}%</p>}
+                      </div>
+                    }
                     
                     {activeLevel && (
                       <div className="mt-1">

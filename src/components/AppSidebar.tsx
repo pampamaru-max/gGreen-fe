@@ -1,4 +1,4 @@
-import { ClipboardCheck, Settings, FolderTree, ListChecks, FolderKanban, Award, FileText, LogOut, User, FileBarChart, Users, ShieldCheck, FileArchive, Shield, Clock, ALargeSmall, Sun, Moon } from "lucide-react";
+import { ClipboardCheck, Settings, FolderTree, ListChecks, FolderKanban, Award, FileText, LogOut, FileBarChart, FileArchive, Shield, Clock, ALargeSmall, Sun, Moon, Leaf } from "lucide-react";
 import { FONT_SIZE_MIN, FONT_SIZE_MAX } from "@/lib/fontsize";
 import { useTheme } from "@/contexts/ThemeContext";
 import { NavLink } from "@/components/NavLink";
@@ -9,7 +9,6 @@ import { useState } from "react";
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -27,11 +26,6 @@ import {
   CollapsibleTrigger } from
 "@/components/ui/collapsible";
 import { ChevronRight } from "lucide-react";
-
-const reportSubItems = [
-  { title: "รายชื่อผู้เข้าร่วมโครงการ", url: "/reports/participants", icon: Users },
-  { title: "รายชื่อผู้ได้รับสัญลักษณ์ All Green", url: "/reports/all-green", icon: ShieldCheck },
-];
 
 const settingsSubItems = [
   { title: "จัดการโครงการ", url: "/settings/programs", icon: FolderKanban },
@@ -56,13 +50,12 @@ export function AppSidebar({ fontSize, setFontSize }: AppSidebarProps) {
   const location = useLocation();
   const currentPath = location.pathname;
   const navigate = useNavigate();
-  const { signOut, user } = useAuth();
-  const { isAdmin, role, loading: roleLoading } = useUserRole();
+  const { signOut } = useAuth();
+  const { isAdmin, role } = useUserRole();
   // evaluatee ใช้ /register เป็น home, role อื่นใช้ /evaluation
   const evaluationHome = role === "user" ? "/register" : "/evaluation";
 
   const isSettingsActive = currentPath.startsWith("/settings");
-  const isReportsActive = currentPath.startsWith("/reports");
 
   const [settingsOpen, setSettingsOpen] = useState(isSettingsActive);
   return (
@@ -74,6 +67,16 @@ export function AppSidebar({ fontSize, setFontSize }: AppSidebarProps) {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
+
+              {/* ข้อมูลการใช้ทรัพยากร */}
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <NavLink to="/resource-usage" className="hover:bg-muted/50" activeClassName="bg-muted text-primary font-medium">
+                    <Leaf className="mr-2 h-4 w-4" />
+                    {!collapsed && <span>ข้อมูลการใช้ทรัพยากร</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
 
               {/* ประเมิน G-Green */}
               <SidebarMenuItem>
@@ -179,7 +182,7 @@ export function AppSidebar({ fontSize, setFontSize }: AppSidebarProps) {
                     <p className="text-xs font-semibold leading-none mb-0.5">
                       {isDark ? "กลางคืน" : "กลางวัน"}
                     </p>
-                    <p className="text-[10px] text-muted-foreground leading-none">
+                    <p className="text-[0.625rem] text-muted-foreground leading-none">
                       {isDark ? "แตะเพื่อสลับเป็นกลางวัน" : "แตะเพื่อสลับเป็นกลางคืน"}
                     </p>
                   </div>
@@ -227,7 +230,7 @@ export function AppSidebar({ fontSize, setFontSize }: AppSidebarProps) {
                   {/* แสดงค่าปัจจุบัน */}
                   <div className="flex-1 flex flex-col items-center">
                     <span className="text-sm font-bold text-primary leading-none">{fontSize}px</span>
-                    <span className="text-[9px] text-muted-foreground mt-0.5">
+                    <span className="text-[0.5625rem] text-muted-foreground mt-0.5">
                       {fontSize <= 14 ? "เล็กสุด" : fontSize <= 16 ? "ปกติ" : fontSize <= 20 ? "ใหญ่" : fontSize <= 26 ? "ใหญ่มาก" : "ใหญ่สุด"}
                     </span>
                   </div>
@@ -261,7 +264,7 @@ export function AppSidebar({ fontSize, setFontSize }: AppSidebarProps) {
                 {/* Reset */}
                 <button
                   onClick={() => setFontSize(16)}
-                  className="mt-2 w-full text-[10px] text-muted-foreground hover:text-primary transition-colors text-center"
+                  className="mt-2 w-full text-[0.625rem] text-muted-foreground hover:text-primary transition-colors text-center"
                 >
                   รีเซ็ต (16px)
                 </button>
@@ -269,33 +272,61 @@ export function AppSidebar({ fontSize, setFontSize }: AppSidebarProps) {
             )}
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Logout button */}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={async () => { await signOut(); navigate("/"); }}
+                  className="hover:bg-destructive/10 hover:text-destructive"
+                  style={{ color: "var(--green-heading)" }}
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  {!collapsed && <span>ออกจากระบบ</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
-        <SidebarMenu>
-          {!collapsed && (
-            <SidebarMenuItem>
-              <div className="flex items-center gap-2 px-2 py-1.5">
-                <div className="h-7 w-7 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(58,125,44,0.15)" }}>
-                  <User className="h-3.5 w-3.5" style={{ color: "#3a7d2c" }} />
-                </div>
-                <span className="text-xs font-bold truncate" style={{ color: "var(--green-heading)" }}>
-                  {user?.name || user?.email || ""}
-                </span>
-              </div>
-            </SidebarMenuItem>
-          )}
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              onClick={async () => { await signOut(); navigate("/"); }}
-              className="hover:bg-destructive/10 hover:text-destructive"
-              style={{ color: "var(--green-heading)" }}
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              {!collapsed && <span>ออกจากระบบ</span>}
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
+
+      {/* Flower decoration */}
+      {!collapsed && !isDark && (
+        <img
+          src="/flower-decoration.png"
+          alt=""
+          className="absolute -bottom-8 -left-8 pointer-events-none select-none z-0"
+          style={{ width: 240, height: "auto", display: "block", opacity: 0.92 }}
+          draggable={false}
+        />
+      )}
+      {!collapsed && !isDark && (
+        <>
+          <img
+            src="/butterfly.gif"
+            alt=""
+            className="absolute bottom-[200px] left-[60px] pointer-events-none select-none z-10"
+            style={{ width: 50, height: "auto" }}
+            draggable={false}
+          />
+          <img
+            src="/butterfly.gif"
+            alt=""
+            className="absolute bottom-[160px] left-[130px] pointer-events-none select-none z-10"
+            style={{ width: 35, height: "auto", opacity: 0.8, transform: "scaleX(-1)" }}
+            draggable={false}
+          />
+          <img
+            src="/butterfly.gif"
+            alt=""
+            className="absolute bottom-[260px] left-[100px] pointer-events-none select-none z-10"
+            style={{ width: 45, height: "auto", opacity: 0.9, transform: "scaleX(-1)" }}
+            draggable={false}
+          />
+        </>
+      )}
     </Sidebar>);
 
 }

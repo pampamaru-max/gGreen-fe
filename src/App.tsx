@@ -33,6 +33,8 @@ const SettingsUsers = lazy(() => import("@/pages/SettingsUsers"));
 const SettingsProjectDuration = lazy(() => import("@/pages/SettingsProjectDuration"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 const LoadingPreviewPage = lazy(() => import("@/pages/LoadingPreviewPage"));
+const ResourceUsagePage = lazy(() => import("@/pages/ResourceUsagePage"));
+const ResourceUsageFormPage = lazy(() => import("@/pages/ResourceUsageFormPage"));
 
 const queryClient = new QueryClient();
 
@@ -73,6 +75,8 @@ const App = () => (
                 <Route path="/settings/users" element={<SettingsUsers />} />
                 <Route path="/settings/project-duration" element={<SettingsProjectDuration />} />
                 <Route path="/registration-management" element={<RegistrationManagement />} />
+                <Route path="/resource-usage" element={<ResourceUsagePage />} />
+                <Route path="/resource-usage/:id" element={<ResourceUsageFormPage />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />
