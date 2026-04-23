@@ -1,4 +1,4 @@
-import { ClipboardCheck, Settings, FolderTree, ListChecks, FolderKanban, Award, FileText, LogOut, User, FileBarChart, Users, ShieldCheck, FileArchive, Shield, Clock, ALargeSmall, Sun, Moon, Leaf } from "lucide-react";
+import { ClipboardCheck, Settings, FolderTree, ListChecks, FolderKanban, Award, FileText, LogOut, FileBarChart, FileArchive, Shield, Clock, ALargeSmall, Sun, Moon, Leaf } from "lucide-react";
 import { FONT_SIZE_MIN, FONT_SIZE_MAX } from "@/lib/fontsize";
 import { useTheme } from "@/contexts/ThemeContext";
 import { NavLink } from "@/components/NavLink";
@@ -9,7 +9,6 @@ import { useState } from "react";
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -27,11 +26,6 @@ import {
   CollapsibleTrigger } from
 "@/components/ui/collapsible";
 import { ChevronRight } from "lucide-react";
-
-const reportSubItems = [
-  { title: "รายชื่อผู้เข้าร่วมโครงการ", url: "/reports/participants", icon: Users },
-  { title: "รายชื่อผู้ได้รับสัญลักษณ์ All Green", url: "/reports/all-green", icon: ShieldCheck },
-];
 
 const settingsSubItems = [
   { title: "จัดการโครงการ", url: "/settings/programs", icon: FolderKanban },
@@ -56,13 +50,12 @@ export function AppSidebar({ fontSize, setFontSize }: AppSidebarProps) {
   const location = useLocation();
   const currentPath = location.pathname;
   const navigate = useNavigate();
-  const { signOut, user } = useAuth();
-  const { isAdmin, role, loading: roleLoading } = useUserRole();
+  const { signOut } = useAuth();
+  const { isAdmin, role } = useUserRole();
   // evaluatee ใช้ /register เป็น home, role อื่นใช้ /evaluation
   const evaluationHome = role === "user" ? "/register" : "/evaluation";
 
   const isSettingsActive = currentPath.startsWith("/settings");
-  const isReportsActive = currentPath.startsWith("/reports");
 
   const [settingsOpen, setSettingsOpen] = useState(isSettingsActive);
   return (
@@ -281,33 +274,36 @@ export function AppSidebar({ fontSize, setFontSize }: AppSidebarProps) {
             )}
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Logout button */}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={async () => { await signOut(); navigate("/"); }}
+                  className="hover:bg-destructive/10 hover:text-destructive"
+                  style={{ color: "var(--green-heading)" }}
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  {!collapsed && <span>ออกจากระบบ</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
-        <SidebarMenu>
-          {!collapsed && (
-            <SidebarMenuItem>
-              <div className="flex items-center gap-2 px-2 py-1.5">
-                <div className="h-7 w-7 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(58,125,44,0.15)" }}>
-                  <User className="h-3.5 w-3.5" style={{ color: "#3a7d2c" }} />
-                </div>
-                <span className="text-xs font-bold truncate" style={{ color: "var(--green-heading)" }}>
-                  {user?.name || user?.email || ""}
-                </span>
-              </div>
-            </SidebarMenuItem>
-          )}
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              onClick={async () => { await signOut(); navigate("/"); }}
-              className="hover:bg-destructive/10 hover:text-destructive"
-              style={{ color: "var(--green-heading)" }}
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              {!collapsed && <span>ออกจากระบบ</span>}
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
+
+      {/* Flower decoration */}
+      {!collapsed && (
+        <img
+          src="/flower-decoration.png"
+          alt=""
+          className="absolute -bottom-2 -left-3 pointer-events-none select-none z-0"
+          style={{ width: 170, height: "auto", display: "block", opacity: 0.92 }}
+          draggable={false}
+        />
+      )}
     </Sidebar>);
 
 }
