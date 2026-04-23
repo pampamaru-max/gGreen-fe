@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import apiClient from "@/lib/axios";
+import { toast } from "sonner";
 
 // TODO: ใช้ interface นี้เมื่อเปิด eligibility check กลับมา
 interface Eligibility {
@@ -28,11 +30,17 @@ interface Eligibility {
   scoringLevelName?: string | null;
 }
 
+interface ResourceUsageRecord {
+  id: string;
+  year: number;
+}
+
 interface EvaluationTypeDialogProps {
   open: boolean;
   onClose: () => void;
   programId: string;
   usedYears?: number[];
+  resourceUsageRecords?: ResourceUsageRecord[];
 }
 
 interface TypeOption {
@@ -60,7 +68,11 @@ interface YearPickerStepProps {
   setSelectedYear: (y: number | null) => void;
   usedYears: number[];
   selectedType: TypeOption["key"] | null;
+  resourceUsageRecord: ResourceUsageRecord | undefined;
+  creatingResourceUsage: boolean;
   onConfirm: () => void;
+  onCancel: () => void;
+  onGoToResourceUsage: () => void;
 }
 
 function YearPickerStep({
@@ -70,8 +82,14 @@ function YearPickerStep({
   setSelectedYear,
   usedYears,
   selectedType,
+  resourceUsageRecord,
+  creatingResourceUsage,
   onConfirm,
+  onCancel,
+  onGoToResourceUsage,
 }: YearPickerStepProps) {
+  const hasResourceData = !!resourceUsageRecord;
+
   return (
     <div className="flex flex-col gap-3 py-2">
       <p className="text-sm text-slate-500 dark:text-slate-400">
@@ -121,9 +139,46 @@ function YearPickerStep({
           </SelectContent>
         </Select>
 
-        <Button disabled={!selectedYear} onClick={onConfirm}>
-          ยืนยัน
-        </Button>
+        {selectedYear && !hasResourceData && (
+          <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800/40 px-3 py-2.5">
+            <AlertCircle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0 text-xs text-amber-700 dark:text-amber-400 leading-relaxed whitespace-normal">
+              <span className="font-bold block mb-1">
+                ยังไม่มีข้อมูลทรัพยากรของปี พ.ศ. {selectedYear + 543}
+              </span>
+              กรุณาบันทึก{" "}
+              <span className="font-bold">ส่วนที่ 1 ข้อมูลพื้นฐาน</span>{" "}
+              ที่หน้า{" "}
+              <span className="font-bold">บันทึกข้อมูลทรัพยากร</span>{" "}
+              ก่อน
+              <div className="mt-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={onGoToResourceUsage}
+                  disabled={creatingResourceUsage}
+                  className="h-7 text-xs border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-950/30 dark:border-amber-700 dark:text-amber-300"
+                >
+                  {creatingResourceUsage && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
+                  ไปบันทึกข้อมูลทรัพยากร
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-2 mt-1">
+          <Button variant="outline" className="flex-1" onClick={onCancel}>
+            ยกเลิก
+          </Button>
+          <Button
+            className="flex-1"
+            disabled={!selectedYear || !hasResourceData}
+            onClick={onConfirm}
+          >
+            ยืนยัน
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -135,23 +190,46 @@ export default function EvaluationTypeDialog({
   onClose,
   programId,
   usedYears = [],
+  resourceUsageRecords = [],
 }: EvaluationTypeDialogProps) {
   const navigate = useNavigate();
-  // TODO: ใช้ eligibility เพื่อควบคุมสิทธิ์การเลือกประเภทการประเมินในอนาคต
-  // const [eligibility, setEligibility] = useState<Eligibility | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
   const [step, setStep] = useState<"type" | "year">("type");
   const [selectedType, setSelectedType] = useState<TypeOption["key"] | null>(null);
+  const [creatingResourceUsage, setCreatingResourceUsage] = useState(false);
   const currentYear = new Date().getFullYear();
   const years = useMemo(() => {
     const list = [];
-    // แสดงปีปัจจุบันและย้อนหลัง 15 ปี
     for (let i = 0; i <= 15; i++) {
       list.push(currentYear - i);
     }
     return list;
   }, [currentYear]);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
+
+  const resourceUsageRecord = useMemo(
+    () => resourceUsageRecords.find((r) => r.year === selectedYear),
+    [resourceUsageRecords, selectedYear],
+  );
+
+  const handleGoToResourceUsage = async () => {
+    if (!selectedYear) return;
+    if (resourceUsageRecord) {
+      onClose();
+      navigate(`/resource-usage/${resourceUsageRecord.id}`);
+      return;
+    }
+    try {
+      setCreatingResourceUsage(true);
+      const { data } = await apiClient.post("resource-usage", { year: selectedYear });
+      onClose();
+      navigate(`/resource-usage/${data.id}`);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? "ไม่สามารถสร้างข้อมูลได้");
+    } finally {
+      setCreatingResourceUsage(false);
+    }
+  };
 
   useEffect(() => {
     if (!open) {
@@ -317,10 +395,14 @@ export default function EvaluationTypeDialog({
             setSelectedYear={setSelectedYear}
             usedYears={usedYears}
             selectedType={selectedType}
+            resourceUsageRecord={resourceUsageRecord}
+            creatingResourceUsage={creatingResourceUsage}
             onConfirm={() => {
               onClose();
               navigate(`/register/evaluate?type=${selectedType}&year=${selectedYear}`);
             }}
+            onCancel={onClose}
+            onGoToResourceUsage={handleGoToResourceUsage}
           />
         )}
       </DialogContent>
