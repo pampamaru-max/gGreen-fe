@@ -132,7 +132,7 @@ export default function ResourceUsagePage() {
           {isEvaluatee && (
             <div className="flex items-center gap-2 shrink-0">
               <Select value={createYear} onValueChange={setCreateYear}>
-                <SelectTrigger className="h-8 text-xs w-[90px]">
+                <SelectTrigger className="h-8 text-xs w-[110px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

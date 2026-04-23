@@ -75,16 +75,6 @@ export function AppSidebar({ fontSize, setFontSize }: AppSidebarProps) {
           <SidebarGroupContent>
             <SidebarMenu>
 
-              {/* ประเมิน G-Green */}
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <NavLink to={evaluationHome} className="hover:bg-muted/50" activeClassName="bg-muted text-primary font-medium">
-                    <ClipboardCheck className="mr-2 h-4 w-4" />
-                    {!collapsed && <span>ประเมิน G-Green</span>}
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
               {/* ข้อมูลการใช้ทรัพยากร - evaluatee and evaluator only */}
               {!isAdmin && (
                 <SidebarMenuItem>
@@ -96,6 +86,16 @@ export function AppSidebar({ fontSize, setFontSize }: AppSidebarProps) {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
+
+              {/* ประเมิน G-Green */}
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <NavLink to={evaluationHome} className="hover:bg-muted/50" activeClassName="bg-muted text-primary font-medium">
+                    <ClipboardCheck className="mr-2 h-4 w-4" />
+                    {!collapsed && <span>ประเมิน G-Green</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
 
               {/* ข้อมูลการจัดการการสมัคร - admin only */}
               {isAdmin && (
@@ -191,7 +191,7 @@ export function AppSidebar({ fontSize, setFontSize }: AppSidebarProps) {
                     <p className="text-xs font-semibold leading-none mb-0.5">
                       {isDark ? "กลางคืน" : "กลางวัน"}
                     </p>
-                    <p className="text-[10px] text-muted-foreground leading-none">
+                    <p className="text-[0.625rem] text-muted-foreground leading-none">
                       {isDark ? "แตะเพื่อสลับเป็นกลางวัน" : "แตะเพื่อสลับเป็นกลางคืน"}
                     </p>
                   </div>
@@ -239,7 +239,7 @@ export function AppSidebar({ fontSize, setFontSize }: AppSidebarProps) {
                   {/* แสดงค่าปัจจุบัน */}
                   <div className="flex-1 flex flex-col items-center">
                     <span className="text-sm font-bold text-primary leading-none">{fontSize}px</span>
-                    <span className="text-[9px] text-muted-foreground mt-0.5">
+                    <span className="text-[0.5625rem] text-muted-foreground mt-0.5">
                       {fontSize <= 14 ? "เล็กสุด" : fontSize <= 16 ? "ปกติ" : fontSize <= 20 ? "ใหญ่" : fontSize <= 26 ? "ใหญ่มาก" : "ใหญ่สุด"}
                     </span>
                   </div>
@@ -273,7 +273,7 @@ export function AppSidebar({ fontSize, setFontSize }: AppSidebarProps) {
                 {/* Reset */}
                 <button
                   onClick={() => setFontSize(16)}
-                  className="mt-2 w-full text-[10px] text-muted-foreground hover:text-primary transition-colors text-center"
+                  className="mt-2 w-full text-[0.625rem] text-muted-foreground hover:text-primary transition-colors text-center"
                 >
                   รีเซ็ต (16px)
                 </button>

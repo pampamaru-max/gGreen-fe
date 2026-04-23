@@ -16,8 +16,11 @@ import apiClient from "@/lib/axios";
 import { toast } from "sonner";
 import {
   ArrowLeft, Download, Trash2, CheckCircle2, Loader2, Dices,
-  Building2, Users2, Check, TrendingUp
+  Building2, Users2, Check, TrendingUp, Copy,
 } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
 import * as XLSX from "xlsx";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -103,6 +106,13 @@ export default function ResourceUsageFormPage() {
 
   const [activeTab, setActiveTab] = useState("general");
   const [chartView, setChartView] = useState<"trend" | "proportion">("trend");
+
+  // Copy section 1 from another year
+  const [copyDialogOpen, setCopyDialogOpen] = useState(false);
+  const [copyRecords, setCopyRecords] = useState<{ id: string; year: number }[]>([]);
+  const [copySelectedId, setCopySelectedId] = useState<string>("");
+  const [loadingCopyList, setLoadingCopyList] = useState(false);
+  const [copyingData, setCopyingData] = useState(false);
 
   const staffTotal = staffPermanent + staffTemp + staffContract;
   const officeTotal = officeBuilding + officeOutdoor;
@@ -399,6 +409,42 @@ export default function ResourceUsageFormPage() {
     toast.success("กรอกข้อมูลสุ่มเรียบร้อย");
   };
 
+  // Copy section 1 from another year
+  const openCopyDialog = async () => {
+    setLoadingCopyList(true);
+    setCopyDialogOpen(true);
+    try {
+      const { data } = await apiClient.get("resource-usage");
+      const others = (data ?? []).filter((r: any) => r.id !== id);
+      const sorted = others.sort((a: any, b: any) => b.year - a.year);
+      setCopyRecords(sorted.map((r: any) => ({ id: r.id, year: r.year })));
+      setCopySelectedId(sorted.length > 0 ? sorted[0].id : "");
+    } catch {
+      toast.error("โหลดรายการไม่สำเร็จ");
+    } finally {
+      setLoadingCopyList(false);
+    }
+  };
+
+  const handleCopySection1 = async () => {
+    if (!copySelectedId) return;
+    setCopyingData(true);
+    try {
+      const { data } = await apiClient.get(`resource-usage/${copySelectedId}`);
+      setOfficeBuilding(Number(data.officeAreaBuilding ?? 0));
+      setOfficeOutdoor(Number(data.officeAreaOutdoor ?? 0));
+      setStaffPermanent(data.staffPermanent ?? 0);
+      setStaffTemp(data.staffTemp ?? 0);
+      setStaffContract(data.staffContract ?? 0);
+      setCopyDialogOpen(false);
+      toast.success("คัดลอกข้อมูลพื้นฐานเรียบร้อย");
+    } catch {
+      toast.error("คัดลอกข้อมูลไม่สำเร็จ");
+    } finally {
+      setCopyingData(false);
+    }
+  };
+
   // Delete all data
   const handleDeleteAll = async () => {
     if (!id) return;
@@ -509,15 +555,15 @@ export default function ResourceUsageFormPage() {
           </h2>
           <div className="flex items-center gap-2 mt-0.5">
             {saving ? (
-              <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+              <span className="text-[0.625rem] text-muted-foreground flex items-center gap-1">
                 <Loader2 className="h-2.5 w-2.5 animate-spin" />กำลังบันทึก...
               </span>
             ) : savedAt ? (
-              <span className="text-[10px] text-emerald-600 flex items-center gap-1">
+              <span className="text-[0.625rem] text-emerald-600 flex items-center gap-1">
                 <CheckCircle2 className="h-2.5 w-2.5" />บันทึกอัตโนมัติ {savedAt.toLocaleTimeString('th-TH')}
               </span>
             ) : (
-              <span className="text-[10px] text-muted-foreground">กรอกข้อมูลแล้วระบบจะบันทึกอัตโนมัติ</span>
+              <span className="text-[0.625rem] text-muted-foreground">กรอกข้อมูลแล้วระบบจะบันทึกอัตโนมัติ</span>
             )}
           </div>
         </div>
@@ -557,12 +603,12 @@ export default function ResourceUsageFormPage() {
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[0.625rem] font-bold ${
                     isActive ? "bg-[#16a34a] text-white" : "bg-muted text-muted-foreground"
                   }`}>
                     {idx + 1}
                   </div>
-                  <span className={`text-[10px] font-medium ${isActive ? "text-[#16a34a]" : "text-muted-foreground"}`}>
+                  <span className={`text-[0.625rem] font-medium ${isActive ? "text-[#16a34a]" : "text-muted-foreground"}`}>
                     {step.label}
                   </span>
                 </div>
@@ -585,6 +631,19 @@ export default function ResourceUsageFormPage() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
           {/* ── Tab 1: ข้อมูลทั่วไป ── */}
           <TabsContent value="general" className="flex-1 overflow-y-auto m-0 space-y-4">
+            {!isReadOnly && (
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs gap-1.5 border-blue-200 text-blue-600 hover:bg-blue-50"
+                  onClick={openCopyDialog}
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  คัดลอกจากปีอื่น
+                </Button>
+              </div>
+            )}
             {/* Section: พื้นที่สำนักงาน */}
             <div className="rounded-2xl border border-emerald-100 bg-white shadow-sm overflow-hidden">
               <div className="bg-[#f0fdf4] px-4 py-3 flex items-center gap-2 border-b border-emerald-50">
@@ -839,8 +898,8 @@ export default function ResourceUsageFormPage() {
                               <span className="cursor-help border-b border-dotted border-slate-300">{row.label}</span>
                             </TooltipTrigger>
                             <TooltipContent side="right" className="bg-slate-800 text-white border-slate-700 p-2">
-                              <p className="text-[10px] font-bold mb-1 uppercase text-slate-400">สูตรการคำนวณ:</p>
-                              <code className="text-[11px] font-mono">{row.formula}</code>
+                              <p className="text-[0.625rem] font-bold mb-1 uppercase text-slate-400">สูตรการคำนวณ:</p>
+                              <code className="text-[0.6875rem] font-mono">{row.formula}</code>
                             </TooltipContent>
                           </UITooltip>
                         </td>
@@ -855,7 +914,7 @@ export default function ResourceUsageFormPage() {
                                   </span>
                                 </TooltipTrigger>
                                 <TooltipContent className="bg-slate-800 text-white border-slate-700">
-                                  <p className="text-[10px]">{row.formula}</p>
+                                  <p className="text-[0.625rem]">{row.formula}</p>
                                 </TooltipContent>
                               </UITooltip>
                             </td>
@@ -879,13 +938,13 @@ export default function ResourceUsageFormPage() {
                   </div>
                   <div>
                     <h3 className="text-base font-bold text-emerald-900">บันทึกปริมาณการใช้รายเดือน และ Emission Factor (EF)</h3>
-                    <p className="text-[11px] text-emerald-600/80">กรอกค่า EF และปริมาณการใช้ในแต่ละเดือน ระบบจะคำนวณ kgCO2e ให้อัตโนมัติ</p>
+                    <p className="text-[0.6875rem] text-emerald-600/80">กรอกค่า EF และปริมาณการใช้ในแต่ละเดือน ระบบจะคำนวณ kgCO2e ให้อัตโนมัติ</p>
                   </div>
                 </div>
               </div>
               
               <div className="flex-1 overflow-auto">
-                <table className="border-collapse text-[13px] w-full min-w-[2000px] table-fixed">
+                <table className="border-collapse text-[0.8125rem] w-full min-w-[2000px] table-fixed">
                   <thead>
                     <tr className="sticky top-0 z-20 bg-[#f8fafc]">
                       <th className="sticky left-0 z-30 bg-[#f8fafc] border-b border-r border-slate-200 px-6 py-4 text-left font-bold text-slate-700 w-[350px]">รายการ</th>
@@ -946,7 +1005,7 @@ export default function ResourceUsageFormPage() {
                         rows.push(
                           <tr key={item.key} className="hover:bg-blue-50/30 transition-colors group">
                             <td className="sticky left-0 z-10 bg-white group-hover:bg-blue-50 border-r border-slate-200 px-8 py-3 font-medium text-slate-700 leading-tight">
-                              {item.label} <span className="text-[10px] text-slate-400 font-normal">({item.unit})</span>
+                              {item.label} <span className="text-[0.625rem] text-slate-400 font-normal">({item.unit})</span>
                             </td>
                             <td className="sticky left-[349px] z-10 bg-[#ecfdf5] group-hover:bg-[#dcfce7] border-r border-emerald-100 px-3 py-2 shadow-[1px_0_0_0_#e2e8f0]">
                               <input
@@ -1039,9 +1098,9 @@ export default function ResourceUsageFormPage() {
                         </div>
                         <div className="flex items-baseline gap-1 mt-1">
                           <span className="text-3xl font-black text-slate-900 tracking-tight">{item.pct.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">%tCO2e</span>
+                          <span className="text-[0.625rem] font-black text-slate-400 uppercase tracking-wider">%tCO2e</span>
                         </div>
-                        <div className="text-[11px] text-slate-500 font-bold -mt-1">
+                        <div className="text-[0.6875rem] text-slate-500 font-bold -mt-1">
                           {item.val.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 6 })} {item.unit}
                         </div>
                         <div className="mt-4 h-2 w-full bg-slate-100 rounded-full overflow-hidden">
@@ -1080,9 +1139,9 @@ export default function ResourceUsageFormPage() {
                         </div>
                         <div className="flex items-baseline gap-1 mt-1">
                           <span className="text-3xl font-black text-slate-900 tracking-tight">{item.pct.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">%GHG</span>
+                          <span className="text-[0.625rem] font-black text-slate-400 uppercase tracking-wider">%GHG</span>
                         </div>
-                        <div className="text-[11px] text-slate-500 font-bold -mt-1">
+                        <div className="text-[0.6875rem] text-slate-500 font-bold -mt-1">
                           {item.val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} {item.unit}
                         </div>
                         <div className="mt-4 h-2 w-full bg-slate-100 rounded-full overflow-hidden">
@@ -1122,13 +1181,13 @@ export default function ResourceUsageFormPage() {
                   {/* Chart Stat Cards */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="bg-slate-50 rounded-[1.5rem] p-5 border border-slate-100 shadow-sm">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Peak Month</p>
+                      <p className="text-[0.625rem] font-black text-slate-400 uppercase tracking-widest mb-2">Peak Month</p>
                       <p className="text-base font-black text-slate-800">
-                        {peakMonth.name} • <span className="text-blue-600">{peakMonth.val.toLocaleString()}</span> <span className="text-[11px] text-slate-400 font-bold">kgCO2e</span>
+                        {peakMonth.name} • <span className="text-blue-600">{peakMonth.val.toLocaleString()}</span> <span className="text-[0.6875rem] text-slate-400 font-bold">kgCO2e</span>
                       </p>
                     </div>
                     <div className="bg-slate-50 rounded-[1.5rem] p-5 border border-slate-100 shadow-sm">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Top Performer</p>
+                      <p className="text-[0.625rem] font-black text-slate-400 uppercase tracking-widest mb-2">Top Performer</p>
                       <p className="text-base font-black text-slate-800">
                         {(() => {
                           const maxScope = summary.scope1Pct > summary.scope2Pct && summary.scope1Pct > summary.scope3Pct ? "ประเภทที่ 1" : summary.scope2Pct > summary.scope3Pct ? "ประเภทที่ 2" : "ประเภทที่ 3";
@@ -1143,7 +1202,7 @@ export default function ResourceUsageFormPage() {
                       </p>
                     </div>
                     <div className="bg-slate-50 rounded-[1.5rem] p-5 border border-slate-100 shadow-sm">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Growth Trend</p>
+                      <p className="text-[0.625rem] font-black text-slate-400 uppercase tracking-widest mb-2">Growth Trend</p>
                       <p className="text-base font-black flex items-center gap-2">
                         <TrendingUp className={`w-5 h-5 ${trendQ4vsQ1 >= 0 ? "text-red-500" : "text-emerald-500"}`} />
                         <span className={trendQ4vsQ1 >= 0 ? "text-red-600" : "text-emerald-600"}>
@@ -1159,13 +1218,13 @@ export default function ResourceUsageFormPage() {
                       {chartView === "trend" ? (
                         <LineChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8', fontWeight: 600 }} dy={10} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#cbd5e1', fontWeight: 600 }} />
-                          <Tooltip 
+                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: '0.75rem', fill: '#94a3b8', fontWeight: 600 }} dy={10} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: '0.75rem', fill: '#cbd5e1', fontWeight: 600 }} />
+                          <Tooltip
                             contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', padding: '16px' }}
-                            itemStyle={{ fontSize: '13px', fontWeight: 800 }}
+                            itemStyle={{ fontSize: '0.8125rem', fontWeight: 800 }}
                           />
-                          <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 800, paddingTop: '30px', color: '#64748b' }} />
+                          <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '0.75rem', fontWeight: 800, paddingTop: '30px', color: '#64748b' }} />
                           <Line type="monotone" dataKey="ประเภทที่ 1" stroke="#10b981" strokeWidth={4} dot={{ r: 6, strokeWidth: 3, fill: 'white' }} activeDot={{ r: 8, strokeWidth: 0 }} />
                           <Line type="monotone" dataKey="ประเภทที่ 2" stroke="#f59e0b" strokeWidth={4} dot={{ r: 6, strokeWidth: 3, fill: 'white' }} activeDot={{ r: 8, strokeWidth: 0 }} />
                           <Line type="monotone" dataKey="ประเภทที่ 3" stroke="#3b82f6" strokeWidth={4} dot={{ r: 6, strokeWidth: 3, fill: 'white' }} activeDot={{ r: 8, strokeWidth: 0 }} />
@@ -1173,13 +1232,13 @@ export default function ResourceUsageFormPage() {
                       ) : (
                         <BarChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8', fontWeight: 600 }} dy={10} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#cbd5e1', fontWeight: 600 }} />
-                          <Tooltip 
+                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: '0.75rem', fill: '#94a3b8', fontWeight: 600 }} dy={10} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: '0.75rem', fill: '#cbd5e1', fontWeight: 600 }} />
+                          <Tooltip
                             cursor={{ fill: '#f8fafc', radius: 10 }}
                             contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', padding: '16px' }}
                           />
-                          <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 800, paddingTop: '30px', color: '#64748b' }} />
+                          <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '0.75rem', fontWeight: 800, paddingTop: '30px', color: '#64748b' }} />
                           <Bar dataKey="ประเภทที่ 1" stackId="a" fill="#10b981" barSize={45} />
                           <Bar dataKey="ประเภทที่ 2" stackId="a" fill="#f59e0b" />
                           <Bar dataKey="ประเภทที่ 3" stackId="a" fill="#3b82f6" radius={[10, 10, 0, 0]} />
@@ -1204,6 +1263,60 @@ export default function ResourceUsageFormPage() {
         description="ต้องการล้างข้อมูลทั้งหมดในตารางนี้หรือไม่? ค่าทุกช่องจะกลับเป็นศูนย์"
         action={handleDeleteAll}
       />
+
+      <Dialog open={copyDialogOpen} onOpenChange={setCopyDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Copy className="h-4 w-4 text-blue-600" />
+              คัดลอกข้อมูลพื้นฐานจากปีอื่น
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="py-2 space-y-3">
+            <p className="text-xs text-muted-foreground">
+              เลือกปีที่ต้องการคัดลอกข้อมูล ส่วนที่ 1 (พื้นที่สำนักงาน และจำนวนพนักงาน) มาใช้
+            </p>
+
+            {loadingCopyList ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : copyRecords.length === 0 ? (
+              <div className="text-center py-6 text-sm text-muted-foreground">
+                ไม่มีข้อมูลปีอื่นที่จะคัดลอกได้
+              </div>
+            ) : (
+              <Select value={copySelectedId} onValueChange={setCopySelectedId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="เลือกปี" />
+                </SelectTrigger>
+                <SelectContent>
+                  {copyRecords.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      ปี พ.ศ. {r.year + 543}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setCopyDialogOpen(false)}>
+              ยกเลิก
+            </Button>
+            <Button
+              disabled={!copySelectedId || copyingData || loadingCopyList}
+              onClick={handleCopySection1}
+              className="gap-1.5"
+            >
+              {copyingData && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              คัดลอก
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
