@@ -7,6 +7,9 @@ import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertActionPopup } from "@/components/AlertActionPopup";
 import apiClient from "@/lib/axios";
@@ -251,13 +254,65 @@ export default function ResourceUsageFormPage() {
   };
   const s1Total = (key: keyof Section1Data) => (section1[key] as number[]).reduce((a, b) => a + b, 0);
 
-  // Section 2 baseline helpers
   const setSbRow = (key: keyof Section2BaselineData, month: number, val: number | string) => {
     setSection2Baseline(prev => ({
       ...prev,
       [key]: (prev[key] as any[]).map((v, i) => i === month ? val : v),
     }));
   };
+
+  // Auto-calculate Baseline Results
+  useEffect(() => {
+    const newBaseline = { ...section2Baseline };
+    let changed = false;
+
+    MONTHS_TH.forEach((_, i) => {
+      // 1. Wastewater 80%
+      const ww80 = parseFloat((newBaseline.waterUsed[i] * 0.8).toFixed(3));
+      if (newBaseline.wastewater80[i] !== ww80) {
+        newBaseline.wastewater80[i] = ww80;
+        changed = true;
+      }
+
+      // 2. Methane Septic (Formula: Days * Staff * 1 * 1 * 0.3 * 40 * 0.001)
+      const mSeptic = parseFloat((newBaseline.operatingDays[i] * newBaseline.staffCount[i] * 1 * 1 * 0.3 * 40 * 0.001).toFixed(4));
+      if (newBaseline.methaneSeptic[i] !== mSeptic) {
+        newBaseline.methaneSeptic[i] = mSeptic;
+        changed = true;
+      }
+
+      // 3. Methane Wastewater (Formula: Wastewater80 * Type Factor * 0.12)
+      const factor = parseFloat(newBaseline.wastewaterType[i]) || 0;
+      const mWastewater = parseFloat((newBaseline.wastewater80[i] * factor * 0.12).toFixed(4));
+      if (newBaseline.methaneWastewater[i] !== mWastewater) {
+        newBaseline.methaneWastewater[i] = mWastewater;
+        changed = true;
+      }
+    });
+
+    if (changed) {
+      setSection2Baseline(newBaseline);
+    }
+  }, [section2Baseline.waterUsed, section2Baseline.staffCount, section2Baseline.operatingDays, section2Baseline.wastewaterType]);
+
+  // Sync Baseline Results to GHG Amounts
+  useEffect(() => {
+    setSection2Ghg(prev => ({
+      ...prev,
+      septicTank: {
+        ...prev.septicTank,
+        amounts: [...section2Baseline.methaneSeptic]
+      },
+      wastewaterLagoon: {
+        ...prev.wastewaterLagoon,
+        amounts: [...section2Baseline.methaneWastewater]
+      },
+      waterBMA: {
+        ...prev.waterBMA,
+        amounts: [...section2Baseline.waterUsed]
+      }
+    }));
+  }, [section2Baseline.methaneSeptic, section2Baseline.methaneWastewater, section2Baseline.waterUsed]);
   const sbTotal = (key: keyof Omit<Section2BaselineData, 'wastewaterType'>) =>
     (section2Baseline[key] as number[]).reduce((a: number, b: number) => a + b, 0);
 
@@ -687,90 +742,127 @@ export default function ResourceUsageFormPage() {
           </TabsContent>
 
           {/* ── Tab 3: Section 2 Baseline ── */}
-          <TabsContent value="section2b" className="flex-1 overflow-auto m-0">
+          <TabsContent value="section2b" className="flex-1 overflow-auto m-0 space-y-4">
+            {/* Card 1: ข้อมูลพื้นฐาน (รายเดือน) */}
+            <div className="rounded-2xl border border-emerald-100 bg-white shadow-sm overflow-hidden">
+              <div className="bg-[#f0fdf4] px-4 py-3 border-b border-emerald-50 flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600">
+                  <TrendingUp className="w-4 h-4" />
+                </div>
+                <h3 className="text-sm font-bold text-[#16a34a]">ข้อมูลพื้นฐาน (รายเดือน)</h3>
+              </div>
+              <div className="p-6 space-y-6">
+                <div className="max-w-md">
+                  <label className="text-xs font-bold text-slate-600 mb-2 block">ประเภทการบำบัดน้ำเสีย</label>
+                  <Select
+                    value={section2Baseline.wastewaterType[0]}
+                    onValueChange={v => {
+                      setSection2Baseline(prev => ({
+                        ...prev,
+                        wastewaterType: Array(12).fill(v)
+                      }));
+                    }}
+                    disabled={isReadOnly}
+                  >
+                    <SelectTrigger className="h-10 text-sm bg-slate-50/50 border-slate-200">
+                      <SelectValue placeholder="เลือกประเภทการบำบัด" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {WASTEWATER_TYPE_OPTIONS.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value} className="text-sm">
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="border-collapse w-full text-sm min-w-[1000px]">
+                    <thead>
+                      <tr className="bg-emerald-50/50">
+                        <th className="border border-emerald-100 px-4 py-2 text-left font-bold text-emerald-800 w-[200px]">รายการ</th>
+                        {MONTHS_TH.map(m => <th key={m} className="border border-emerald-100 px-2 py-2 text-center font-bold text-emerald-800">{m}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        { key: 'operatingDays', label: 'วันเปิดบริการ (วัน)', step: 1 },
+                        { key: 'staffCount',    label: 'จำนวนพนักงาน (คน)', step: 1 },
+                        { key: 'waterUsed',     label: 'น้ำใช้รายเดือน (ลบ.ม.)', step: 'any' },
+                      ].map((row) => (
+                        <tr key={row.key} className="hover:bg-slate-50 transition-colors">
+                          <td className="border border-slate-100 px-4 py-3 font-medium text-slate-700">{row.label}</td>
+                          {MONTHS_TH.map((_, mi) => (
+                            <td key={mi} className="border border-slate-100 px-1 py-1">
+                              <input
+                                type="number"
+                                step={row.step}
+                                className="w-full h-9 text-center bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-100 outline-none"
+                                value={(section2Baseline[row.key as keyof Section2BaselineData] as number[])[mi] || ""}
+                                disabled={isReadOnly}
+                                onChange={e => setSbRow(row.key as any, mi, parseFloat(e.target.value) || 0)}
+                              />
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 2: ผลคำนวณอัตโนมัติ */}
             <div className="rounded-2xl border border-emerald-100 bg-white shadow-sm overflow-hidden">
               <div className="bg-[#f0fdf4] px-4 py-3 border-b border-emerald-50">
-                <h3 className="text-sm font-bold text-[#16a34a]">ส่วนที่ 3 ข้อมูลปริมาณการปลดปล่อยก๊าซเรือนกระจก (ข้อมูลพื้นฐาน)</h3>
+                <h3 className="text-sm font-bold text-[#16a34a]">ผลคำนวณอัตโนมัติ</h3>
               </div>
-              <div className="p-4 overflow-x-auto">
-                <table className="border-collapse text-xs w-full" style={{ minWidth: 900 }}>
+              <div className="p-6 overflow-x-auto">
+                <table className="border-collapse w-full text-sm min-w-[1000px]">
                   <thead>
-                    <tr>
-                      <th className={`${headerCls} min-w-[230px] text-left px-4 rounded-tl-lg`}>ข้อมูล</th>
-                      <th className={`${headerCls} min-w-[70px]`}>หน่วย</th>
-                      {MONTHS_TH.map(m => <th key={m} className={`${headerCls} min-w-[75px]`}>{m}</th>)}
-                      <th className={`${headerCls} min-w-[80px] bg-amber-600/80 rounded-tr-lg`}>รวม</th>
+                    <tr className="bg-slate-50">
+                      <th className="border border-slate-200 px-4 py-2 text-left font-bold text-slate-700 w-[200px]">รายการ</th>
+                      {MONTHS_TH.map(m => <th key={m} className="border border-slate-200 px-2 py-2 text-center font-bold text-slate-700">{m}</th>)}
                     </tr>
                   </thead>
                   <tbody>
-                    {([
-                      { key: 'operatingDays',     label: '1. จำนวนวันเปิดบริการ/ทำการ',                              unit: 'วัน' },
-                      { key: 'staffCount',        label: '2. จำนวนพนักงานองค์กร',                                    unit: 'คน' },
-                      { key: 'methaneSeptic',     label: '3. การปล่อยสารมีเทนจากระบบ septic tank',                   unit: 'kgCH₄' },
-                      { key: 'waterUsed',         label: '4. ปริมาณน้ำใช้ในรอบปี',                                    unit: 'ลบ.ม.' },
-                      { key: 'wastewater80',      label: '5. ปริมาณน้ำเสียคิดเป็น 80%',                              unit: 'ลบ.ม.' },
-                      { key: 'methaneWastewater', label: '6. การปล่อยสารมีเทนจากบ่อบำบัดน้ำเสียแบบไม่เติมอากาศ', unit: 'kgCH₄' },
-                    ] as { key: keyof Omit<Section2BaselineData,'wastewaterType'>; label: string; unit: string }[])
-                      .map(({ key, label, unit }) => {
-                        const isAuto = key === 'wastewater80';
-                        return (
-                          <tr key={key} className="hover:bg-muted/10 transition-colors">
-                            <td className={`${cellCls} text-left px-4 py-2 font-medium`}>{label}</td>
-                            <td className={`${cellCls} py-2`}>{unit}</td>
-                            {MONTHS_TH.map((_, mi) => {
-                              const autoVal = isAuto ? +(section2Baseline.waterUsed[mi] * 0.8).toFixed(3) : null;
-                              return (
-                                <td key={mi} className={`${cellCls} p-0.5`}>
-                                  {isAuto ? (
-                                    <span className="block text-center text-[11px] text-muted-foreground">
-                                      {autoVal === 0 ? "-" : autoVal}
-                                    </span>
-                                  ) : (
-                                    <NumInput value={section2Baseline[key][mi] as number} readOnly={isReadOnly}
-                                      onChange={v => setSbRow(key, mi, v)} />
-                                  )}
-                                </td>
-                              );
-                            })}
-                            <td className={`${totalCls} py-2 px-2 text-right font-mono text-amber-700`}>
-                              {isAuto
-                                ? (section2Baseline.waterUsed.reduce((a, b) => a + b, 0) * 0.8).toFixed(3)
-                                : sbTotal(key).toLocaleString()
-                              }
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    {/* Wastewater type dropdown row */}
-                    <tr className="hover:bg-muted/10 transition-colors">
-                      <td className={`${cellCls} text-left px-4 py-2 font-medium pl-6`} colSpan={2}>
-                        ประเภทการบำบัดน้ำเสีย
-                      </td>
-                      {MONTHS_TH.map((_, mi) => (
-                        <td key={mi} className={`${cellCls} p-0.5`}>
-                          {isReadOnly ? (
-                            <span className="text-[10px]">{section2Baseline.wastewaterType[mi]}</span>
-                          ) : (
-                            <Select
-                              value={section2Baseline.wastewaterType[mi]}
-                              onValueChange={v => setSbRow('wastewaterType', mi, v)}
-                            >
-                              <SelectTrigger className="h-7 text-[10px] border-0 bg-transparent px-1">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {WASTEWATER_TYPE_OPTIONS.map(opt => (
-                                  <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                                    {opt.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          )}
+                    {[
+                      { key: 'methaneSeptic',     label: 'มีเทนจาก Septic Tank (kgCH4)', formula: 'วันที่เปิดบริการ * จำนวนพนักงาน * 1 * 1 * 0.3 * 40 * 0.001' },
+                      { key: 'wastewater80',      label: 'น้ำเสีย 80% ของน้ำใช้ (ลบ.ม.)', formula: 'น้ำใช้รายเดือน (ลบ.ม.) * 0.8' },
+                      { key: 'methaneWastewater', label: 'มีเทนจากบ่อบำบัด (kgCH4)', formula: 'น้ำเสีย 80% ของน้ำใช้ * ประเภทการบำบัดน้ำเสีย * 0.12' },
+                    ].map((row) => (
+                      <tr key={row.key} className="hover:bg-slate-50 transition-colors">
+                        <td className="border border-slate-100 px-4 py-3 font-medium text-slate-700">
+                          <UITooltip>
+                            <TooltipTrigger asChild>
+                              <span className="cursor-help border-b border-dotted border-slate-300">{row.label}</span>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="bg-slate-800 text-white border-slate-700 p-2">
+                              <p className="text-[10px] font-bold mb-1 uppercase text-slate-400">สูตรการคำนวณ:</p>
+                              <code className="text-[11px] font-mono">{row.formula}</code>
+                            </TooltipContent>
+                          </UITooltip>
                         </td>
-                      ))}
-                      <td className={`${totalCls} py-2 px-2`}></td>
-                    </tr>
+                        {MONTHS_TH.map((_, mi) => {
+                          const val = (section2Baseline[row.key as keyof Section2BaselineData] as number[])[mi];
+                          return (
+                            <td key={mi} className="border border-slate-100 px-2 py-3 text-center font-mono text-xs text-slate-500 bg-slate-50/30">
+                              <UITooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="cursor-help w-full block">
+                                    {val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent className="bg-slate-800 text-white border-slate-700">
+                                  <p className="text-[10px]">{row.formula}</p>
+                                </TooltipContent>
+                              </UITooltip>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
