@@ -228,9 +228,14 @@ export default function ProjectRegistration() {
             id: t.id, name: t.name,
             indicators: (t.indicators ?? []).map((i: any) => ({
               id: i.id, name: i.name, maxScore: i.maxScore, scoreType: c.scoreType || 'score',
-              description: i.description ?? "", detail: i.detail ?? "", notes: i.notes ?? "",
-              evidenceDescription: i.evidenceDescription ?? "",
-              scoringCriteria: Array.isArray(i.scoringCriteria) ? i.scoringCriteria : [],
+              description: i.description || i.description || "", 
+              detail: i.detail || i.detail || "", 
+              notes: i.notes || i.notes || "",
+              evidenceDescription: i.evidenceDescription || i.evidence_description || "",
+              scoringCriteria: Array.isArray(i.scoringCriteria) ? i.scoringCriteria : (Array.isArray(i.scoring_criteria) ? i.scoring_criteria : []),
+              isHeader: i.isHeader || i.is_header,
+              parentId: i.parentId || i.parent_id,
+              sortOrder: i.sortOrder || i.sort_order || 0,
             })),
           })),
         }));

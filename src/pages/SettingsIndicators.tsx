@@ -114,19 +114,44 @@ function AddIndicatorDialog({
   scoreType = "score",
   buttonTrigger
 }: {
-  onAdd: (name: string, maxScore: number, isHeader: boolean) => void;
+  onAdd: (name: string, maxScore: number, isHeader: boolean, description: string, children: any[]) => void;
   maxAllowed: number;
   scoreType?: DbScoreType;
   buttonTrigger?: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [isHeader, setIsHeader] = useState(false);
   const [maxScore, setMaxScore] = useState(Math.min(4, maxAllowed));
+  const [children, setChildren] = useState<{ name: string; maxScore: number }[]>([]);
   
   const isYesNo = isYesNoType(scoreType);
-  const reset = () => { setName(""); setMaxScore(Math.min(4, maxAllowed)); setIsHeader(false); };
+  const reset = () => { 
+    setName(""); 
+    setDescription("");
+    setMaxScore(Math.min(4, maxAllowed)); 
+    setIsHeader(false); 
+    setChildren([]);
+  };
+
+  const addSubIndicator = () => {
+    setChildren([...children, { name: "", maxScore: 4 }]);
+  };
+
+  const removeSubIndicator = (idx: number) => {
+    setChildren(children.filter((_, i) => i !== idx));
+  };
+
+  const updateSubIndicator = (idx: number, field: string, value: any) => {
+    const updated = [...children];
+    updated[idx] = { ...updated[idx], [field]: value };
+    setChildren(updated);
+  };
+
   const isOverLimit = !isYesNo && !isHeader && (maxScore > maxAllowed || maxAllowed <= 0);
+  const childrenTotal = children.reduce((sum, c) => sum + (c.name.trim() ? c.maxScore : 0), 0);
+  const isChildrenOverLimit = !isYesNo && isHeader && childrenTotal > maxAllowed;
 
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) reset(); }}>
@@ -137,9 +162,9 @@ function AddIndicatorDialog({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle>เพิ่มรายการใหม่</DialogTitle></DialogHeader>
-        <div className="space-y-4 py-2">
+      <DialogContent className={isHeader ? "max-w-xl max-h-[90vh] flex flex-col overflow-hidden" : "max-w-sm"}>
+        <DialogHeader className="shrink-0"><DialogTitle>เพิ่มรายการใหม่</DialogTitle></DialogHeader>
+        <div className={`space-y-4 py-2 ${isHeader ? "flex-1 overflow-y-auto pr-1" : ""}`}>
           <div className="space-y-2">
             <Label>รูปแบบตัวชี้วัด</Label>
             <div className="grid grid-cols-2 gap-3">
@@ -153,7 +178,10 @@ function AddIndicatorDialog({
               </div>
               <div 
                 className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 cursor-pointer transition-all ${isHeader ? 'border-primary bg-primary/10 text-primary' : 'border-muted bg-muted/20 text-muted-foreground hover:bg-muted/40'}`}
-                onClick={() => setIsHeader(true)}
+                onClick={() => {
+                  setIsHeader(true);
+                  if (children.length === 0) setChildren([{ name: "", maxScore: 4 }]);
+                }}
               >
                 <FolderTree className="h-6 w-6 mb-2" />
                 <span className="text-sm font-bold">หัวข้อจัดกลุ่ม</span>
@@ -163,9 +191,90 @@ function AddIndicatorDialog({
           </div>
 
           <div className="space-y-1.5 pt-2">
-            <Label>{isHeader ? "ชื่อหัวข้อย่อย (เช่น 4.1.1)" : "ชื่อตัวชี้วัด"}</Label>
+            <Label>{isHeader ? "ชื่อหัวข้อจัดกลุ่ม (เช่น 4.1.1)" : "ชื่อตัวชี้วัด"}</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={isHeader ? "เช่น 4.1.1 โรงแรมมีการตรวจสอบ..." : "เช่น มีมาตรการประหยัดน้ำ"} autoFocus />
           </div>
+
+          {isHeader && (
+            <div className="space-y-1.5">
+              <Label>คำบรรยายใต้หัวข้อ (ถ้ามี)</Label>
+              <Textarea 
+                value={description} 
+                onChange={(e) => setDescription(e.target.value)} 
+                placeholder="ระบุคำอธิบายเพิ่มเติม..."
+                className="bg-muted/10"
+                rows={2}
+              />
+            </div>
+          )}
+
+          {isHeader && (
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-primary font-bold flex items-center gap-1.5">
+                   <ListChecks className="h-4 w-4" /> ตัวชี้วัดย่อยด้านล่าง
+                </Label>
+                {!isYesNo && (
+                   <span className={`text-[10px] font-medium ${isChildrenOverLimit ? "text-destructive" : "text-muted-foreground"}`}>
+                      {isChildrenOverLimit ? `เกินกำหนด ${childrenTotal - maxAllowed} คะแนน` : `ใช้ไปแล้ว ${childrenTotal} / ${maxAllowed} คะแนน`}
+                   </span>
+                )}
+              </div>
+              
+              <div className="space-y-3 border-l-2 border-primary/20 ml-2 pl-4">
+                {children.map((child, idx) => (
+                  <div key={idx} className="flex flex-col gap-2 bg-muted/10 p-3 rounded-lg border shadow-sm relative group">
+                    <div className="flex gap-2 items-start">
+                      <div className="pt-2"><ListChecks className="h-3 w-3 text-muted-foreground" /></div>
+                      <Textarea
+                        value={child.name}
+                        onChange={(e) => {
+                          updateSubIndicator(idx, "name", e.target.value);
+                          e.target.style.height = "auto";
+                          e.target.style.height = e.target.scrollHeight + "px";
+                        }}
+                        placeholder="ชื่อตัวชี้วัดย่อย..."
+                        className="w-full resize-none overflow-hidden min-h-[40px] text-sm bg-white"
+                        rows={1}
+                      />
+                    </div>
+                    
+                    <div className="flex items-center justify-between pl-6">
+                      {!isYesNo ? (
+                        <div className="flex items-center gap-2">
+                          <Label className="text-xs text-muted-foreground">คะแนน</Label>
+                          <Input
+                            type="number"
+                            value={child.maxScore}
+                            onChange={(e) => updateSubIndicator(idx, "maxScore", Number(e.target.value))}
+                            min={1}
+                            className="w-14 text-center h-7 text-xs bg-white"
+                          />
+                        </div>
+                      ) : <div />}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        onClick={() => removeSubIndicator(idx)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addSubIndicator}
+                  className="h-8 text-xs text-primary hover:bg-primary/5 gap-1.5 w-full border-dashed"
+                >
+                  <Plus className="h-3.5 w-3.5" /> เพิ่มตัวชี้วัดย่อย
+                </Button>
+              </div>
+            </div>
+          )}
 
           {!isHeader && (
             isYesNo ? (
@@ -195,17 +304,17 @@ function AddIndicatorDialog({
             )
           )}
         </div>
-        <DialogFooter>
+        <DialogFooter className="shrink-0 pt-2 border-t">
           <DialogClose asChild><Button variant="outline">ยกเลิก</Button></DialogClose>
           <Button
             onClick={() => {
-              onAdd(name.trim(), (isYesNo || isHeader) ? 0 : maxScore, isHeader);
+              onAdd(name.trim(), (isYesNo || isHeader) ? 0 : maxScore, isHeader, description.trim(), children.filter(c => c.name.trim()));
               reset();
               setOpen(false);
             }}
-            disabled={!name.trim() || isOverLimit}
+            disabled={!name.trim() || isOverLimit || isChildrenOverLimit}
           >
-            เพิ่มรายการ
+            {isHeader ? "เพิ่มรายการ" : "เพิ่มตัวชี้วัด"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -689,6 +798,15 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
     { programs = false, categories = false, topics = false, indicators = false, categoryId, topicId }:
     { programs?: boolean, categories?: boolean, topics?: boolean, indicators?: boolean, categoryId?: number, topicId?: string }
   ) => {
+
+    setLoading(prev => ({
+      ...prev,
+      programs: programs ? true : prev.programs,
+      categories: categories ? true : prev.categories,
+      topics: topics ? true : prev.topics,
+      indicators: indicators ? true : prev.indicators 
+    }));
+
     try {
       const [progRes, catRes, topicRes, indRes] = await Promise.all([
         programs ? apiClient.get<DbProgram[]>("programs/names-with-sort", { params: { catCount: true } }) : Promise.resolve(null),
@@ -722,6 +840,14 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
       } 
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", description: err.response?.data?.message ?? err.message, variant: "destructive" });
+    }finally {
+      setLoading(prev => ({
+        ...prev,
+        programs: false,
+        categories: false,
+        topics: false,
+        indicators: false
+      }))
     }
   };
 
@@ -912,7 +1038,7 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
     }
   };
 
-  const handleAddIndicator = async (topicId: string, name: string, maxScore: number, isHeader: boolean = false, parentId: string | null = null) => {
+  const handleAddIndicator = async (topicId: string, name: string, maxScore: number, isHeader: boolean = false, parentId: string | null = null, description: string = "", children: any[] = []) => {
     const topic = topics.find(t => t.id === topicId);
     if (topic && !isHeader) {
       const cat = categories.find(c => c.id === topic.categoryId);
@@ -924,11 +1050,53 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
         }
       }
     }
+    
     const groupInds = indicators.filter((i) => i.topicId === topicId && (i.parentId || null) === parentId);
-    const nextNum = groupInds.length > 0 ? Math.max(...groupInds.map(i=>i.sortOrder)) + 1 : 1;
-    const id = `${topicId}.${Date.now().toString().slice(-6)}`;
+    let sortIndex = groupInds.length > 0 ? Math.max(...groupInds.map(i=>i.sortOrder)) + 1 : 1;
+    
+    // 🎯 ถ้าเป็น Header และมีงบประมาณ ต้องเช็คด้วย
+    if (isHeader && children.length > 0 && topic) {
+       const cat = categories.find(c => c.id === topic.categoryId);
+       if (cat && !isYesNoType(cat.scoreType)) {
+          const childrenTotal = children.reduce((sum, c) => sum + c.maxScore, 0);
+          const remaining = getCatRemainingBudget(topic.categoryId);
+          if (childrenTotal > remaining) {
+             toast({ title: "คะแนนของตัวชี้วัดย่อยเกินงบประมาณที่เหลือ", variant: "destructive" });
+             return;
+          }
+       }
+    }
+
+    const currentParentId = `${topicId}.${Date.now().toString().slice(-6)}`;
     try {
-      await apiClient.post("indicators", { id, topicId, name, maxScore, sortOrder: nextNum, isHeader, parentId });
+      // 1. Save parent
+      await apiClient.post("indicators", { 
+        id: currentParentId, 
+        topicId, 
+        name, 
+        maxScore, 
+        sortOrder: sortIndex++, 
+        isHeader, 
+        parentId,
+        description 
+      });
+      
+      // 2. Save children (if any)
+      if (isHeader && children.length > 0) {
+        const childPromises = children.map((child, idx) => 
+          apiClient.post("indicators", {
+            id: `${currentParentId}.${idx + 1}`,
+            topicId,
+            name: child.name,
+            maxScore: child.maxScore,
+            sortOrder: idx + 1,
+            isHeader: false,
+            parentId: currentParentId
+          })
+        );
+        await Promise.all(childPromises);
+      }
+
       toast({ title: "เพิ่มสำเร็จ", variant: "success" });
       fetchData({ topicId, indicators: true });
     } catch (err: any) {
@@ -1150,7 +1318,7 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
                                           </DndContext>
                                           
                                           <AddIndicatorDialog 
-                                              onAdd={(name, ms, isH) => handleAddIndicator(topic.id, name, ms, isH, null)} 
+                                              onAdd={(name, ms, isH, desc, children) => handleAddIndicator(topic.id, name, ms, isH, null, desc, children)} 
                                               maxAllowed={isYesNoCat ? Infinity : catRemaining} 
                                               scoreType={cat.scoreType}
                                               buttonTrigger={
