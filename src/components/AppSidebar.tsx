@@ -1,4 +1,4 @@
-import { ClipboardCheck, Settings, FolderTree, ListChecks, FolderKanban, Award, FileText, LogOut, User, FileBarChart, Users, ShieldCheck, FileArchive, Shield, Clock, ALargeSmall, Sun, Moon } from "lucide-react";
+import { ClipboardCheck, Settings, FolderTree, ListChecks, FolderKanban, Award, FileText, LogOut, User, FileBarChart, Users, ShieldCheck, FileArchive, Shield, Clock, ALargeSmall, Sun, Moon, Leaf } from "lucide-react";
 import { FONT_SIZE_MIN, FONT_SIZE_MAX } from "@/lib/fontsize";
 import { useTheme } from "@/contexts/ThemeContext";
 import { NavLink } from "@/components/NavLink";
@@ -84,6 +84,18 @@ export function AppSidebar({ fontSize, setFontSize }: AppSidebarProps) {
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+
+              {/* ข้อมูลการใช้ทรัพยากร - evaluatee and evaluator only */}
+              {!isAdmin && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink to="/resource-usage" className="hover:bg-muted/50" activeClassName="bg-muted text-primary font-medium">
+                      <Leaf className="mr-2 h-4 w-4" />
+                      {!collapsed && <span>ข้อมูลการใช้ทรัพยากร</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
 
               {/* ข้อมูลการจัดการการสมัคร - admin only */}
               {isAdmin && (

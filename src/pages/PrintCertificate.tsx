@@ -25,12 +25,25 @@ interface ScoringLevel {
   template: Template | null;
 }
 
+function formatThaiDate(iso: string | null | undefined): string {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  return d.toLocaleDateString("th-TH", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    calendar: "buddhist",
+  } as Intl.DateTimeFormatOptions);
+}
+
 interface CertificateData {
   evaluationId: string;
   year: number;
   programName: string;
   organizationName: string;
   province: string;
+  startDate: string | null;
+  endDate: string | null;
   result: {
     totalScore: number;
     totalMaxScore: number;
@@ -171,11 +184,13 @@ export default function PrintCertificate() {
                 {el.type === "text" && <span className="break-words block w-full">{el.content}</span>}
                 {el.type === "variable" && (
                   <span className="break-words block w-full">
-                    {el.content === "{recipient}" ? data.organizationName : 
-                     el.content === "{level}" ? `ระดับ ${levelName}` : 
+                    {el.content === "{recipient}" ? data.organizationName :
+                     el.content === "{level}" ? `ระดับ ${levelName}` :
                      el.content === "{year}" ? data.year :
                      el.content === "{signer_name}" ? template.signerName :
                      el.content === "{signer_title}" ? template.signerTitle :
+                     el.content === "{start_date}" ? formatThaiDate(data.startDate) :
+                     el.content === "{end_date}" ? formatThaiDate(data.endDate) :
                      el.content}
                   </span>
                 )}
