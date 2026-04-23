@@ -75,7 +75,10 @@ const EvaluationPage = () => {
     const pct = Math.round((numScore / numMax) * 100);
     const pctSp = scoreSp && maxSp ? Math.round((scoreSp / maxSp) * 100) : null;
     const programLevels = allScoringLevels.filter((l: any) => l.programId === programId);
-    const level = findScoringLevelMatch(programLevels, type, pct, pctSp);
+    
+    // Check if it's likely a yes/no program (if max score is same as count)
+    // Actually we can just pass true if we want default badges for all programs with no levels defined
+    const level = findScoringLevelMatch(programLevels, type, pct, pctSp, programLevels.length === 0);
     
     return (
       <div className="flex flex-col items-center gap-1">

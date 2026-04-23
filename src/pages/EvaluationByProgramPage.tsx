@@ -305,7 +305,11 @@ const EvaluationByProgramPage = () => {
   const displaySelfMax           = isYesNoProgram ? grandSelfPassTotal      : (selfMaxFromApi ?? displayMax);
   const displayCommitteeMax      = isYesNoProgram ? grandSelfPassTotal      : (committeeMaxFromApi ?? displayMax);
 
-  const displayCommitteePct      = displayCommitteeMax > 0 ? Math.round((displayCommitteeTotal / displayCommitteeMax) * 100) : 0;
+  const displayCommitteePct      = displayCommitteeMax > 0 
+    ? (isYesNoProgram 
+        ? (displayCommitteeTotal === displayCommitteeMax ? 100 : Math.floor((displayCommitteeTotal / displayCommitteeMax) * 100))
+        : Math.round((displayCommitteeTotal / displayCommitteeMax) * 100)) 
+    : 0;
   const displayUnit              = isYesNoProgram ? "ผ่าน" : "";
 
   const grandSelfTotalSp = summaryData.reduce((s, c) => c.scoreType !== 'score_new' ? (s + c.score) : s, 0);
@@ -316,8 +320,9 @@ const EvaluationByProgramPage = () => {
 
   const selfPct = useMemo(() => {
     if (displaySelfMax === 0) return 0;
+    if (isYesNoProgram) return displaySelfTotal === displaySelfMax ? 100 : Math.floor((displaySelfTotal / displaySelfMax) * 100);
     return Math.round((displaySelfTotal / displaySelfMax) * 100);
-  }, [displaySelfTotal, displaySelfMax]);
+  }, [displaySelfTotal, displaySelfMax, isYesNoProgram]);
 
   const selfPctSp = useMemo(() => {
     if (grandMaxSP === 0) return 0;
@@ -325,13 +330,13 @@ const EvaluationByProgramPage = () => {
   }, [grandSelfTotalSp, grandMaxSP]);
 
   const activeLevel = useMemo(() => {
-    return findScoringLevelMatch(scoringLevels, evaluationType, selfPct, selfPctSp);
-  }, [scoringLevels, selfPct]);
+    return findScoringLevelMatch(scoringLevels, evaluationType || ScoringLevelType.new, selfPct, selfPctSp, isYesNoProgram);
+  }, [scoringLevels, evaluationType, selfPct, selfPctSp, isYesNoProgram]);
 
   const committeeActiveLevel = useMemo(() => {
     if (role === "user") return null;
-    return findScoringLevelMatch(scoringLevels, evaluationType, displayCommitteePct, displayCommitteePctSp);
-  }, [scoringLevels, displayCommitteePct, role]);
+    return findScoringLevelMatch(scoringLevels, evaluationType || ScoringLevelType.new, displayCommitteePct, displayCommitteePctSp, isYesNoProgram);
+  }, [scoringLevels, evaluationType, displayCommitteePct, displayCommitteePctSp, isYesNoProgram, role]);
 
   // ── Wizard ──────────────────────────────────────────────────────────────────
   const flatIndicators = useMemo(() => {

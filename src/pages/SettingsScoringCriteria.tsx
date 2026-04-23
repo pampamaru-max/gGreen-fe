@@ -344,7 +344,7 @@ const ScoreBar = ({ levels }: { levels: ScoringLevel[] }) => (
 
 const YesNoScoringView = () => (
   <div className="space-y-4">
-    <p className="text-sm text-muted-foreground">โครงการนี้ใช้เกณฑ์แบบสอดคล้อง/ไม่สอดคล้อง ไม่ต้องกำหนดช่วงคะแนน</p>
+    <p className="text-sm text-muted-foreground">ตัวชี้วัดแต่ละข้อใช้เกณฑ์แบบสอดคล้อง/ไม่สอดคล้อง คะแนนรวมคิดเป็น % ของจำนวนข้อที่สอดคล้อง</p>
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div className="flex items-center gap-4 rounded-xl border border-emerald-100 bg-emerald-50/50 p-6">
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
@@ -868,19 +868,16 @@ const SettingsScoringCriteria = () => {
                       </RadioGroup>
                     </div>
 
-                    {program.scoringType === 'yes_no' ? (
-                      <YesNoScoringView />
-                    ) : (
-                      <ProgramScoringTabs
-                        program={program}
-                        programLevels={programLevels}
-                        scoringPrograms={scoringPrograms}
-                        setLevels={setLevels}
-                        fetchAll={fetchAll}
-                        onEdit={handleEdit}
-                        onDelete={handleDelete}
-                      />
-                    )}
+                    {program.scoringType === 'yes_no' && <YesNoScoringView />}
+                    <ProgramScoringTabs
+                      program={program}
+                      programLevels={programLevels}
+                      scoringPrograms={scoringPrograms}
+                      setLevels={setLevels}
+                      fetchAll={fetchAll}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                    />
                   </div>
                 </CollapsibleContent>
               </div>

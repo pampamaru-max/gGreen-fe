@@ -440,11 +440,22 @@ export default function ProjectRegistration() {
   // unified values for display
   const displayTotal    = isYesNoProgram ? grandPassCount  : grandTotal;
   const displayMax      = isYesNoProgram ? grandPassTotal  : grandMax;
-  const displayPct      = displayMax > 0 ? Math.round((displayTotal / displayMax) * 100) : 0;
+  const displayPct      = displayMax > 0 
+    ? (isYesNoProgram 
+        ? (displayTotal === displayMax ? 100 : Math.floor((displayTotal / displayMax) * 100))
+        : Math.round((displayTotal / displayMax) * 100)) 
+    : 0;
   const displayUnit     = isYesNoProgram ? "ผ่าน" : "";
   const grandCommitteeTotal = committeeSummaryData
     ? committeeSummaryData.reduce((s, c) => c.scoreType === 'score_new' ? (s + c.score) : s, 0)
     : undefined;
+
+  const grandCommitteePassCount = committeeSummaryData
+    ? committeeSummaryData.reduce((s, c: any) => s + (c.passCount ?? 0), 0)
+    : undefined;
+
+  const displayCommitteeTotal = isYesNoProgram ? grandCommitteePassCount : grandCommitteeTotal;
+  const displayCommitteeMax   = isYesNoProgram ? grandPassTotal : grandMax;
 
   const grandTotalSp = summaryData.reduce((s, c) => c.scoreType !== 'score_new' ? (s + c.score) : s, 0);
   const grandMaxSP = summaryData.reduce((s, c) => c.scoreType !== 'score_new' ? (s + c.totalPossible) : s, 0);
@@ -452,13 +463,14 @@ export default function ProjectRegistration() {
   const grandCommitteeTotalSp = committeeSummaryData? committeeSummaryData.reduce((s, c) => c.scoreType !== 'score_new' ? (s + c.totalPossible) : s, 0) : undefined;
 
   const activeLevel = useMemo(() => {
-    return findScoringLevelMatch(scoringLevels, evaluationType, displayPct, displayPctSp);
-  }, [scoringLevels, displayPct]);
+    return findScoringLevelMatch(scoringLevels, evaluationType, displayPct, displayPctSp, isYesNoProgram);
+  }, [scoringLevels, evaluationType, displayPct, displayPctSp, isYesNoProgram]);
 
   const committeePct = useMemo(() => {
-    if (grandCommitteeTotal === undefined || grandMax === 0) return 0;
-    return Math.round((grandCommitteeTotal / grandMax) * 100);
-  }, [grandCommitteeTotal, grandMax]);
+    if (displayCommitteeTotal === undefined || displayCommitteeMax === 0) return 0;
+    if (isYesNoProgram) return displayCommitteeTotal === displayCommitteeMax ? 100 : Math.floor((displayCommitteeTotal / displayCommitteeMax) * 100);
+    return Math.round((displayCommitteeTotal / displayCommitteeMax) * 100);
+  }, [displayCommitteeTotal, displayCommitteeMax, isYesNoProgram]);
 
   const committeePctSp = useMemo(() => {
     if (grandCommitteeTotalSp === undefined || grandMaxSP === 0) return 0;
@@ -466,9 +478,9 @@ export default function ProjectRegistration() {
   }, [grandCommitteeTotalSp, grandMaxSP])
 
   const committeeActiveLevel = useMemo(() => {
-    if (grandCommitteeTotal === undefined) return null;
-    return findScoringLevelMatch(scoringLevels, evaluationType, committeePct, committeePctSp);
-  }, [scoringLevels, committeePct, grandCommitteeTotal]);
+    if (displayCommitteeTotal === undefined) return null;
+    return findScoringLevelMatch(scoringLevels, evaluationType, committeePct, committeePctSp, isYesNoProgram);
+  }, [scoringLevels, evaluationType, committeePct, committeePctSp, isYesNoProgram, displayCommitteeTotal]);
 
   // ── Wizard flat list ───────────────────────────────────────────────────────
   const flatIndicators = useMemo(() => {
@@ -744,16 +756,16 @@ export default function ProjectRegistration() {
                   </DropdownMenu>
                 )}
               </div>
-              {grandCommitteeTotal !== undefined && (
+              {displayCommitteeTotal !== undefined && (
                 <>
                   <div className="w-px self-stretch bg-border mx-1" />
                   <div className="flex flex-col items-end">
                     <p className="text-[0.5625rem] font-semibold text-muted-foreground uppercase tracking-wider">กรรมการ</p>
                     <p className="text-base font-bold text-muted-foreground leading-tight">
-                      <AnimatedScore value={grandCommitteeTotal ?? 0}>{grandCommitteeTotal}</AnimatedScore>
-                      <span className="text-xs font-normal text-muted-foreground">/{grandMax}</span>
+                      <AnimatedScore value={displayCommitteeTotal ?? 0}>{displayCommitteeTotal}{displayUnit && <span className="text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}</AnimatedScore>
+                      <span className="text-xs font-normal text-muted-foreground">/{displayCommitteeMax}</span>
                     </p>
-                    {grandMax > 0 && <p className="text-[0.5625rem] text-muted-foreground">{committeePct}%</p>}
+                    {displayCommitteeMax > 0 && <p className="text-[0.5625rem] text-muted-foreground">{committeePct}%</p>}
                     
                     {committeeActiveLevel && (
                       <div className="mt-1">

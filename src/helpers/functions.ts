@@ -53,9 +53,29 @@ export const findScoringLevelMatch = (
   scoringLevels: ScoringLevel[],
   type: ScoringLevelType | string,
   normalPct: number,
-  specialPct: number
+  specialPct: number,
+  isYesNo?: boolean
 ) => {
-  if (scoringLevels.length === 0) return null;
+  if (scoringLevels.length === 0) {
+    if (isYesNo) {
+      const isPass = normalPct === 100;
+      return {
+        id: 0,
+        name: isPass ? "สอดคล้อง" : "ไม่สอดคล้อง",
+        minScore: isPass ? 100 : 0,
+        maxScore: isPass ? 100 : 99,
+        color: isPass ? "#10b981" : "#e11d48",
+        icon: isPass ? "trophy" : "x-circle",
+        type: ScoringLevelType.new,
+        sortOrder: 1,
+        condition: null,
+        isActive: true,
+        isPass: isPass,
+        programId: null,
+      } as ScoringLevel;
+    }
+    return null;
+  }
   const normalLevels = scoringLevels.filter((l) => l.type === ScoringLevelType.new);
   const specialLevels = scoringLevels.filter((l) => type !== ScoringLevelType.new && l.type === type);
   
@@ -64,5 +84,5 @@ export const findScoringLevelMatch = (
 
   const specialLevel = getScoringLevel(scoringLevels, type, specialPct);
   if (!specialLevel) return normalLevel;
-  return { ...specialLevel, name: `${normalLevel.name} ${specialLevel.name}` };
+  return { ...specialLevel, name: `${normalLevel?.name || ''} ${specialLevel.name}`.trim() };
 }
