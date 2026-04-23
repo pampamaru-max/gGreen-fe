@@ -23,6 +23,7 @@ interface ResourceUsageRecord {
   id: string;
   userId: string;
   programId: string | null;
+  programName?: string | null;
   year: number;
   scope1Tco2e: number | null;
   scope2Tco2e: number | null;
@@ -46,12 +47,15 @@ const glassCard = {
 export default function ResourceUsagePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { role } = useUserRole();
+  const { isAdmin, role } = useUserRole();
   const queryClient = useQueryClient();
 
   const isEvaluatee = role === "user";
+  const canEdit = isAdmin || isEvaluatee;
 
   const [filterYear, setFilterYear] = useState<string>("all");
+  const [filterProgram, setFilterProgram] = useState<string>("all");
+  const [searchOrg, setSearchOrg] = useState<string>("");
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [createYear, setCreateYear] = useState<string>(String(CURRENT_YEAR));
@@ -69,12 +73,36 @@ export default function ResourceUsagePage() {
     return [...new Set(years)].sort((a, b) => b - a);
   }, [records]);
 
+  const programOptions = useMemo(() => {
+    const progs = records
+      .filter((r) => r.programId)
+      .map((r) => ({ id: r.programId!, name: r.programName || r.programId! }));
+    return Array.from(new Map(progs.map((p) => [p.id, p])).values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [records]);
+
   const usedYears = useMemo(() => records.map((r) => r.year), [records]);
 
   const filtered = useMemo(() => {
-    if (filterYear === "all") return records;
-    return records.filter((r) => String(r.year) === filterYear);
-  }, [records, filterYear]);
+    return records.filter((r) => {
+      if (filterYear !== "all" && String(r.year) !== filterYear) return false;
+      if (filterProgram !== "all" && r.programId !== filterProgram) return false;
+      if (searchOrg) {
+        const name = (r.user?.name || "").toLowerCase();
+        const email = (r.user?.email || "").toLowerCase();
+        const search = searchOrg.toLowerCase();
+        if (!name.includes(search) && !email.includes(search)) return false;
+      }
+      return true;
+    });
+  }, [records, filterYear, filterProgram, searchOrg]);
+
+  const hasActiveFilters = filterYear !== "all" || filterProgram !== "all" || searchOrg !== "";
+
+  const clearFilters = () => {
+    setFilterYear("all");
+    setFilterProgram("all");
+    setSearchOrg("");
+  };
 
   const handleCreate = async () => {
     const year = Number(createYear);
@@ -128,8 +156,8 @@ export default function ResourceUsagePage() {
             </p>
           </div>
 
-          {/* Create button — evaluatee only */}
-          {isEvaluatee && (
+          {/* Create button */}
+          {canEdit && (
             <div className="flex items-center gap-2 shrink-0">
               <Select value={createYear} onValueChange={setCreateYear}>
                 <SelectTrigger className="h-8 text-xs w-[110px]">
@@ -171,10 +199,10 @@ export default function ResourceUsagePage() {
                   ประวัติข้อมูลการใช้ทรัพยากร
                 </h2>
               </div>
-              {filterYear !== "all" && (
-                <Button variant="ghost" size="sm" onClick={() => setFilterYear("all")}
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" onClick={clearFilters}
                   className="h-7 px-2 text-xs text-muted-foreground gap-1">
-                  <X className="h-3 w-3" /> ล้างตัวกรอง
+                  <X className="h-3 w-3" /> ล้างตัวกรอง ({filtered.length}/{records.length})
                 </Button>
               )}
             </div>
@@ -191,6 +219,31 @@ export default function ResourceUsagePage() {
                   ))}
                 </SelectContent>
               </Select>
+
+              {!isEvaluatee && (
+                <>
+                  <Select value={filterProgram} onValueChange={setFilterProgram}>
+                    <SelectTrigger className="h-8 text-xs w-[150px]">
+                      <SelectValue placeholder="ทุกโครงการ" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">ทุกโครงการ</SelectItem>
+                      {programOptions.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="ค้นหาหน่วยงาน..."
+                      className="h-8 px-3 rounded-md border border-input bg-background text-xs w-[180px] focus:outline-none focus:ring-1 focus:ring-primary"
+                      value={searchOrg}
+                      onChange={(e) => setSearchOrg(e.target.value)}
+                    />
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -209,10 +262,20 @@ export default function ResourceUsagePage() {
               <div className="md:hidden px-3 pb-3 space-y-2">
                 {filtered.map((item) => (
                   <div key={item.id} className="rounded-xl border border-border/50 bg-background/60 p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Badge variant="outline" className="font-bold">{item.year + 543}</Badge>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center justify-between">
+                        <Badge variant="outline" className="font-bold">{item.year + 543}</Badge>
+                        {!isEvaluatee && item.user && (
+                          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase">
+                            {item.programName || item.programId || "General"}
+                          </span>
+                        )}
+                      </div>
                       {!isEvaluatee && item.user && (
-                        <span className="text-xs text-muted-foreground">{item.user.name || item.user.email}</span>
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-semibold px-1">
+                          <User className="h-3 w-3" />
+                          {item.user.name || item.user.email}
+                        </div>
                       )}
                     </div>
                     <div className="grid grid-cols-3 gap-1 text-xs">
@@ -232,9 +295,9 @@ export default function ResourceUsagePage() {
                     <div className="flex gap-2 pt-0.5">
                       <Button variant="outline" size="sm" className="flex-1 h-8 text-xs gap-1.5 border-emerald-200 bg-emerald-50/50 text-emerald-600"
                         onClick={() => navigate(`/resource-usage/${item.id}`)}>
-                        <Pencil className="h-3.5 w-3.5" />แก้ไข
+                        {canEdit ? <><Pencil className="h-3.5 w-3.5" />แก้ไข</> : <><Eye className="h-3.5 w-3.5" />ดูรายละเอียด</>}
                       </Button>
-                      {isEvaluatee && (
+                      {canEdit && (
                         <Button variant="outline" size="icon"
                           onClick={() => setDeleteTargetId(item.id)}
                           className="h-8 w-8 rounded-xl border-red-100 bg-red-50/50 text-red-500 hover:bg-red-100">
@@ -255,9 +318,14 @@ export default function ResourceUsagePage() {
                         <div className="flex items-center justify-center gap-1"><CalendarDays className="h-3 w-3" />ปี พ.ศ.</div>
                       </TableHead>
                       {!isEvaluatee && (
-                        <TableHead className="font-bold uppercase text-[0.625rem] tracking-[0.1em] text-muted-foreground">
-                          <div className="flex items-center gap-1"><User className="h-3 w-3" />หน่วยงาน</div>
-                        </TableHead>
+                        <>
+                          <TableHead className="font-bold uppercase text-[0.625rem] tracking-[0.1em] text-muted-foreground">
+                            โครงการ
+                          </TableHead>
+                          <TableHead className="font-bold uppercase text-[0.625rem] tracking-[0.1em] text-muted-foreground">
+                            <div className="flex items-center gap-1"><User className="h-3 w-3" />หน่วยงาน</div>
+                          </TableHead>
+                        </>
                       )}
                       <TableHead className="text-center font-bold uppercase text-[0.625rem] tracking-[0.1em] text-muted-foreground">Scope 1 (tCO₂e)</TableHead>
                       <TableHead className="text-center font-bold uppercase text-[0.625rem] tracking-[0.1em] text-muted-foreground">Scope 2 (tCO₂e)</TableHead>
@@ -276,9 +344,14 @@ export default function ResourceUsagePage() {
                         <TableRow key={item.id} className="hover:bg-muted/20 transition-colors border-b border-border/30 last:border-0">
                           <TableCell className="text-center font-bold">{item.year + 543}</TableCell>
                           {!isEvaluatee && (
-                            <TableCell className="font-medium">
-                              {item.user?.name || item.user?.email || "-"}
-                            </TableCell>
+                            <>
+                              <TableCell className="text-xs text-muted-foreground uppercase font-medium">
+                                {item.programName || item.programId || "-"}
+                              </TableCell>
+                              <TableCell className="font-medium">
+                                {item.user?.name || item.user?.email || "-"}
+                              </TableCell>
+                            </>
                           )}
                           <TableCell className="text-center text-sm">{item.scope1Tco2e !== null ? s1.toFixed(4) : "-"}</TableCell>
                           <TableCell className="text-center text-sm">{item.scope2Tco2e !== null ? s2.toFixed(4) : "-"}</TableCell>
@@ -291,9 +364,9 @@ export default function ResourceUsagePage() {
                               <Button variant="outline" size="icon"
                                 onClick={() => navigate(`/resource-usage/${item.id}`)}
                                 className="h-10 w-10 rounded-xl border-emerald-100 bg-emerald-50/50 text-emerald-600 hover:bg-emerald-100">
-                                {isEvaluatee ? <Pencil className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                {canEdit ? <Pencil className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                               </Button>
-                              {isEvaluatee && (
+                              {canEdit && (
                                 <Button variant="outline" size="icon"
                                   onClick={() => setDeleteTargetId(item.id)}
                                   className="h-10 w-10 rounded-xl border-red-100 bg-red-50/50 text-red-500 hover:bg-red-100">

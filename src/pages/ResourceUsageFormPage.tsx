@@ -43,14 +43,16 @@ const glassCard = {
 } as React.CSSProperties;
 
 const greenCard = {
-  background: "#f0fdf4",
-  border: "1px solid #dcfce7",
+  background: "var(--glass-bg-soft)",
+  backdropFilter: "blur(8px)",
+  WebkitBackdropFilter: "blur(8px)",
+  border: "1px solid var(--glass-border)",
 } as React.CSSProperties;
 
-const cellCls = "border border-border/60 text-center text-xs";
-const headerCls = "border border-border/60 bg-[#4e8a3a] text-white text-xs font-semibold text-center px-1 py-1.5 whitespace-nowrap";
-const inputCls = "h-7 w-20 text-xs text-center border-0 bg-transparent focus:ring-1 focus:ring-primary/50 rounded p-1";
-const totalCls = "border border-border/60 bg-amber-50/60 dark:bg-amber-900/10 text-center text-xs font-semibold";
+const cellCls = "border border-border/40 text-center text-xs";
+const headerCls = "border border-border/40 bg-[#4e8a3a] text-white text-xs font-semibold text-center px-1 py-1.5 whitespace-nowrap";
+const inputCls = "h-7 w-20 text-xs text-center border-0 bg-transparent focus:ring-1 focus:ring-primary/50 rounded p-1 text-foreground";
+const totalCls = "border border-border/40 bg-amber-50/60 dark:bg-amber-900/20 text-center text-xs font-semibold";
 
 // Number input helper
 function NumInput({
@@ -85,8 +87,8 @@ function NumInput({
 export default function ResourceUsageFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { role } = useUserRole();
-  const isReadOnly = role !== "user";
+  const { isAdmin, role } = useUserRole();
+  const isReadOnly = role === "evaluator";
 
   const [loading, setLoading] = useState(true);
   const [recordYear, setRecordYear] = useState<number>(new Date().getFullYear());
@@ -822,24 +824,24 @@ export default function ResourceUsageFormPage() {
               onClick={() => setActiveTab(step.id)}
               className={`flex flex-col gap-1 p-3 rounded-xl border transition-all text-left ${
                 isActive 
-                  ? "bg-[#f0fdf4] border-[#16a34a] shadow-sm" 
-                  : "bg-white border-border/60 hover:border-border/100 shadow-sm"
+                  ? "bg-background dark:bg-primary/20 border-primary shadow-md ring-1 ring-primary/40" 
+                  : "bg-background/90 backdrop-blur-md border-border/40 hover:border-border/80 shadow-sm"
               }`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[0.625rem] font-bold ${
-                    isActive ? "bg-[#16a34a] text-white" : "bg-muted text-muted-foreground"
+                    isActive ? "bg-primary text-white" : "bg-muted text-muted-foreground"
                   }`}>
                     {idx + 1}
                   </div>
-                  <span className={`text-[0.625rem] font-medium ${isActive ? "text-[#16a34a]" : "text-muted-foreground"}`}>
+                  <span className={`text-[0.625rem] font-medium ${isActive ? "text-primary" : "text-muted-foreground"}`}>
                     {step.label}
                   </span>
                 </div>
                 {isActive && (
-                  <div className="w-5 h-5 rounded-full border border-[#16a34a] flex items-center justify-center">
-                    <Check className="w-3 h-3 text-[#16a34a]" />
+                  <div className="w-5 h-5 rounded-full border border-primary flex items-center justify-center">
+                    <Check className="w-3 h-3 text-primary" />
                   </div>
                 )}
               </div>
@@ -870,10 +872,10 @@ export default function ResourceUsageFormPage() {
               </div>
             )}
             {/* Section: พื้นที่สำนักงาน */}
-            <div className="rounded-2xl border border-emerald-100 bg-white shadow-sm overflow-hidden">
-              <div className="bg-[#f0fdf4] px-4 py-3 flex items-center gap-2 border-b border-emerald-50">
-                <Building2 className="w-5 h-5 text-[#16a34a]" />
-                <h3 className="text-sm font-bold text-[#16a34a]">พื้นที่สำนักงาน</h3>
+            <div className="rounded-2xl border border-border/40 bg-background/60 backdrop-blur-md shadow-sm overflow-hidden">
+              <div className="bg-primary/5 dark:bg-primary/10 px-4 py-3 flex items-center gap-2 border-b border-border/40">
+                <Building2 className="w-5 h-5 text-primary" />
+                <h3 className="text-sm font-bold text-primary">พื้นที่สำนักงาน</h3>
               </div>
               <div className="p-6">
                 <div className="grid grid-cols-3 gap-6">
@@ -885,7 +887,7 @@ export default function ResourceUsageFormPage() {
                       type="number" 
                       min={0} 
                       step="any" 
-                      className="h-10 text-sm bg-slate-50/50" 
+                      className="h-10 text-sm bg-muted/30 border-border/40 focus:border-primary/50" 
                       disabled={isReadOnly}
                       value={officeBuilding || ""}
                       onChange={e => setOfficeBuilding(parseFloat(e.target.value) || 0)} 
@@ -899,7 +901,7 @@ export default function ResourceUsageFormPage() {
                       type="number" 
                       min={0} 
                       step="any" 
-                      className="h-10 text-sm bg-slate-50/50" 
+                      className="h-10 text-sm bg-muted/30 border-border/40 focus:border-primary/50" 
                       disabled={isReadOnly}
                       value={officeOutdoor || ""}
                       onChange={e => setOfficeOutdoor(parseFloat(e.target.value) || 0)} 
@@ -907,7 +909,7 @@ export default function ResourceUsageFormPage() {
                   </div>
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-muted-foreground">รวมพื้นที่ทั้งหมด (ตร.ม.)</label>
-                    <div className="h-10 px-3 rounded-md flex items-center justify-end bg-amber-50/50 border border-amber-100 text-sm font-bold">
+                    <div className="h-10 px-3 rounded-md flex items-center justify-end bg-amber-500/10 dark:bg-amber-900/20 border border-amber-500/20 text-sm font-bold text-amber-600 dark:text-amber-400">
                       {officeTotal.toLocaleString()}
                     </div>
                   </div>
@@ -916,10 +918,10 @@ export default function ResourceUsageFormPage() {
             </div>
 
             {/* Section: จำนวนพนักงาน */}
-            <div className="rounded-2xl border border-emerald-100 bg-white shadow-sm overflow-hidden">
-              <div className="bg-[#f0fdf4] px-4 py-3 flex items-center gap-2 border-b border-emerald-50">
-                <Users2 className="w-5 h-5 text-[#16a34a]" />
-                <h3 className="text-sm font-bold text-[#16a34a]">จำนวนพนักงาน</h3>
+            <div className="rounded-2xl border border-border/40 bg-background/60 backdrop-blur-md shadow-sm overflow-hidden">
+              <div className="bg-primary/5 dark:bg-primary/10 px-4 py-3 flex items-center gap-2 border-b border-border/40">
+                <Users2 className="w-5 h-5 text-primary" />
+                <h3 className="text-sm font-bold text-primary">จำนวนพนักงาน</h3>
               </div>
               <div className="p-6">
                 <div className="grid grid-cols-4 gap-6">
@@ -931,7 +933,7 @@ export default function ResourceUsageFormPage() {
                       type="number" 
                       min={0} 
                       step={1} 
-                      className="h-10 text-sm bg-slate-50/50" 
+                      className="h-10 text-sm bg-muted/30 border-border/40 focus:border-primary/50" 
                       disabled={isReadOnly}
                       value={staffPermanent || ""}
                       onChange={e => setStaffPermanent(parseInt(e.target.value) || 0)} 
@@ -945,7 +947,7 @@ export default function ResourceUsageFormPage() {
                       type="number" 
                       min={0} 
                       step={1} 
-                      className="h-10 text-sm bg-slate-50/50" 
+                      className="h-10 text-sm bg-muted/30 border-border/40 focus:border-primary/50" 
                       disabled={isReadOnly}
                       value={staffTemp || ""}
                       onChange={e => setStaffTemp(parseInt(e.target.value) || 0)} 
@@ -959,7 +961,7 @@ export default function ResourceUsageFormPage() {
                       type="number" 
                       min={0} 
                       step={1} 
-                      className="h-10 text-sm bg-slate-50/50" 
+                      className="h-10 text-sm bg-muted/30 border-border/40 focus:border-primary/50" 
                       disabled={isReadOnly}
                       value={staffContract || ""}
                       onChange={e => setStaffContract(parseInt(e.target.value) || 0)} 
@@ -967,7 +969,7 @@ export default function ResourceUsageFormPage() {
                   </div>
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-muted-foreground">รวมทั้งสิ้น (คน)</label>
-                    <div className="h-10 px-3 rounded-md flex items-center justify-end bg-amber-50/50 border border-amber-100 text-sm font-bold">
+                    <div className="h-10 px-3 rounded-md flex items-center justify-end bg-amber-500/10 dark:bg-amber-900/20 border border-amber-500/20 text-sm font-bold text-amber-600 dark:text-amber-400">
                       {staffTotal.toLocaleString()}
                     </div>
                   </div>
@@ -978,18 +980,18 @@ export default function ResourceUsageFormPage() {
 
           {/* ── Tab 2: ส่วนที่ 1 ── */}
           <TabsContent value="section1" className="flex-1 overflow-auto m-0">
-            <div className="rounded-2xl border border-emerald-100 bg-white shadow-sm overflow-hidden">
-              <div className="bg-[#f0fdf4] px-4 py-3 border-b border-emerald-50">
-                <h3 className="text-sm font-bold text-[#16a34a]">ส่วนที่ 2 ข้อมูลปริมาณการใช้ทรัพยากร พลังงาน ของเสีย</h3>
+            <div className="rounded-2xl border border-border/40 bg-background/60 backdrop-blur-md shadow-sm overflow-hidden">
+              <div className="bg-primary/5 dark:bg-primary/10 px-4 py-3 border-b border-border/40">
+                <h3 className="text-sm font-bold text-primary">ส่วนที่ 2 ข้อมูลปริมาณการใช้ทรัพยากร พลังงาน ของเสีย</h3>
               </div>
-              <div className="p-4 overflow-x-auto">
+              <div className="p-4 overflow-x-auto text-foreground">
                 <table className="border-collapse text-xs w-full" style={{ minWidth: 900 }}>
                   <thead>
                     <tr>
                       <th className={`${headerCls} min-w-[180px] text-left px-4 rounded-tl-lg`}>รายการ</th>
                       <th className={`${headerCls} min-w-[70px]`}>หน่วย</th>
                       {MONTHS_TH.map(m => <th key={m} className={`${headerCls} min-w-[70px]`}>{m}</th>)}
-                      <th className={`${headerCls} min-w-[80px] bg-amber-600/80 rounded-tr-lg`}>รวม</th>
+                      <th className={`${headerCls} min-w-[80px] bg-amber-600 dark:bg-amber-700 rounded-tr-lg`}>รวม</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1005,7 +1007,7 @@ export default function ResourceUsageFormPage() {
                       { key: 'fuelGasohol',     label: '5.3 ก๊าซโซฮอลล์',              unit: 'ลิตร' },
                     ] as { key: keyof Section1Data; label: string; unit: string; spacer?: boolean }[])
                       .map(({ key, label, unit }) => (
-                        <tr key={key} className="hover:bg-muted/10 transition-colors">
+                        <tr key={key} className="hover:bg-muted/30 transition-colors">
                           <td className={`${cellCls} text-left px-4 py-2 font-medium`}>{label}</td>
                           <td className={`${cellCls} py-2`}>{unit}</td>
                           {MONTHS_TH.map((_, mi) => (
@@ -1014,7 +1016,7 @@ export default function ResourceUsageFormPage() {
                                 onChange={v => setS1Row(key, mi, v)} />
                             </td>
                           ))}
-                          <td className={`${totalCls} py-2 px-2 text-right font-mono text-amber-700`}>
+                          <td className={`${totalCls} py-2 px-2 text-right font-mono text-amber-600 dark:text-amber-400`}>
                             {s1Total(key).toLocaleString()}
                           </td>
                         </tr>
@@ -1028,16 +1030,16 @@ export default function ResourceUsageFormPage() {
           {/* ── Tab 3: Section 2 Baseline ── */}
           <TabsContent value="section2b" className="flex-1 overflow-auto m-0 space-y-4">
             {/* Card 1: ข้อมูลพื้นฐาน (รายเดือน) */}
-            <div className="rounded-2xl border border-emerald-100 bg-white shadow-sm overflow-hidden">
-              <div className="bg-[#f0fdf4] px-4 py-3 border-b border-emerald-50 flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600">
+            <div className="rounded-2xl border border-border/40 bg-background/60 backdrop-blur-md shadow-sm overflow-hidden">
+              <div className="bg-primary/5 dark:bg-primary/10 px-4 py-3 border-b border-border/40 flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
                   <TrendingUp className="w-4 h-4" />
                 </div>
-                <h3 className="text-sm font-bold text-[#16a34a]">ข้อมูลพื้นฐาน (รายเดือน)</h3>
+                <h3 className="text-sm font-bold text-primary">ข้อมูลพื้นฐาน (รายเดือน)</h3>
               </div>
               <div className="p-6 space-y-6">
                 <div className="max-w-md">
-                  <label className="text-xs font-bold text-slate-600 mb-2 block">ประเภทการบำบัดน้ำเสีย</label>
+                  <label className="text-xs font-bold text-muted-foreground mb-2 block">ประเภทการบำบัดน้ำเสีย</label>
                   <Select
                     value={section2Baseline.wastewaterType[0]}
                     onValueChange={v => {
@@ -1048,7 +1050,7 @@ export default function ResourceUsageFormPage() {
                     }}
                     disabled={isReadOnly}
                   >
-                    <SelectTrigger className="h-10 text-sm bg-slate-50/50 border-slate-200">
+                    <SelectTrigger className="h-10 text-sm bg-muted/30 border-border/40">
                       <SelectValue placeholder="เลือกประเภทการบำบัด" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1064,9 +1066,9 @@ export default function ResourceUsageFormPage() {
                 <div className="overflow-x-auto">
                   <table className="border-collapse w-full text-sm min-w-[1000px]">
                     <thead>
-                      <tr className="bg-emerald-50/50">
-                        <th className="border border-emerald-100 px-4 py-2 text-left font-bold text-emerald-800 w-[200px]">รายการ</th>
-                        {MONTHS_TH.map(m => <th key={m} className="border border-emerald-100 px-2 py-2 text-center font-bold text-emerald-800">{m}</th>)}
+                      <tr className="bg-primary/5 dark:bg-primary/10">
+                        <th className="border border-border/40 px-4 py-2 text-left font-bold text-primary w-[200px]">รายการ</th>
+                        {MONTHS_TH.map(m => <th key={m} className="border border-border/40 px-2 py-2 text-center font-bold text-primary">{m}</th>)}
                       </tr>
                     </thead>
                     <tbody>
@@ -1075,14 +1077,14 @@ export default function ResourceUsageFormPage() {
                         { key: 'staffCount',    label: 'จำนวนพนักงาน (คน)', step: 1 },
                         { key: 'waterUsed',     label: 'น้ำใช้รายเดือน (ลบ.ม.)', step: 'any' },
                       ].map((row) => (
-                        <tr key={row.key} className="hover:bg-slate-50 transition-colors">
-                          <td className="border border-slate-100 px-4 py-3 font-medium text-slate-700">{row.label}</td>
+                        <tr key={row.key} className="hover:bg-muted/20 transition-colors">
+                          <td className="border border-border/30 px-4 py-3 font-medium text-foreground">{row.label}</td>
                           {MONTHS_TH.map((_, mi) => (
-                            <td key={mi} className="border border-slate-100 px-1 py-1">
+                            <td key={mi} className="border border-border/30 px-1 py-1">
                               <input
                                 type="number"
                                 step={row.step}
-                                className="w-full h-9 text-center bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-100 outline-none"
+                                className="w-full h-9 text-center bg-muted/20 border border-border/40 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 outline-none text-foreground"
                                 value={(section2Baseline[row.key as keyof Section2BaselineData] as number[])[mi] || ""}
                                 disabled={isReadOnly}
                                 onChange={e => setSbRow(row.key as any, mi, parseFloat(e.target.value) || 0)}
@@ -1098,16 +1100,16 @@ export default function ResourceUsageFormPage() {
             </div>
 
             {/* Card 2: ผลคำนวณอัตโนมัติ */}
-            <div className="rounded-2xl border border-emerald-100 bg-white shadow-sm overflow-hidden">
-              <div className="bg-[#f0fdf4] px-4 py-3 border-b border-emerald-50">
-                <h3 className="text-sm font-bold text-[#16a34a]">ผลคำนวณอัตโนมัติ</h3>
+            <div className="rounded-2xl border border-border/40 bg-background/60 backdrop-blur-md shadow-sm overflow-hidden">
+              <div className="bg-primary/5 dark:bg-primary/10 px-4 py-3 border-b border-border/40">
+                <h3 className="text-sm font-bold text-primary">ผลคำนวณอัตโนมัติ</h3>
               </div>
-              <div className="p-6 overflow-x-auto">
+              <div className="p-6 overflow-x-auto text-foreground">
                 <table className="border-collapse w-full text-sm min-w-[1000px]">
                   <thead>
-                    <tr className="bg-slate-50">
-                      <th className="border border-slate-200 px-4 py-2 text-left font-bold text-slate-700 w-[200px]">รายการ</th>
-                      {MONTHS_TH.map(m => <th key={m} className="border border-slate-200 px-2 py-2 text-center font-bold text-slate-700">{m}</th>)}
+                    <tr className="bg-muted/30">
+                      <th className="border border-border/40 px-4 py-2 text-left font-bold text-foreground w-[200px]">รายการ</th>
+                      {MONTHS_TH.map(m => <th key={m} className="border border-border/40 px-2 py-2 text-center font-bold text-foreground">{m}</th>)}
                     </tr>
                   </thead>
                   <tbody>
@@ -1116,11 +1118,11 @@ export default function ResourceUsageFormPage() {
                       { key: 'wastewater80',      label: 'น้ำเสีย 80% ของน้ำใช้ (ลบ.ม.)', formula: 'น้ำใช้รายเดือน (ลบ.ม.) * 0.8' },
                       { key: 'methaneWastewater', label: 'มีเทนจากบ่อบำบัด (kgCH4)', formula: 'น้ำเสีย 80% ของน้ำใช้ * ประเภทการบำบัดน้ำเสีย * 0.12' },
                     ].map((row) => (
-                      <tr key={row.key} className="hover:bg-slate-50 transition-colors">
-                        <td className="border border-slate-100 px-4 py-3 font-medium text-slate-700">
+                      <tr key={row.key} className="hover:bg-muted/20 transition-colors">
+                        <td className="border border-border/30 px-4 py-3 font-medium text-foreground/80">
                           <UITooltip>
                             <TooltipTrigger asChild>
-                              <span className="cursor-help border-b border-dotted border-slate-300">{row.label}</span>
+                              <span className="cursor-help border-b border-dotted border-border/60">{row.label}</span>
                             </TooltipTrigger>
                             <TooltipContent side="right" className="bg-slate-800 text-white border-slate-700 p-2">
                               <p className="text-[0.625rem] font-bold mb-1 uppercase text-slate-400">สูตรการคำนวณ:</p>
@@ -1131,7 +1133,7 @@ export default function ResourceUsageFormPage() {
                         {MONTHS_TH.map((_, mi) => {
                           const val = (section2Baseline[row.key as keyof Section2BaselineData] as number[])[mi];
                           return (
-                            <td key={mi} className="border border-slate-100 px-2 py-3 text-center font-mono text-xs text-slate-500 bg-slate-50/30">
+                            <td key={mi} className="border border-border/30 px-2 py-3 text-center font-mono text-xs text-muted-foreground bg-muted/10">
                               <UITooltip>
                                 <TooltipTrigger asChild>
                                   <span className="cursor-help w-full block">
@@ -1155,35 +1157,35 @@ export default function ResourceUsageFormPage() {
 
           {/* ── Tab 4: Section 2 GHG ── */}
           <TabsContent value="section2g" className="flex-1 overflow-auto m-0">
-            <div className="rounded-2xl border border-emerald-100 bg-white shadow-md overflow-hidden flex flex-col h-full">
-              <div className="bg-gradient-to-r from-[#f0fdf4] to-white px-6 py-4 border-b border-emerald-50 flex items-center justify-between shrink-0">
+            <div className="rounded-2xl border border-border/40 bg-background/60 backdrop-blur-md shadow-md overflow-hidden flex flex-col h-full">
+              <div className="bg-gradient-to-r from-primary/5 to-transparent px-6 py-4 border-b border-border/40 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
                     <CheckCircle2 className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-emerald-900">บันทึกปริมาณการใช้รายเดือน และ Emission Factor (EF)</h3>
-                    <p className="text-[0.6875rem] text-emerald-600/80">กรอกค่า EF และปริมาณการใช้ในแต่ละเดือน ระบบจะคำนวณ kgCO2e ให้อัตโนมัติ</p>
+                    <h3 className="text-base font-bold text-foreground">บันทึกปริมาณการใช้รายเดือน และ Emission Factor (EF)</h3>
+                    <p className="text-[0.6875rem] text-muted-foreground">กรอกค่า EF และปริมาณการใช้ในแต่ละเดือน ระบบจะคำนวณ kgCO2e ให้อัตโนมัติ</p>
                   </div>
                 </div>
               </div>
               
               <div className="flex-1 overflow-auto">
-                <table className="border-collapse text-[0.8125rem] w-full min-w-[2000px] table-fixed">
+                <table className="border-collapse text-[0.8125rem] w-full min-w-[2000px] table-fixed text-foreground">
                   <thead>
-                    <tr className="sticky top-0 z-20 bg-[#f8fafc]">
-                      <th className="sticky left-0 z-30 bg-[#f8fafc] border-b border-r border-slate-200 px-6 py-4 text-left font-bold text-slate-700 w-[350px]">รายการ</th>
-                      <th className="sticky left-[349px] z-30 bg-[#ecfdf5] border-b border-r border-emerald-200 px-2 py-4 text-center font-bold text-emerald-800 w-28 shadow-[1px_0_0_0_#e2e8f0]">Emission Factor</th>
+                    <tr className="sticky top-0 z-20 bg-background shadow-sm">
+                      <th className="sticky left-0 z-30 bg-background border-b border-r border-border/40 px-6 py-4 text-left font-bold text-foreground/80 w-[350px]">รายการ</th>
+                      <th className="sticky left-[350px] z-30 bg-background border-b border-r border-border/40 px-2 py-4 text-center font-bold text-emerald-600 dark:text-emerald-400 w-28 shadow-[1px_0_0_0_var(--border)]">Emission Factor</th>
                       {MONTHS_TH.map(m => (
                         <Fragment key={m}>
-                          <th className="border-b border-r border-slate-200 px-2 py-4 text-center font-bold text-slate-600 w-32 bg-white">ปริมาณ {m}</th>
-                          <th className="border-b border-r border-slate-200 px-2 py-4 text-center font-bold text-emerald-700 w-32 bg-[#f0fdf4]">kgCO2e {m}</th>
+                          <th className="border-b border-r border-border/40 px-2 py-4 text-center font-bold text-foreground/60 w-32 bg-background">ปริมาณ {m}</th>
+                          <th className="border-b border-r border-border/40 px-2 py-4 text-center font-bold text-emerald-600 dark:text-emerald-400 w-32 bg-emerald-500/5">kgCO2e {m}</th>
                         </Fragment>
                       ))}
-                      <th className="sticky right-0 z-30 border-b border-l border-amber-200 px-6 py-4 text-center font-bold text-amber-900 w-36 bg-[#fffbeb]">รวมปี (kgCO2e)</th>
+                      <th className="sticky right-0 z-30 border-b border-l border-amber-500/40 px-6 py-4 text-center font-bold text-amber-600 dark:text-amber-400 w-36 bg-background shadow-[-1px_0_0_0_var(--border)]">รวมปี (kgCO2e)</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-border/20">
                     {(() => {
                       const rows: React.ReactNode[] = [];
                       let lastScope = 0;
@@ -1215,28 +1217,28 @@ export default function ResourceUsageFormPage() {
 
                           if (customScopeLabel) {
                             rows.push(
-                              <tr key={`scope-header-${item.key}`} className="bg-slate-50/80">
-                                <td className="sticky left-0 z-10 bg-[#f8fafc] border-r border-slate-200 px-6 py-3 font-bold text-slate-800 text-sm">
+                              <tr key={`scope-header-${item.key}`} className="bg-muted/30">
+                                <td className="sticky left-0 z-10 bg-background border-r border-border/40 px-6 py-3 font-bold text-foreground/80 text-sm">
                                   {customScopeLabel}
                                 </td>
-                                <td className="sticky left-[349px] z-10 bg-[#f8fafc] border-r border-slate-200 shadow-[1px_0_0_0_#e2e8f0]"></td>
-                                <td colSpan={24} className="bg-slate-50/50"></td>
-                                <td className="sticky right-0 z-10 bg-[#fffbeb]/50 border-l border-amber-100"></td>
+                                <td className="sticky left-[350px] z-10 bg-background border-r border-border/40 shadow-[1px_0_0_0_var(--border)]"></td>
+                                <td colSpan={24} className="bg-transparent"></td>
+                                <td className="sticky right-0 z-10 bg-background border-l border-border/40 shadow-[-1px_0_0_0_var(--border)]"></td>
                               </tr>
                             );
                           }
                         }
 
                         rows.push(
-                          <tr key={item.key} className="hover:bg-blue-50/30 transition-colors group">
-                            <td className="sticky left-0 z-10 bg-white group-hover:bg-blue-50 border-r border-slate-200 px-8 py-3 font-medium text-slate-700 leading-tight">
-                              {item.label} <span className="text-[0.625rem] text-slate-400 font-normal">({item.unit})</span>
+                          <tr key={item.key} className="hover:bg-primary/5 transition-colors group">
+                            <td className="sticky left-0 z-10 bg-background group-hover:bg-muted border-r border-border/40 px-8 py-3 font-medium text-foreground/80 leading-tight">
+                              {item.label} <span className="text-[0.625rem] text-muted-foreground font-normal">({item.unit})</span>
                             </td>
-                            <td className="sticky left-[349px] z-10 bg-[#ecfdf5] group-hover:bg-[#dcfce7] border-r border-emerald-100 px-3 py-2 shadow-[1px_0_0_0_#e2e8f0]">
+                            <td className="sticky left-[350px] z-10 bg-background group-hover:bg-muted border-r border-border/40 px-3 py-2 shadow-[1px_0_0_0_var(--border)]">
                               <input
                                 type="number"
                                 step="any"
-                                className="w-full h-9 px-2 text-center text-sm border border-emerald-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all font-mono bg-white outline-none shadow-sm"
+                                className="w-full h-9 px-2 text-center text-sm border border-emerald-500/20 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-mono bg-muted/20 outline-none shadow-sm text-foreground"
                                 value={section2Ghg[item.key].cfs[0]}
                                 disabled={isReadOnly}
                                 onChange={(e) => {
@@ -1257,27 +1259,27 @@ export default function ResourceUsageFormPage() {
                               const cf = amount * ef;
                               return (
                                 <Fragment key={mi}>
-                                  <td className="px-3 py-2 border-r border-slate-100">
+                                  <td className="px-3 py-2 border-r border-border/20 bg-background/20">
                                     <input
                                       type="number"
                                       step="any"
                                       min={0}
-                                      className="w-full h-9 px-2 text-center text-sm border border-slate-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white outline-none shadow-sm"
+                                      className="w-full h-9 px-2 text-center text-sm border border-border/40 rounded-lg focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all bg-muted/10 outline-none shadow-sm text-foreground"
                                       value={amount || ""}
                                       disabled={isReadOnly}
                                       onChange={(e) => setGhgAmount(item.key, mi, parseFloat(e.target.value) || 0)}
                                     />
                                   </td>
-                                  <td className="px-3 py-2 bg-[#f0fdf4]/20 border-r border-emerald-50/50">
-                                    <div className="w-full h-9 flex items-center justify-center text-center font-mono text-xs text-emerald-700 font-semibold bg-emerald-50/40 rounded-lg border border-emerald-100/50">
+                                  <td className="px-3 py-2 bg-emerald-500/5 border-r border-emerald-500/10">
+                                    <div className="w-full h-9 flex items-center justify-center text-center font-mono text-xs text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-500/10 rounded-lg border border-emerald-500/10">
                                       {cf === 0 ? "-" : cf.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}
                                     </div>
                                   </td>
                                 </Fragment>
                               );
                             })}
-                            <td className="sticky right-0 z-10 bg-[#fffbeb] group-hover:bg-[#fef3c7] border-l border-amber-200 px-3 py-2">
-                              <div className="w-full h-9 flex items-center justify-end px-3 text-right font-mono text-sm font-bold bg-white rounded-lg border border-amber-200 text-amber-700 shadow-sm">
+                            <td className="sticky right-0 z-10 bg-background group-hover:bg-muted border-l border-border/40 px-3 py-2 shadow-[-1px_0_0_0_var(--border)]">
+                              <div className="w-full h-9 flex items-center justify-end px-3 text-right font-mono text-sm font-bold bg-muted/20 rounded-lg border border-amber-500/20 text-amber-600 dark:text-amber-400 shadow-sm">
                                 {calcItemTotal(section2Ghg[item.key]).toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}
                               </div>
                             </td>
@@ -1297,10 +1299,10 @@ export default function ResourceUsageFormPage() {
             <div className="space-y-8 p-6">
               
               {/* Summary Cards Section */}
-              <div className="space-y-12 bg-slate-50/50 p-8 rounded-[2rem] border border-slate-100 shadow-sm">
+              <div className="space-y-12 bg-background/40 backdrop-blur-md p-8 rounded-[2rem] border border-border/40 shadow-sm">
                 {/* Row 1: สัดส่วน % tCO2e */}
                 <div className="space-y-4">
-                  <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] px-2">สัดส่วน % tCO2e</h3>
+                  <h3 className="text-sm font-black text-muted-foreground uppercase tracking-[0.2em] px-2">สัดส่วน % tCO2e</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                     {[
                       { label: 'ประเภทที่ 1', val: summary.scope1Tco2e, pct: summary.scope1Pct, dot: 'bg-emerald-500', unit: 'tCO2e' },
@@ -1308,29 +1310,29 @@ export default function ResourceUsageFormPage() {
                       { label: 'ประเภทที่ 3', val: summary.scope3Tco2e, pct: summary.scope3Pct, dot: 'bg-blue-400',    unit: 'tCO2e' },
                       { label: 'รวมทั้งหมด',  val: summary.totalTco2e,  pct: 100,             dot: 'bg-emerald-700', unit: 'tCO2e', isTotal: true },
                     ].map((item) => (
-                      <div key={item.label} className={`relative p-6 rounded-3xl border transition-all duration-300 hover:shadow-md ${item.isTotal ? 'bg-[#f0fdf4] border-emerald-200' : 'bg-white border-slate-200/60'} flex flex-col gap-2`}>
+                      <div key={item.label} className={`relative p-6 rounded-3xl border transition-all duration-300 hover:shadow-md ${item.isTotal ? 'bg-primary/10 border-primary/20' : 'bg-background/60 border-border/40'} flex flex-col gap-2`}>
                         <div className="flex items-center gap-2">
                           {item.isTotal ? (
-                            <div className="flex items-center gap-1 text-emerald-800 font-bold text-xs uppercase tracking-tighter">
+                            <div className="flex items-center gap-1 text-primary font-bold text-xs uppercase tracking-tighter">
                               <TrendingUp className="w-4 h-4" /> {item.label}
                             </div>
                           ) : (
                             <>
                               <div className={`w-3 h-3 rounded-full ${item.dot} shadow-sm`} />
-                              <span className="text-xs font-bold text-slate-500">{item.label}</span>
+                              <span className="text-xs font-bold text-muted-foreground">{item.label}</span>
                             </>
                           )}
                         </div>
                         <div className="flex items-baseline gap-1 mt-1">
-                          <span className="text-3xl font-black text-slate-900 tracking-tight">{item.pct.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                          <span className="text-[0.625rem] font-black text-slate-400 uppercase tracking-wider">%tCO2e</span>
+                          <span className="text-3xl font-black text-foreground tracking-tight">{item.pct.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          <span className="text-[0.625rem] font-black text-muted-foreground uppercase tracking-wider">%tCO2e</span>
                         </div>
-                        <div className="text-[0.6875rem] text-slate-500 font-bold -mt-1">
+                        <div className="text-[0.6875rem] text-muted-foreground font-bold -mt-1">
                           {item.val.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 6 })} {item.unit}
                         </div>
-                        <div className="mt-4 h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                        <div className="mt-4 h-2 w-full bg-muted rounded-full overflow-hidden">
                           <div 
-                            className="h-full bg-blue-600 rounded-full shadow-sm" 
+                            className="h-full bg-primary rounded-full shadow-sm" 
                             style={{ width: `${item.pct}%` }} 
                           />
                         </div>
@@ -1341,7 +1343,7 @@ export default function ResourceUsageFormPage() {
 
                 {/* Row 2: สัดส่วน %GHG */}
                 <div className="space-y-4">
-                  <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] px-2">สัดส่วน %GHG</h3>
+                  <h3 className="text-sm font-black text-muted-foreground uppercase tracking-[0.2em] px-2">สัดส่วน %GHG</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                     {[
                       { label: 'ประเภทที่ 1', val: summary.scope1Tco2e * 1000, pct: summary.scope1Pct, dot: 'bg-emerald-500', unit: 'kgCO2e' },
@@ -1349,29 +1351,29 @@ export default function ResourceUsageFormPage() {
                       { label: 'ประเภทที่ 3', val: summary.scope3Tco2e * 1000, pct: summary.scope3Pct, dot: 'bg-blue-400',    unit: 'kgCO2e' },
                       { label: 'รวมทั้งหมด',  val: summary.totalTco2e * 1000,  pct: 100,             dot: 'bg-emerald-700', unit: 'kgCO2e', isTotal: true },
                     ].map((item) => (
-                      <div key={item.label} className={`relative p-6 rounded-3xl border transition-all duration-300 hover:shadow-md ${item.isTotal ? 'bg-[#f0fdf4] border-emerald-200' : 'bg-white border-slate-200/60'} flex flex-col gap-2`}>
+                      <div key={item.label} className={`relative p-6 rounded-3xl border transition-all duration-300 hover:shadow-md ${item.isTotal ? 'bg-primary/10 border-primary/20' : 'bg-background/60 border-border/40'} flex flex-col gap-2`}>
                         <div className="flex items-center gap-2">
                           {item.isTotal ? (
-                            <div className="flex items-center gap-1 text-emerald-800 font-bold text-xs uppercase tracking-tighter">
+                            <div className="flex items-center gap-1 text-primary font-bold text-xs uppercase tracking-tighter">
                               <TrendingUp className="w-4 h-4" /> {item.label}
                             </div>
                           ) : (
                             <>
                               <div className={`w-3 h-3 rounded-full ${item.dot} shadow-sm`} />
-                              <span className="text-xs font-bold text-slate-500">{item.label}</span>
+                              <span className="text-xs font-bold text-muted-foreground">{item.label}</span>
                             </>
                           )}
                         </div>
                         <div className="flex items-baseline gap-1 mt-1">
-                          <span className="text-3xl font-black text-slate-900 tracking-tight">{item.pct.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                          <span className="text-[0.625rem] font-black text-slate-400 uppercase tracking-wider">%GHG</span>
+                          <span className="text-3xl font-black text-foreground tracking-tight">{item.pct.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          <span className="text-[0.625rem] font-black text-muted-foreground uppercase tracking-wider">%GHG</span>
                         </div>
-                        <div className="text-[0.6875rem] text-slate-500 font-bold -mt-1">
+                        <div className="text-[0.6875rem] text-muted-foreground font-bold -mt-1">
                           {item.val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} {item.unit}
                         </div>
-                        <div className="mt-4 h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                        <div className="mt-4 h-2 w-full bg-muted rounded-full overflow-hidden">
                           <div 
-                            className="h-full bg-blue-600 rounded-full shadow-sm" 
+                            className="h-full bg-primary rounded-full shadow-sm" 
                             style={{ width: `${item.pct}%` }} 
                           />
                         </div>
@@ -1382,21 +1384,21 @@ export default function ResourceUsageFormPage() {
               </div>
 
               {/* Chart Section */}
-              <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl overflow-hidden">
-                <div className="px-8 py-6 border-b border-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="bg-background/60 backdrop-blur-md rounded-[2rem] border border-border/40 shadow-xl overflow-hidden">
+                <div className="px-8 py-6 border-b border-border/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
-                    <h3 className="text-xl font-black text-slate-800 tracking-tight">เปรียบเทียบรายเดือน</h3>
-                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Monthly Analytics Breakdown</p>
+                    <h3 className="text-xl font-black text-foreground tracking-tight">เปรียบเทียบรายเดือน</h3>
+                    <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mt-1">Monthly Analytics Breakdown</p>
                   </div>
-                  <div className="flex bg-slate-100 p-1.5 rounded-2xl w-fit">
+                  <div className="flex bg-muted p-1.5 rounded-2xl w-fit">
                     <button 
                       onClick={() => setChartView("trend")}
-                      className={`px-6 py-2 text-xs font-black rounded-xl transition-all ${chartView === "trend" ? "bg-white text-blue-600 shadow-md" : "text-slate-500 hover:text-slate-800"}`}>
+                      className={`px-6 py-2 text-xs font-black rounded-xl transition-all ${chartView === "trend" ? "bg-background text-primary shadow-md" : "text-muted-foreground hover:text-foreground"}`}>
                       แนวโน้ม
                     </button>
                     <button 
                       onClick={() => setChartView("proportion")}
-                      className={`px-6 py-2 text-xs font-black rounded-xl transition-all ${chartView === "proportion" ? "bg-white text-blue-600 shadow-md" : "text-slate-500 hover:text-slate-800"}`}>
+                      className={`px-6 py-2 text-xs font-black rounded-xl transition-all ${chartView === "proportion" ? "bg-background text-primary shadow-md" : "text-muted-foreground hover:text-foreground"}`}>
                       สัดส่วนรวม
                     </button>
                   </div>
@@ -1405,15 +1407,15 @@ export default function ResourceUsageFormPage() {
                 <div className="p-8 space-y-8">
                   {/* Chart Stat Cards */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-slate-50 rounded-[1.5rem] p-5 border border-slate-100 shadow-sm">
-                      <p className="text-[0.625rem] font-black text-slate-400 uppercase tracking-widest mb-2">Peak Month</p>
-                      <p className="text-base font-black text-slate-800">
-                        {peakMonth.name} • <span className="text-blue-600">{peakMonth.val.toLocaleString()}</span> <span className="text-[0.6875rem] text-slate-400 font-bold">kgCO2e</span>
+                    <div className="bg-muted/30 rounded-[1.5rem] p-5 border border-border/40 shadow-sm">
+                      <p className="text-[0.625rem] font-black text-muted-foreground uppercase tracking-widest mb-2">Peak Month</p>
+                      <p className="text-base font-black text-foreground">
+                        {peakMonth.name} • <span className="text-primary">{peakMonth.val.toLocaleString()}</span> <span className="text-[0.6875rem] text-muted-foreground font-bold">kgCO2e</span>
                       </p>
                     </div>
-                    <div className="bg-slate-50 rounded-[1.5rem] p-5 border border-slate-100 shadow-sm">
-                      <p className="text-[0.625rem] font-black text-slate-400 uppercase tracking-widest mb-2">Top Performer</p>
-                      <p className="text-base font-black text-slate-800">
+                    <div className="bg-muted/30 rounded-[1.5rem] p-5 border border-border/40 shadow-sm">
+                      <p className="text-[0.625rem] font-black text-muted-foreground uppercase tracking-widest mb-2">Top Performer</p>
+                      <p className="text-base font-black text-foreground">
                         {(() => {
                           const maxScope = summary.scope1Pct > summary.scope2Pct && summary.scope1Pct > summary.scope3Pct ? "ประเภทที่ 1" : summary.scope2Pct > summary.scope3Pct ? "ประเภทที่ 2" : "ประเภทที่ 3";
                           const maxPct = Math.max(summary.scope1Pct, summary.scope2Pct, summary.scope3Pct);
@@ -1426,8 +1428,8 @@ export default function ResourceUsageFormPage() {
                         })()}
                       </p>
                     </div>
-                    <div className="bg-slate-50 rounded-[1.5rem] p-5 border border-slate-100 shadow-sm">
-                      <p className="text-[0.625rem] font-black text-slate-400 uppercase tracking-widest mb-2">Growth Trend</p>
+                    <div className="bg-muted/30 rounded-[1.5rem] p-5 border border-border/40 shadow-sm">
+                      <p className="text-[0.625rem] font-black text-muted-foreground uppercase tracking-widest mb-2">Growth Trend</p>
                       <p className="text-base font-black flex items-center gap-2">
                         <TrendingUp className={`w-5 h-5 ${trendQ4vsQ1 >= 0 ? "text-red-500" : "text-emerald-500"}`} />
                         <span className={trendQ4vsQ1 >= 0 ? "text-red-600" : "text-emerald-600"}>
@@ -1442,28 +1444,28 @@ export default function ResourceUsageFormPage() {
                     <ResponsiveContainer width="100%" height="100%">
                       {chartView === "trend" ? (
                         <LineChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-border/40" />
                           <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: '0.75rem', fill: '#94a3b8', fontWeight: 600 }} dy={10} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: '0.75rem', fill: '#cbd5e1', fontWeight: 600 }} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: '0.75rem', fill: '#94a3b8', fontWeight: 600 }} />
                           <Tooltip
-                            contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', padding: '16px' }}
+                            contentStyle={{ borderRadius: '20px', border: 'none', background: 'var(--popover)', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.25)', padding: '16px' }}
                             itemStyle={{ fontSize: '0.8125rem', fontWeight: 800 }}
                           />
-                          <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '0.75rem', fontWeight: 800, paddingTop: '30px', color: '#64748b' }} />
-                          <Line type="monotone" dataKey="ประเภทที่ 1" stroke="#10b981" strokeWidth={4} dot={{ r: 6, strokeWidth: 3, fill: 'white' }} activeDot={{ r: 8, strokeWidth: 0 }} />
-                          <Line type="monotone" dataKey="ประเภทที่ 2" stroke="#f59e0b" strokeWidth={4} dot={{ r: 6, strokeWidth: 3, fill: 'white' }} activeDot={{ r: 8, strokeWidth: 0 }} />
-                          <Line type="monotone" dataKey="ประเภทที่ 3" stroke="#3b82f6" strokeWidth={4} dot={{ r: 6, strokeWidth: 3, fill: 'white' }} activeDot={{ r: 8, strokeWidth: 0 }} />
+                          <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '0.75rem', fontWeight: 800, paddingTop: '30px', color: '#94a3b8' }} />
+                          <Line type="monotone" dataKey="ประเภทที่ 1" stroke="#10b981" strokeWidth={4} dot={{ r: 6, strokeWidth: 3, fill: 'var(--background)' }} activeDot={{ r: 8, strokeWidth: 0 }} />
+                          <Line type="monotone" dataKey="ประเภทที่ 2" stroke="#f59e0b" strokeWidth={4} dot={{ r: 6, strokeWidth: 3, fill: 'var(--background)' }} activeDot={{ r: 8, strokeWidth: 0 }} />
+                          <Line type="monotone" dataKey="ประเภทที่ 3" stroke="#3b82f6" strokeWidth={4} dot={{ r: 6, strokeWidth: 3, fill: 'var(--background)' }} activeDot={{ r: 8, strokeWidth: 0 }} />
                         </LineChart>
                       ) : (
                         <BarChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-border/40" />
                           <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: '0.75rem', fill: '#94a3b8', fontWeight: 600 }} dy={10} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: '0.75rem', fill: '#cbd5e1', fontWeight: 600 }} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: '0.75rem', fill: '#94a3b8', fontWeight: 600 }} />
                           <Tooltip
-                            cursor={{ fill: '#f8fafc', radius: 10 }}
-                            contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', padding: '16px' }}
+                            cursor={{ fill: 'var(--muted)', opacity: 0.4, radius: 10 }}
+                            contentStyle={{ borderRadius: '20px', border: 'none', background: 'var(--popover)', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.25)', padding: '16px' }}
                           />
-                          <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '0.75rem', fontWeight: 800, paddingTop: '30px', color: '#64748b' }} />
+                          <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '0.75rem', fontWeight: 800, paddingTop: '30px', color: '#94a3b8' }} />
                           <Bar dataKey="ประเภทที่ 1" stackId="a" fill="#10b981" barSize={45} />
                           <Bar dataKey="ประเภทที่ 2" stackId="a" fill="#f59e0b" />
                           <Bar dataKey="ประเภทที่ 3" stackId="a" fill="#3b82f6" radius={[10, 10, 0, 0]} />

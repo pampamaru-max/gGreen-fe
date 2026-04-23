@@ -68,17 +68,15 @@ export function AppSidebar({ fontSize, setFontSize }: AppSidebarProps) {
           <SidebarGroupContent>
             <SidebarMenu>
 
-              {/* ข้อมูลการใช้ทรัพยากร - evaluatee and evaluator only */}
-              {!isAdmin && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <NavLink to="/resource-usage" className="hover:bg-muted/50" activeClassName="bg-muted text-primary font-medium">
-                      <Leaf className="mr-2 h-4 w-4" />
-                      {!collapsed && <span>ข้อมูลการใช้ทรัพยากร</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
+              {/* ข้อมูลการใช้ทรัพยากร */}
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <NavLink to="/resource-usage" className="hover:bg-muted/50" activeClassName="bg-muted text-primary font-medium">
+                    <Leaf className="mr-2 h-4 w-4" />
+                    {!collapsed && <span>ข้อมูลการใช้ทรัพยากร</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
 
               {/* ประเมิน G-Green */}
               <SidebarMenuItem>
@@ -295,14 +293,39 @@ export function AppSidebar({ fontSize, setFontSize }: AppSidebarProps) {
       </SidebarContent>
 
       {/* Flower decoration */}
-      {!collapsed && (
+      {!collapsed && !isDark && (
         <img
           src="/flower-decoration.png"
           alt=""
-          className="absolute -bottom-2 -left-3 pointer-events-none select-none z-0"
-          style={{ width: 170, height: "auto", display: "block", opacity: 0.92 }}
+          className="absolute -bottom-8 -left-8 pointer-events-none select-none z-0"
+          style={{ width: 240, height: "auto", display: "block", opacity: 0.92 }}
           draggable={false}
         />
+      )}
+      {!collapsed && !isDark && (
+        <>
+          <img
+            src="/butterfly.gif"
+            alt=""
+            className="absolute bottom-[200px] left-[60px] pointer-events-none select-none z-10"
+            style={{ width: 50, height: "auto" }}
+            draggable={false}
+          />
+          <img
+            src="/butterfly.gif"
+            alt=""
+            className="absolute bottom-[160px] left-[130px] pointer-events-none select-none z-10"
+            style={{ width: 35, height: "auto", opacity: 0.8, transform: "scaleX(-1)" }}
+            draggable={false}
+          />
+          <img
+            src="/butterfly.gif"
+            alt=""
+            className="absolute bottom-[260px] left-[100px] pointer-events-none select-none z-10"
+            style={{ width: 45, height: "auto", opacity: 0.9, transform: "scaleX(-1)" }}
+            draggable={false}
+          />
+        </>
       )}
     </Sidebar>);
 
