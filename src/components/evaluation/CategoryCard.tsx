@@ -1197,3 +1197,4 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
     </div>
   );
 }
+  
