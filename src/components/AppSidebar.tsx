@@ -294,7 +294,7 @@ export function AppSidebar({ fontSize, setFontSize }: AppSidebarProps) {
 
       {!collapsed && (
         <img
-          src="https://media.tenor.com/ItloOf_4U-AAAAAj/toothless-dancing.gif"
+          src="/toothless-dancing.gif"
           alt=""
           className="absolute bottom-0 left-0 pointer-events-none select-none z-10"
           style={{ width: 120, height: "auto" }}
