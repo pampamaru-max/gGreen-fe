@@ -182,9 +182,14 @@ export default function ProjectRegistration() {
               id: t.id, name: t.name,
               indicators: (t.indicators ?? []).map((i: any) => ({
                 id: i.id, name: i.name, maxScore: i.maxScore, scoreType: c.scoreType || 'score',
-                description: i.description ?? "", detail: i.detail ?? "", notes: i.notes ?? "",
-                evidenceDescription: i.evidenceDescription ?? "",
-                scoringCriteria: Array.isArray(i.scoringCriteria) ? i.scoringCriteria : [],
+                description: i.description || i.description || "", 
+                detail: i.detail || i.detail || "", 
+                notes: i.notes || i.notes || "",
+                evidenceDescription: i.evidenceDescription || i.evidence_description || "",
+                scoringCriteria: Array.isArray(i.scoringCriteria) ? i.scoringCriteria : (Array.isArray(i.scoring_criteria) ? i.scoring_criteria : []),
+                isHeader: i.isHeader || i.is_header,
+                parentId: i.parentId || i.parent_id,
+                sortOrder: i.sortOrder || i.sort_order || 0,
               })),
             })),
           }));
@@ -387,6 +392,9 @@ export default function ProjectRegistration() {
       let totalScore = 0, totalMax = 0;
       let passCount = 0, totalIndicators = 0;
       cat.topics.forEach((t) => t.indicators.forEach((i) => {
+        const hasChildren = t.indicators.some(other => other.parentId === i.id);
+        if (i.isHeader || hasChildren) return;
+
         if (isYesNo) {
           totalIndicators++;
           if ((scores[i.id] ?? -1) === 1) passCount++;
@@ -411,6 +419,9 @@ export default function ProjectRegistration() {
       let totalScore = 0, totalMax = 0;
       let passCount = 0, totalIndicators = 0;
       cat.topics.forEach((t) => t.indicators.forEach((i) => {
+        const hasChildren = t.indicators.some(other => other.parentId === i.id);
+        if (i.isHeader || hasChildren) return;
+
         if (isYesNo) {
           totalIndicators++;
           if ((committeeScores[i.id] ?? -1) === 1) passCount++;
@@ -432,7 +443,11 @@ export default function ProjectRegistration() {
     if (visibleCategories.length === 0) return false;
     return visibleCategories.every(cat =>
       cat.topics.every(topic =>
-        topic.indicators.every(ind => scores[ind.id] !== undefined)
+        topic.indicators.every(ind => {
+          const hasChildren = topic.indicators.some(other => other.parentId === ind.id);
+          if (ind.isHeader || hasChildren) return true;
+          return scores[ind.id] !== undefined;
+        })
       )
     );
   }, [visibleCategories, scores]);
@@ -497,7 +512,10 @@ export default function ProjectRegistration() {
     visibleCategories.forEach((cat, catIdx) => {
       cat.topics.forEach((topic) => {
         topic.indicators.forEach((indicator) => {
-          items.push({ indicator, colorIndex: catIdx });
+          const hasChildren = topic.indicators.some(i => i.parentId === indicator.id);
+          if (!indicator.isHeader && !hasChildren) {
+            items.push({ indicator, colorIndex: catIdx });
+          }
         });
       });
     });

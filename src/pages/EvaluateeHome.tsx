@@ -145,6 +145,14 @@ export default function EvaluateeHome() {
     enabled: !!programId,
   });
 
+  const { data: resourceUsageRecords = [], isLoading: resourceUsageLoading } = useQuery({
+    queryKey: ["resource-usage", user?.id],
+    queryFn: async () => {
+      const { data } = await apiClient.get("resource-usage");
+      return data ?? [];
+    },
+  });
+
   const renderScoreWithLevel = (
     year: number,
     type: ScoringLevelType,
@@ -377,7 +385,7 @@ export default function EvaluateeHome() {
     );
   }, [allEvaluations]);
 
-  if (regLoading || evaluationsLoading) {
+  if (regLoading || evaluationsLoading || resourceUsageLoading) {
     return <PageLoading />;
   }
 
@@ -739,6 +747,7 @@ export default function EvaluateeHome() {
           onClose={() => setEvalTypeDialogOpen(false)}
           programId={programId}
           usedYears={evaluations.map((e: any) => e.year).filter((y: any) => typeof y === "number" && y > 0)}
+          resourceUsageRecords={resourceUsageRecords}
         />
       )}
     </div>

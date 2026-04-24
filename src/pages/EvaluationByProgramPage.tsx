@@ -258,6 +258,9 @@ const EvaluationByProgramPage = () => {
       let totalScore = 0, totalMax = 0, passCount = 0, totalIndicators = 0;
       cat.topics.forEach((topic) => {
         topic.indicators.forEach((ind) => {
+          const hasChildren = topic.indicators.some(other => other.parentId === ind.id);
+          if (ind.isHeader || hasChildren) return;
+
           if (isYesNo) {
             totalIndicators++;
             if ((scores[ind.id] ?? -1) === 1) passCount++;
@@ -278,6 +281,9 @@ const EvaluationByProgramPage = () => {
       let totalScore = 0, totalMax = 0, passCount = 0, totalIndicators = 0;
       cat.topics.forEach((topic) => {
         topic.indicators.forEach((ind) => {
+          const hasChildren = topic.indicators.some(other => other.parentId === ind.id);
+          if (ind.isHeader || hasChildren) return;
+
           if (isYesNo) {
             totalIndicators++;
             if ((committeeScores[ind.id] ?? -1) === 1) passCount++;
