@@ -82,6 +82,7 @@ interface DocumentTemplate {
 const registrationSchema = z.object({
   program_id: z.string().min(1, "กรุณาเลือกโครงการ"),
   juristic_id: z.string().trim().optional(),
+  branch_number: z.string().trim().min(1, "กรุณาระบุรหัสสาขา"),
   organization_name: z
     .string()
     .trim()
@@ -139,7 +140,10 @@ export default function ProjectRegistrationDialog({
   const [subdistrictOpen, setSubdistrictOpen] = useState(false);
   const [juristicExists, setJuristicExists] = useState(false);
   const [juristicChecking, setJuristicChecking] = useState(false);
+  const [branchExists, setBranchExists] = useState(false);
+  const [branchChecking, setBranchChecking] = useState(false);
   const juristicDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const branchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pendingFiles, setPendingFiles] = useState<Record<string, File>>({});
   const [uploadingMap, setUploadingMap] = useState<Record<string, number>>({});
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -166,6 +170,7 @@ export default function ProjectRegistrationDialog({
     defaultValues: {
       program_id: "",
       juristic_id: "",
+      branch_number: "",
       organization_name: "",
       organization_name_en: "",
       organization_type: "",
@@ -193,6 +198,13 @@ export default function ProjectRegistrationDialog({
 
   useEffect(() => {
     setPendingFiles({});
+    if (selectedProgramId) {
+      handleBranchChange(
+        form.getValues("juristic_id") || "",
+        form.getValues("branch_number") || "",
+        selectedProgramId
+      );
+    }
   }, [selectedProgramId]);
 
   const { data: districts = [] } = useQuery({
@@ -246,6 +258,25 @@ export default function ProjectRegistrationDialog({
         setJuristicExists(false);
       } finally {
         setJuristicChecking(false);
+      }
+    }, 500);
+  };
+
+  const handleBranchChange = (juristicId: string, branchNumber: string, programId: string) => {
+    if (branchDebounceRef.current) clearTimeout(branchDebounceRef.current);
+    setBranchExists(false);
+    if (!branchNumber.trim() || !programId) return;
+    setBranchChecking(true);
+    branchDebounceRef.current = setTimeout(async () => {
+      try {
+        const { data } = await apiClient.get("project-registrations/check-branch", {
+          params: { juristicId: (juristicId || "").trim(), branchNumber: branchNumber.trim(), programId },
+        });
+        setBranchExists(data.exists);
+      } catch {
+        setBranchExists(false);
+      } finally {
+        setBranchChecking(false);
       }
     }, 500);
   };
@@ -305,6 +336,7 @@ export default function ProjectRegistrationDialog({
       const { data: registration } = await apiClient.post("project-registrations", {
         programId: values.program_id,
         juristicId: values.juristic_id || undefined,
+        branchNumber: values.branch_number,
         organizationName: values.organization_name,
         organizationNameEn: values.organization_name_en,
         organizationType: values.organization_type,
@@ -356,6 +388,7 @@ export default function ProjectRegistrationDialog({
       form.reset();
       setPendingFiles({});
       setJuristicExists(false);
+      setBranchExists(false);
       onOpenChange(false);
     } catch (err: any) {
       toast({
@@ -425,49 +458,88 @@ export default function ProjectRegistrationDialog({
                 )}
               />
 
-              {/* เลขทะเบียนนิติบุคคล */}
-              <FormField
-                control={form.control}
-                name="juristic_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-1.5 text-sm font-semibold">
-                      <Hash className="h-4 w-4 text-primary" />
-                      เลขทะเบียนนิติบุคคล
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="เช่น 0105535000001"
-                        {...field}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/\D/g, "").slice(0, 13);
-                          field.onChange(val);
-                          handleJuristicIdChange(val);
-                        }}
-                      />
-                    </FormControl>
-                    {juristicChecking && (
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Loader2 className="h-3 w-3 animate-spin" /> กำลังตรวจสอบ...
-                      </p>
-                    )}
-                    {juristicExists && !juristicChecking && (
-                      <p className="text-xs text-amber-600 flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        เลขทะเบียนนิติบุคคลนี้มีอยู่แล้วในระบบ
-                      </p>
-                    )}
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
               {/* ข้อมูลหน่วยงาน */}
               <div className="space-y-1.5">
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                   ข้อมูลหน่วยงาน
                 </p>
                 <div className="rounded-xl border border-border/60 bg-muted/30 p-4 space-y-4">
+                  {/* เลขทะเบียนนิติบุคคล และ รหัสสาขา */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="juristic_id"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-1.5 text-sm font-semibold">
+                            <Hash className="h-4 w-4 text-primary" />
+                            เลขทะเบียนนิติบุคคล
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="เช่น 0105535000001"
+                              {...field}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/\D/g, "").slice(0, 13);
+                                field.onChange(val);
+                                handleJuristicIdChange(val);
+                                handleBranchChange(val, form.getValues("branch_number"), form.getValues("program_id"));
+                              }}
+                            />
+                          </FormControl>
+                          {juristicChecking && (
+                            <p className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Loader2 className="h-3 w-3 animate-spin" /> กำลังตรวจสอบ...
+                            </p>
+                          )}
+                          {juristicExists && !juristicChecking && (
+                            <p className="text-xs text-amber-600 flex items-center gap-1">
+                              <AlertCircle className="h-3 w-3" />
+                              เลขทะเบียนนิติบุคคลนี้มีอยู่แล้วในระบบ
+                            </p>
+                          )}
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="branch_number"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-1.5 text-sm font-semibold">
+                            <Hash className="h-4 w-4 text-primary" />
+                            รหัสสาขา
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="เช่น 00000"
+                              {...field}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/\D/g, "").slice(0, 5);
+                                field.onChange(val);
+                                handleBranchChange(form.getValues("juristic_id") || "", val, form.getValues("program_id"));
+                              }}
+                            />
+                          </FormControl>
+                          {branchChecking && (
+                            <p className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Loader2 className="h-3 w-3 animate-spin" /> กำลังตรวจสอบ...
+                            </p>
+                          )}
+                          {branchExists && !branchChecking && (
+                            <p className="text-xs text-amber-500 flex items-center gap-1">
+                              <AlertCircle className="h-3 w-3" />
+                              รหัสสาขานี้มีอยู่แล้วในระบบ
+                            </p>
+                          )}
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
                   <FormField
                     control={form.control}
                     name="organization_name"
@@ -1179,7 +1251,7 @@ export default function ProjectRegistrationDialog({
                     <Button
                       type="submit"
                       className="w-full h-11 text-base font-bold"
-                      disabled={submitting || hasRequiredDocsMissing}
+                      disabled={submitting || hasRequiredDocsMissing || branchExists}
                     >
                       {submitting ? (
                         <>
@@ -1196,6 +1268,12 @@ export default function ProjectRegistrationDialog({
                         กรุณาแนบเอกสารบังคับให้ครบ
                       </p>
                     )}
+                    {branchExists && (
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        รหัสสาขานี้มีอยู่ในระบบอยู่แล้ว
+                      </p>
+                    )}
                   </>
                 );
               })()}
@@ -1206,3 +1284,4 @@ export default function ProjectRegistrationDialog({
     </Dialog>
   );
 }
+

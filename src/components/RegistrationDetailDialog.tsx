@@ -13,6 +13,7 @@ interface Registration {
   id: string;
   programId: string;
   juristicId?: string;
+  branchNumber: string;
   organizationName: string;
   organizationNameEn: string;
   organizationType: string;
@@ -194,6 +195,7 @@ export default function RegistrationDetailDialog({ registration, programName, op
           {registration.juristicId && (
             <DetailRow label="เลขทะเบียนนิติบุคคล" value={registration.juristicId} />
           )}
+          <DetailRow label="รหัสสาขา" value={registration.branchNumber} />
           <DetailRow label="ชื่อหน่วยงาน (ไทย)" value={registration.organizationName} />
           <DetailRow label="ชื่อหน่วยงาน (อังกฤษ)" value={registration.organizationNameEn} />
           <DetailRow label="ประเภทองค์กร" value={registration.organizationType} />

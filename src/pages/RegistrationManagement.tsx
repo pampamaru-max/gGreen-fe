@@ -15,6 +15,7 @@ interface Registration {
   id: string;
   programId: string;
   juristicId?: string;
+  branchNumber: string;
   organizationName: string;
   organizationNameEn: string;
   organizationType: string;
@@ -207,6 +208,7 @@ export default function RegistrationManagement() {
       "#": i + 1,
       โครงการ: programName(r.programId),
       "เลขทะเบียนนิติบุคคล": r.juristicId || "-",
+      "รหัสสาขา": r.branchNumber || "00000",
       ชื่อหน่วยงาน: r.organizationName,
       ประเภท: r.organizationType || "-",
       จังหวัด: r.provinceName || r.province || "-",
@@ -437,6 +439,7 @@ export default function RegistrationManagement() {
                     <TableHead className="w-10">#</TableHead>
                     <TableHead>โครงการ</TableHead>
                     <TableHead>เลขทะเบียนนิติบุคคล</TableHead>
+                    <TableHead>รหัสสาขา</TableHead>
                     <TableHead>ชื่อหน่วยงาน</TableHead>
                     <TableHead>ประเภท</TableHead>
                     <TableHead>จังหวัด</TableHead>
@@ -453,6 +456,9 @@ export default function RegistrationManagement() {
                       <TableCell>{programName(r.programId)}</TableCell>
                       <TableCell className="text-muted-foreground font-mono text-xs">
                         {r.juristicId || "-"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground font-mono text-xs">
+                        {r.branchNumber || "00000"}
                       </TableCell>
                       <TableCell className="font-medium">{r.organizationName}</TableCell>
                       <TableCell>{r.organizationType || "-"}</TableCell>
