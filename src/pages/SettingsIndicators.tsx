@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { ListChecks, Plus, Pencil, Trash2, ChevronRight, Loader2, GripVertical, ChevronLeft, FolderTree, Unlink, AlertTriangle } from "lucide-react";
+import { ListChecks, Plus, Pencil, Trash2, ChevronRight, Loader2, GripVertical, ChevronLeft, FolderTree, Unlink, AlertTriangle, Heading } from "lucide-react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -826,7 +826,7 @@ function IndicatorTreeNode({
               labelButtonRight="เปลี่ยนเป็นหัวข้อ"
               trigger={
                 <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-amber-600" title="เปลี่ยนเป็นหัวข้อจัดกลุ่ม">
-                  <FolderTree className="h-3.5 w-3.5" />
+                  <Heading className="h-3.5 w-3.5" />
                 </Button>
               }
             />
