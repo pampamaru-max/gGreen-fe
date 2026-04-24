@@ -23,6 +23,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { ScoringLevel } from "./ProjectRegistration";
+import { formatNumber } from "@/helpers/functions";
 
 export enum ScoringLevelType {
   new = "new",
@@ -34,19 +35,6 @@ export enum ScoringLevelTypeText {
   renew = "ต่ออายุ",
   upgrade = "ยกระดับ",
 }
-// interface ScoringLevel {
-//   id: number;
-//   name: string;
-//   minScore: number;
-//   maxScore: number;
-//   color: string;
-//   icon: string;
-//   sortOrder: number;
-//   type: ScoringLevelType;
-//   condition: string | null;
-//   isActive?: boolean;
-//   programId: string | null;
-// }
 
 interface DbProgram {
   id: string;
@@ -93,7 +81,7 @@ const LevelFormDialog = ({
   const [color, setColor] = useState(initial?.color || "#22c55e");
   const [icon, setIcon] = useState(initial?.icon || "trophy");
   const [open, setOpen] = useState(false);
-  const [condition, setCondition] = useState<string>(null);
+  const [attempt, setAttempt] = useState<number>(null);
 
   useEffect(() => {
     if (open) {
@@ -102,7 +90,7 @@ const LevelFormDialog = ({
       setMaxScore(String(initial?.maxScore ?? ""));
       setColor(initial?.color || "#22c55e");
       setIcon(initial?.icon || "trophy");
-      setCondition(initial?.condition || null);
+      setAttempt(initial?.attempt || null);
     }
   }, [open, initial]);
 
@@ -127,7 +115,7 @@ const LevelFormDialog = ({
     } else if (programLevels.length) {
       const IsInRange = programLevels.find(
         (e) => e.id != levelId &&
-          e.condition === condition &&
+          e.attempt === attempt &&
           (((e.minScore <= min && min <= e.maxScore) ||
           (e.minScore <= max && max <= e.maxScore) ||
           (min <= e.minScore && e.maxScore <= max))),
@@ -135,7 +123,7 @@ const LevelFormDialog = ({
       
       if (IsInRange) {
         toast({
-          title: `ช่วงคะแนนทับซ้อนกับช่วงคะแนน ${IsInRange.minScore} - ${IsInRange.maxScore}`,
+          title: `ช่วงคะแนน${attempt !== null && 'ของเงื่อนไขนี้'}ทับซ้อนกับช่วงคะแนน ${IsInRange.minScore} - ${IsInRange.maxScore}`,
           variant: "destructive",
         });
         return;
@@ -148,7 +136,7 @@ const LevelFormDialog = ({
       color,
       icon,
       type,
-      condition,
+      attempt,
     });
     setOpen(false);
   };
@@ -206,17 +194,25 @@ const LevelFormDialog = ({
               </div>
             </div>
           </div>
-          {type !== ScoringLevelType.new && <div>
-            <Label>เงื่อนไข</Label>
-            <Input value={condition} onChange={(e) => setCondition(e.target.value)} placeholder="เช่น ครั้งที่ 1" />
-          </div>}
+          {type !== ScoringLevelType.new &&
+            <div className="flex w-full gap-4 items-center">
+              <Label className="w-fit">เงื่อนไข: {ScoringLevelTypeText[type]}ครั้งที่ </Label>
+              <Input
+                type="number"
+                value={formatNumber(attempt)}
+                onChange={(e) => setAttempt(Number(e.target.value))}
+                min={1}
+                className="w-fit"
+              />
+            </div>
+          }
           {/* Preview */}
           <div className="rounded-xl border-2 p-4 flex items-center gap-3" style={{ borderColor: color, backgroundColor: `${color}10` }}>
             {(() => { const IC = getIconComponent(icon); return <IC className="h-6 w-6" style={{ color }} />; })()}
             <div>
               <p className="font-bold" style={{ color }}>{name || "ชื่อระดับ"}</p>
               <p className="text-xs" style={{ color: "var(--green-muted)" }}>{minScore || "0"} – {maxScore || "100"} คะแนน</p>
-              {!!condition?.length && <p className="text-xs text-muted-foreground">เงื่อนไข: {condition}</p>}
+              {!!attempt && <p className="text-xs text-muted-foreground">เงื่อนไข: {ScoringLevelTypeText[type]}ครั้งที่ {attempt}</p>}
             </div>
           </div>
         </div>
@@ -263,7 +259,7 @@ const SortableLevelCard = ({
       </div>
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-foreground">{level.name}</p>
-        {!!level.condition?.length && <p className="text-sm text-amber-600">เงื่อนไข: {level.condition}</p>}
+        {!!level.attempt && <p className="text-sm text-amber-600">เงื่อนไข: {ScoringLevelTypeText[type]}ครั้งที่ {level.attempt}</p>}
         <p className="text-xs text-muted-foreground">ช่วงคะแนน: {level.minScore}% – {level.maxScore}%</p>
       </div>
       <div className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: level.color }} />
@@ -445,7 +441,7 @@ const CopyScoringLevelsDialog = ({
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-foreground">{level.name}</p>
-                        {!!level.condition?.length && <p className="text-sm text-amber-600">เงื่อนไข: {level.condition}</p>}
+                        {!!level.attempt && <p className="text-sm text-amber-600">เงื่อนไข: {ScoringLevelTypeText[level.type]}ครั้งที่ {level.attempt}</p>}
                         <p className="text-xs text-muted-foreground">ช่วงคะแนน: {level.minScore}% – {level.maxScore}%</p>
                       </div>
                       <div className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: level.color }} />
@@ -868,16 +864,19 @@ const SettingsScoringCriteria = () => {
                       </RadioGroup>
                     </div>
 
-                    {program.scoringType === 'yes_no' && <YesNoScoringView />}
-                    <ProgramScoringTabs
-                      program={program}
-                      programLevels={programLevels}
-                      scoringPrograms={scoringPrograms}
-                      setLevels={setLevels}
-                      fetchAll={fetchAll}
-                      onEdit={handleEdit}
-                      onDelete={handleDelete}
-                    />
+                    {program.scoringType === "yes_no" ? (
+                        <YesNoScoringView />
+                      ) : (
+                        <ProgramScoringTabs
+                          program={program}
+                          programLevels={programLevels}
+                          scoringPrograms={scoringPrograms}
+                          setLevels={setLevels}
+                          fetchAll={fetchAll}
+                          onEdit={handleEdit}
+                          onDelete={handleDelete}
+                        />
+                      )}
                   </div>
                 </CollapsibleContent>
               </div>
