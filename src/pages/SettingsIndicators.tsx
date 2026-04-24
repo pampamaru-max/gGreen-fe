@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { ListChecks, Plus, Pencil, Trash2, ChevronRight, Loader2, GripVertical, ChevronLeft, FolderTree, Unlink } from "lucide-react";
+import { ListChecks, Plus, Pencil, Trash2, ChevronRight, Loader2, GripVertical, ChevronLeft, FolderTree, Unlink, AlertTriangle } from "lucide-react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/collapsible";
 import AddTopicWithIndicatorsDialog from "@/components/AddTopicWithIndicatorsDialog";
 import { AlertActionPopup } from "@/components/AlertActionPopup";
+import { Switch } from "@/components/ui/switch";
 import { formatNumber, mergeUniqueById } from "@/helpers/functions";
 import LoadingOverlay from "@/components/loading/LoadingOverlay";
 import Loading from "@/components/loading/Loading";
@@ -58,6 +59,7 @@ interface DbTopic {
   categoryId: number;
   name: string;
   sortOrder: number;
+  isCritical?: boolean;
 }
 
 interface ScoringCriterion {
@@ -70,6 +72,7 @@ interface DbIndicator {
   topicId: string;
   parentId?: string | null;
   isHeader?: boolean;
+  isCritical?: boolean;
   name: string;
   maxScore: number;
   sortOrder: number;
@@ -82,11 +85,12 @@ interface DbIndicator {
 
 /* ─── Dialogs ─── */
 
-function EditTopicDialog({ topic, onSave }: { topic: DbTopic; onSave: (name: string) => void }) {
+function EditTopicDialog({ topic, onSave }: { topic: DbTopic; onSave: (name: string, isCritical: boolean) => void }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(topic.name);
+  const [isCritical, setIsCritical] = useState(topic.isCritical || false);
   return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) setName(topic.name); }}>
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) { setName(topic.name); setIsCritical(topic.isCritical || false); } }}>
       <DialogTrigger asChild>
         <Button variant="ghost" size="icon" className="edit-button h-7 w-7" onClick={() => setOpen(true)}>
           <Pencil className="h-3.5 w-3.5" />
@@ -94,13 +98,25 @@ function EditTopicDialog({ topic, onSave }: { topic: DbTopic; onSave: (name: str
       </DialogTrigger>
       <DialogContent className="max-w-sm">
         <DialogHeader><DialogTitle>แก้ไขประเด็น {topic.id}</DialogTitle></DialogHeader>
-        <div className="space-y-2 py-2">
-          <Label>ชื่อประเด็น</Label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} />
+        <div className="space-y-3 py-2">
+          <div className="space-y-2">
+            <Label>ชื่อประเด็น</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className={`flex items-center justify-between rounded-lg border px-4 py-3 ${isCritical ? "border-red-300 bg-red-50" : "border-border bg-muted/10"}`}>
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className={`h-4 w-4 ${isCritical ? "text-red-600" : "text-muted-foreground"}`} />
+                <Label className={`text-sm font-semibold ${isCritical ? "text-red-700" : "text-foreground"}`}>ประเด็นบังคับผ่าน</Label>
+              </div>
+              <p className="text-xs text-muted-foreground pl-6">ถ้าประเด็นนี้ไม่ผ่าน จะไม่ผ่านการประเมินทันที</p>
+            </div>
+            <Switch checked={isCritical} onCheckedChange={setIsCritical} />
+          </div>
         </div>
         <DialogFooter>
           <DialogClose asChild><Button variant="outline">ยกเลิก</Button></DialogClose>
-          <Button onClick={() => { onSave(name.trim()); setOpen(false); }} disabled={!name.trim()}>บันทึก</Button>
+          <Button onClick={() => { onSave(name.trim(), isCritical); setOpen(false); }} disabled={!name.trim()}>บันทึก</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -462,7 +478,8 @@ function EditIndicatorDialog({
   const [notes, setNotes] = useState(indicator?.notes || "");
   const [scoringCriteria, setScoringCriteria] = useState<ScoringCriterion[]>(indicator?.scoringCriteria || []);
   const [evidenceDescription, setEvidenceDescription] = useState(indicator?.evidenceDescription || "");
-  
+  const [isCritical, setIsCritical] = useState(indicator?.isCritical || false);
+
   const [passLabel, setPassLabel] = useState("");
   const [failLabel, setFailLabel] = useState("");
 
@@ -484,6 +501,7 @@ function EditIndicatorDialog({
     setDetail(ind.detail || "");
     setNotes(ind.notes || "");
     setEvidenceDescription(ind.evidenceDescription || "");
+    setIsCritical(ind.isCritical || false);
 
     if (isYesNo) {
       const existing = ind.scoringCriteria || [];
@@ -508,12 +526,12 @@ function EditIndicatorDialog({
 
   const isDirty = useMemo(() => {
     if(!indicator) return false;
-    return name !== indicator.name || maxScore !== indicator.maxScore || description !== (indicator.description || "") || detail !== (indicator.detail || "") || notes !== (indicator.notes || "") || evidenceDescription !== (indicator.evidenceDescription || "") || JSON.stringify(scoringCriteria) !== JSON.stringify(indicator.scoringCriteria);
-  }, [name, maxScore, description, detail, notes, evidenceDescription, scoringCriteria, indicator]);
+    return name !== indicator.name || maxScore !== indicator.maxScore || description !== (indicator.description || "") || detail !== (indicator.detail || "") || notes !== (indicator.notes || "") || evidenceDescription !== (indicator.evidenceDescription || "") || JSON.stringify(scoringCriteria) !== JSON.stringify(indicator.scoringCriteria) || isCritical !== (indicator.isCritical || false);
+  }, [name, maxScore, description, detail, notes, evidenceDescription, scoringCriteria, isCritical, indicator]);
 
   const handleSave = (closeDialog: boolean = true) => {
     const criteria = isYesNo ? [{ score: 1, label: passLabel }, { score: 0, label: failLabel }] : scoringCriteria;
-    onSave({ id: indicator.id, name: name.trim(), maxScore: (isYesNo || isHeader) ? 0 : maxScore, description, detail, notes, evidenceDescription, scoringCriteria: criteria, isHeader: indicator.isHeader, parentId: indicator.parentId });
+    onSave({ id: indicator.id, name: name.trim(), maxScore: (isYesNo || isHeader) ? 0 : maxScore, description, detail, notes, evidenceDescription, scoringCriteria: criteria, isHeader: indicator.isHeader, parentId: indicator.parentId, isCritical });
     if(closeDialog) { setOpenEditIndDialog(false); setSelectedIndicator(null); }
   };
 
@@ -578,6 +596,21 @@ function EditIndicatorDialog({
               </div>
             )}
             
+            {!isHeader && (
+              <div className={`flex items-center justify-between rounded-lg border px-4 py-3 ${isCritical ? "border-red-300 bg-red-50" : "border-border bg-muted/10"}`}>
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className={`h-4 w-4 ${isCritical ? "text-red-600" : "text-muted-foreground"}`} />
+                    <Label className={`text-sm font-semibold ${isCritical ? "text-red-700" : "text-foreground"}`}>ตัวชี้วัดบังคับผ่าน</Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground pl-6">
+                    {isYesNo ? "ถ้าตอบ \"ไม่ผ่าน\" จะไม่ผ่านการประเมินทันที" : "ถ้าได้ 0 คะแนน จะไม่ผ่านการประเมินทันที"}
+                  </p>
+                </div>
+                <Switch checked={isCritical} onCheckedChange={setIsCritical} />
+              </div>
+            )}
+
             {!isHeader && (
               <div className="space-y-1.5">
                 <Label>คำอธิบาย</Label>
@@ -762,6 +795,11 @@ function IndicatorTreeNode({
         <div className="text-sm font-medium text-muted-foreground mt-0.5 shrink-0 w-4">{indexNum}.</div>
       )}
       <span className="flex-1 text-sm text-foreground whitespace-pre-wrap leading-relaxed">{ind.name}</span>
+      {!ind.isHeader && ind.isCritical && (
+        <span className="flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-md bg-red-100 text-red-700 border border-red-200 shrink-0">
+          <AlertTriangle className="h-3 w-3" />บังคับผ่าน
+        </span>
+      )}
       {!ind.isHeader && (
         isYesNo ? (
           <span className="text-xs font-semibold px-2 py-1 rounded-md bg-orange-100 text-orange-700 border border-orange-200 shrink-0">ผ่าน/ไม่ผ่าน</span>
@@ -910,7 +948,11 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
       }
       if (topics && topicRes && (categoryId ?? selectedCategoryId)) {
         const cid = categoryId ?? selectedCategoryId!;
-        setTopics(prev => mergeUniqueById(prev, topicRes.data));
+        const mappedTopics = topicRes.data.map((t: any) => ({
+          ...t,
+          isCritical: t.isCritical || t.is_critical || false,
+        }));
+        setTopics(prev => mergeUniqueById(prev, mappedTopics));
         setFetchedTopics(prev => new Set(prev).add(cid));
       }
       if (indicators && indRes && (topicId ?? selectedTopicId)) {
@@ -924,6 +966,7 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
           evidenceDescription: d.evidenceDescription || d.evidence_description || "",
           scoringCriteria: d.scoringCriteria || d.scoring_criteria || [],
           isHeader: d.isHeader || d.is_header || false,
+          isCritical: d.isCritical || d.is_critical || false,
           parentId: d.parentId || d.parent_id || null,
           detail: d.detail || "",
           description: d.description || "",
@@ -1113,12 +1156,11 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
     fetchData({ categoryId: catId, topics: true, indicators: true }); // โหลดข้อมูลมาโชว์ใหม่
   };
 
-  const handleEditTopic = async (catId: number, topicId: string, name: string) => {
+  const handleEditTopic = async (catId: number, topicId: string, name: string, isCritical: boolean) => {
     try {
-      await apiClient.patch(`topics/${topicId}`, { name });
+      await apiClient.patch(`topics/${topicId}`, { name, isCritical });
       toast({ title: "แก้ไขสำเร็จ", variant: "success" });
-      cleanData('edit', 'topic', catId);
-      fetchData({ categoryId: catId, topics: true });
+      setTopics(prev => prev.map(t => t.id === topicId ? { ...t, name, isCritical } : t));
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", variant: "destructive" });
     }
@@ -1246,7 +1288,7 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
 
   const handleEditIndicator = async (
     indId: string,
-    data: { name: string; maxScore: number; description: string; detail: string; notes: string; evidenceDescription: string; scoringCriteria: ScoringCriterion[], isHeader: any, parentId: any }
+    data: { name: string; maxScore: number; description: string; detail: string; notes: string; evidenceDescription: string; scoringCriteria: ScoringCriterion[], isHeader: any, parentId: any, isCritical?: boolean }
   ) => {
     setSaving(true);
     const ind = indicators.find(i => i.id === indId);
@@ -1283,6 +1325,7 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
         is_header: data.isHeader,
         parentId: data.parentId,
         parent_id: data.parentId,
+        isCritical: data.isCritical ?? false,
       });
       toast({ title: "แก้ไขสำเร็จ", variant: "success" });
       const ind = indicators.find(i => i.id === indId);
@@ -1478,8 +1521,13 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
                                         </button>
                                       </CollapsibleTrigger>
                                       <span className="text-sm font-semibold text-foreground flex-1 truncate cursor-pointer" onClick={() => setSelectedTopicId(topic.id)}>{topic.name}</span>
+                                      {topic.isCritical && (
+                                        <span className="flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md bg-red-100 text-red-700 border border-red-200 shrink-0">
+                                          <AlertTriangle className="h-3 w-3" />บังคับผ่าน
+                                        </span>
+                                      )}
                                       <div className="flex gap-1 opacity-40 hover:opacity-100 transition-opacity">
-                                        <EditTopicDialog topic={topic} onSave={(name) => handleEditTopic(cat.id, topic.id, name)} />
+                                        <EditTopicDialog topic={topic} onSave={(name, isCritical) => handleEditTopic(cat.id, topic.id, name, isCritical)} />
                                         <AlertActionPopup action={() => handleDeleteTopic(cat.id, topic.id)} type="delete" title="ยืนยันลบ" description={`ลบ "${topic.name}" หรือไม่?`}/>
                                       </div>
                                     </div>
