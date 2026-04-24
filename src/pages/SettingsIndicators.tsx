@@ -854,7 +854,6 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
   const cleanData = (action: 'edit' | 'delete', update: 'topic' | 'indicator', catId?: number, topicId?: string) => {
     if (update === 'topic' && catId !== undefined) {
       setFetchedTopics(prev => { const newSet = new Set(prev); newSet.delete(catId); return newSet; });
-      setTopics(prev => prev.filter(t => t.categoryId !== catId));
       if(action === 'delete' && topicId !== undefined) {
         setFetchedIndicators(prev => { const newSet = new Set(prev); newSet.delete(topicId); return newSet; });
       }
@@ -1016,7 +1015,6 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
       await apiClient.patch(`topics/${topicId}`, { name });
       toast({ title: "แก้ไขสำเร็จ", variant: "success" });
       cleanData('edit', 'topic', catId);
-      setTopics(prev => prev.filter(t => t.categoryId !== catId));
       fetchData({ categoryId: catId, topics: true });
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", variant: "destructive" });
@@ -1142,7 +1140,6 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
       toast({ title: "แก้ไขสำเร็จ", variant: "success" });
       const ind = indicators.find(i => i.id === indId);
       cleanData('edit', 'indicator', null, ind?.topicId);
-      setIndicators(prev => prev.filter(i => i.id !== indId));
       if(ind) fetchData({ topicId: ind.topicId, indicators: true });
     } catch (err: any) {
       toast({ title: "เกิดข้อผิดพลาด", variant: "destructive" });
