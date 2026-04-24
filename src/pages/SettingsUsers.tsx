@@ -20,7 +20,7 @@ interface UserWithRole {
 
 interface Program {
   id: string;
-  name: string;
+  name: string; 
 }
 
 const roleLabelMap: Record<string, string> = {
