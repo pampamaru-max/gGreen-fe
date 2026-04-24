@@ -292,41 +292,16 @@ export function AppSidebar({ fontSize, setFontSize }: AppSidebarProps) {
         </SidebarGroup>
       </SidebarContent>
 
-      {/* Flower decoration */}
-      {!collapsed && !isDark && (
+      {!collapsed && (
         <img
-          src="/flower-decoration.png"
+          src="https://media.tenor.com/ItloOf_4U-AAAAAj/toothless-dancing.gif"
           alt=""
-          className="absolute -bottom-8 -left-8 pointer-events-none select-none z-0"
-          style={{ width: 240, height: "auto", display: "block", opacity: 0.92 }}
+          className="absolute bottom-0 left-0 pointer-events-none select-none z-10"
+          style={{ width: 120, height: "auto" }}
           draggable={false}
         />
       )}
-      {!collapsed && !isDark && (
-        <>
-          <img
-            src="/butterfly.gif"
-            alt=""
-            className="absolute bottom-[200px] left-[60px] pointer-events-none select-none z-10"
-            style={{ width: 50, height: "auto" }}
-            draggable={false}
-          />
-          <img
-            src="/butterfly.gif"
-            alt=""
-            className="absolute bottom-[160px] left-[130px] pointer-events-none select-none z-10"
-            style={{ width: 35, height: "auto", opacity: 0.8, transform: "scaleX(-1)" }}
-            draggable={false}
-          />
-          <img
-            src="/butterfly.gif"
-            alt=""
-            className="absolute bottom-[260px] left-[100px] pointer-events-none select-none z-10"
-            style={{ width: 45, height: "auto", opacity: 0.9, transform: "scaleX(-1)" }}
-            draggable={false}
-          />
-        </>
-      )}
+
     </Sidebar>);
 
 }

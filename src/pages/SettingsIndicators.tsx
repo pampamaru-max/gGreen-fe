@@ -782,10 +782,14 @@ function IndicatorTreeNode({
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-start gap-3 px-3 py-2.5 group/ind hover:bg-muted/10 bg-background ${
-        level > 0
-          ? 'border-b border-border/40'
-          : 'border rounded-md'
+      className={`flex items-start gap-3 px-3 py-2.5 group/ind transition-colors ${
+        !ind.isHeader && ind.isCritical
+          ? level > 0
+            ? 'bg-red-50 border-b border-red-200'
+            : 'bg-red-50 border border-red-300 rounded-md'
+          : level > 0
+            ? 'hover:bg-muted/10 bg-background border-b border-border/40'
+            : 'hover:bg-muted/10 bg-background border rounded-md'
       }`}
     >
       <button {...attributes} {...listeners} className="shrink-0 mt-0.5 cursor-grab text-muted-foreground hover:text-foreground">
@@ -796,8 +800,8 @@ function IndicatorTreeNode({
       )}
       <span className="flex-1 text-sm text-foreground whitespace-pre-wrap leading-relaxed">{ind.name}</span>
       {!ind.isHeader && ind.isCritical && (
-        <span className="flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-md bg-red-100 text-red-700 border border-red-200 shrink-0">
-          <AlertTriangle className="h-3 w-3" />บังคับผ่าน
+        <span className="flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-md bg-red-500 text-white border border-red-600 shrink-0 shadow-sm">
+          <AlertTriangle className="h-3.5 w-3.5" />บังคับผ่าน
         </span>
       )}
       {!ind.isHeader && (
@@ -1514,7 +1518,7 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
                                 let displayIndex = 1;
                                 return (
                                   <Collapsible key={topic.id} defaultOpen={false} className="group/topic border-b border-border/40 last:border-none">
-                                    <div className="flex items-center gap-2 px-4 py-2 hover:bg-accent/5 transition-colors">
+                                    <div className={`flex items-center gap-2 px-4 py-2 transition-colors ${topic.isCritical ? 'bg-red-50 hover:bg-red-100/60' : 'hover:bg-accent/5'}`}>
                                       <CollapsibleTrigger asChild>
                                         <button className="shrink-0 p-1 hover:bg-muted rounded group" onClick={() => setSelectedTopicId(topic.id)}>
                                           <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform duration-300 group-data-[state=open]:rotate-90" />
@@ -1522,8 +1526,8 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
                                       </CollapsibleTrigger>
                                       <span className="text-sm font-semibold text-foreground flex-1 truncate cursor-pointer" onClick={() => setSelectedTopicId(topic.id)}>{topic.name}</span>
                                       {topic.isCritical && (
-                                        <span className="flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md bg-red-100 text-red-700 border border-red-200 shrink-0">
-                                          <AlertTriangle className="h-3 w-3" />บังคับผ่าน
+                                        <span className="flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-md bg-red-500 text-white border border-red-600 shrink-0 shadow-sm">
+                                          <AlertTriangle className="h-3.5 w-3.5" />บังคับผ่าน
                                         </span>
                                       )}
                                       <div className="flex gap-1 opacity-40 hover:opacity-100 transition-opacity">
