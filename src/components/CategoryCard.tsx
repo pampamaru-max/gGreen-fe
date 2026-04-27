@@ -17,16 +17,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { MAX_FILE_SIZE } from "@/helpers/constants";
+import { EvaluationStatus } from "@/helpers/enum";
 
 const categoryColors = [
-  "#2E6FCC", // 210 70% 45%
-  "#29A36A", // 165 60% 40%
-  "#F2B300", // 40 90% 50%
-  "#D93673", // 340 65% 50%
-  "#7A3FD9", // 270 60% 50%
-  "#E67319", // 30 80% 50%
-  "#1F8FA3", // 190 70% 40%
-  "#D93636", // 0 65% 50%
+  "210 70% 45%",
+  "165 60% 40%",
+  "40 90% 50%",
+  "340 65% 50%",
+  "270 60% 50%",
+  "30 80% 50%",
+  "190 70% 40%",
+  "0 65% 50%",
 ];
 
 export function getCategoryColor(index: number): string {
@@ -49,6 +50,7 @@ export interface IndicatorNavItem {
 }
 
 interface Props {
+  status: EvaluationStatus | string;
   category: Category;
   colorIndex: number;
   scores: Record<string, number>;
@@ -118,6 +120,7 @@ function NavStrip({ navItems, currentNavIndex, onJumpTo }: {
 
 // ── Recursive Indicator Renderer ──────────────────────────────────────────────
 function RenderIndicator({
+  status,
   indicator,
   allIndicators,
   depth = 0,
@@ -131,6 +134,7 @@ function RenderIndicator({
   committeeScores,
   scores,
 }: {
+  status: EvaluationStatus | string;
   indicator: any;
   allIndicators: any[];
   depth: number;
@@ -157,7 +161,7 @@ function RenderIndicator({
   const isYesNo = indicator.scoreType?.includes('yes_no');
   const fileCount = (uploadedFiles[indicator.id] || []).length;
 
-  const indentation = depth * 1.25;
+  const indentation = depth * 1.25;  
 
   return (
     <div className="flex flex-col w-full border-b last:border-b-0 relative">
@@ -202,33 +206,36 @@ function RenderIndicator({
                 {committeeComments?.[indicator.id] && <MessageSquare className="h-3.5 w-3.5 text-teal-500/70" />}
               </div>
 
-              {scoreView === "committee" ? (
+              {/* {scoreView === "committee" ? ( */}
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-xs text-muted-foreground tabular-nums">
                     {isYesNo ? (scores[indicator.id] === 1 ? "ผ่าน" : (scores[indicator.id] === 0 ? "ไม่ผ่าน" : "–")) : `${scores[indicator.id] ?? 0}/${indicator.maxScore}`}
                   </span>
                   <span className="text-muted-foreground/40">→</span>
-                  {rawScore !== undefined && rawScore !== -1 ? (
-                    <span
-                      className="text-sm font-bold tabular-nums min-w-[3rem] text-right"
-                      style={{ color: isYesNo ? (rawScore === 1 ? "hsl(142 60% 40%)" : "hsl(0 72% 51%)") : `hsl(${color})` }}
-                    >
-                      {isYesNo ? (rawScore === 1 ? "ผ่าน" : "ไม่ผ่าน") : `${rawScore}/${indicator.maxScore}`}
-                    </span>
-                  ) : (
-                    <span className="text-xs font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 min-w-[3rem] text-center">
-                      รอ
-                    </span>
+                  {rawScore !== undefined && rawScore !== -1 &&
+                    (scoreView !== "committee" ? [EvaluationStatus.revision, EvaluationStatus.completed].includes(status as any) : true)
+                    ? (
+                      <span
+                        className="text-sm font-bold tabular-nums min-w-[3rem] text-right"
+                        style={{ color: isYesNo ? (rawScore === 1 ? "hsl(142 60% 40%)" : "hsl(0 72% 51%)") : `hsl(${color})` }}
+                      >
+                        {isYesNo ? (rawScore === 1 ? "ผ่าน" : "ไม่ผ่าน") : `${rawScore}/${indicator.maxScore}`}
+                      </span>
+                    )
+                    : (
+                      <span className="text-xs font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 min-w-[3rem] text-center">
+                        รอ
+                      </span>
                   )}
                 </div>
-              ) : (
+              {/* ) : (
                 <span
                   className="text-sm font-bold tabular-nums min-w-[3rem] text-right"
                   style={{ color: (rawScore !== undefined && rawScore !== -1 && (isYesNo ? rawScore >= 0 : rawScore > 0)) ? (isYesNo ? (rawScore === 1 ? "hsl(142 60% 40%)" : "hsl(0 72% 51%)") : `hsl(${color})`) : "hsl(var(--muted-foreground))" }}
                 >
                   {isYesNo ? (rawScore === 1 ? "ผ่าน" : (rawScore === 0 ? "ไม่ผ่าน" : "รอ")) : `${rawScore ?? 0}/${indicator.maxScore}`}
                 </span>
-              )}
+              )} */}
             </>
           )}
           {isParent && hasChildren && (
@@ -242,6 +249,7 @@ function RenderIndicator({
           {children.map((child: any) => (
             <RenderIndicator
               key={child.id}
+              status={status}
               indicator={child}
               allIndicators={allIndicators}
               depth={depth + 1}
@@ -1080,7 +1088,7 @@ export function IndicatorDialog({
 }
 
 
-export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDelete, uploadedFiles, onFilesChange, onSave, implementationDetails, onImplementationDetailChange, committeeScores, onCommitteeScoreChange, committeeComments, onCommitteeCommentChange, userRole, scoreView, onIndicatorClick, newIndicatorNotifs, forceOpen }: Props) {
+export function CategoryCard({ status, category, colorIndex, scores, onScoreChange, onDelete, uploadedFiles, onFilesChange, onSave, implementationDetails, onImplementationDetailChange, committeeScores, onCommitteeScoreChange, committeeComments, onCommitteeCommentChange, userRole, scoreView, onIndicatorClick, newIndicatorNotifs, forceOpen }: Props) {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
@@ -1200,7 +1208,7 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
 
       {isOpen && (
         <div className="border-t">
-          {category.topics.map((topic) => (
+          {category.topics.map((topic, idx) => (
             <div key={topic.id} className="border-b last:border-b-0">
               <div className="flex items-center gap-2 bg-muted/30 px-4 py-2.5">
                 <span
@@ -1208,6 +1216,12 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
                   style={{ backgroundColor: `hsl(${color})` }}
                 />
                 <span className="text-sm font-medium text-foreground">{topic.name}</span>
+                {!idx &&
+                  <p className="ml-auto inline-flex gap-8 text-xs">
+                    <span>ตนเอง</span>
+                    <span>กรรมการ</span>
+                  </p>
+                }
               </div>
               <div className="divide-y">
                 {topic.indicators
@@ -1215,6 +1229,7 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
                   .map((indicator) => (
                     <RenderIndicator
                       key={indicator.id}
+                      status={status}
                       indicator={indicator}
                       allIndicators={topic.indicators}
                       depth={0}
