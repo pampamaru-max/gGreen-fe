@@ -37,6 +37,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertActionPopup } from "@/components/AlertActionPopup";
 import { ScoringLevelType } from "./SettingsScoringCriteria";
 import { findScoringLevelMatch, labelScoreType } from "@/helpers/functions";
+import { EvaluationStatus } from "@/helpers/enum";
 
 interface Registration {
   id: string;
@@ -249,10 +250,10 @@ export default function EvaluateeHome() {
       if (filterSelfStatus !== "all") {
         const s = item.evaluation_status;
         if (filterSelfStatus === "none" && s) return false;
-        if (filterSelfStatus === "draft" && s !== "draft") return false;
-        if (filterSelfStatus === "revision" && s !== "revision") return false;
-        if (filterSelfStatus === "submitted" && s !== "submitted" && s !== "submit") return false;
-        if (filterSelfStatus === "completed" && s !== "completed" && s !== "complete") return false;
+        if (filterSelfStatus === EvaluationStatus.draft && s !== EvaluationStatus.draft) return false;
+        if (filterSelfStatus === EvaluationStatus.revision && s !== EvaluationStatus.revision) return false;
+        if (filterSelfStatus === EvaluationStatus.submitted && s !== EvaluationStatus.submitted && s !== "submit") return false;
+        if (filterSelfStatus === EvaluationStatus.completed && s !== EvaluationStatus.completed && s !== "complete") return false;
       }
       if (filterEvalType !== "all" && item.evaluation_type !== filterEvalType) return false;
       if (filterCommitteeStatus !== "all") {
@@ -303,8 +304,8 @@ export default function EvaluateeHome() {
 
     // Handle mapping as some labels might differ
     let normalizedStatus = status;
-    if (status === "submit") normalizedStatus = "submitted";
-    if (status === "complete") normalizedStatus = "completed";
+    if (status === "submit") normalizedStatus = EvaluationStatus.submitted;
+    if (status === "complete") normalizedStatus = EvaluationStatus.completed;
 
     const config = evaluationStatusMap[normalizedStatus];
 
@@ -316,15 +317,15 @@ export default function EvaluateeHome() {
   const isDrafting = useMemo(() => {
     return allEvaluations.some(
       (e) =>
-        e.evaluation_status === "draft" || e.evaluation_status === "revision",
+        e.evaluation_status === EvaluationStatus.draft || e.evaluation_status === EvaluationStatus.revision,
     );
   }, [allEvaluations]);
 
   const isSubmittedOrCompleted = useMemo(() => {
     return allEvaluations.some(
       (e) =>
-        e.evaluation_status === "submitted" ||
-        e.evaluation_status === "completed" ||
+        e.evaluation_status === EvaluationStatus.submitted ||
+        e.evaluation_status === EvaluationStatus.completed ||
         e.evaluation_status === "submit" ||
         e.evaluation_status === "complete",
     );
@@ -342,21 +343,21 @@ export default function EvaluateeHome() {
   }, [user?.id]);
 
   const getCommitteeBadge = (status: string | null, hasScore: boolean) => {
-    if (status === "completed" || status === "complete")
+    if (status === EvaluationStatus.completed || status === "complete")
       return (
         <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white border-none px-3">
           เสร็จสิ้น
         </Badge>
       );
     
-    if (status === "submitted" || status === "submit")
+    if (status === EvaluationStatus.submitted || status === "submit")
       return (
         <Badge className="bg-blue-600 text-white border-none px-3">
           รอการประเมิน
         </Badge>
       );
 
-    if (status === "revision")
+    if (status === EvaluationStatus.revision)
       return (
         <Badge variant="secondary" className="bg-amber-100 text-amber-700 border-amber-300 px-3">
           รอดำเนินการ
@@ -387,7 +388,7 @@ export default function EvaluateeHome() {
   const hasDraft = useMemo(() => {
     return allEvaluations.some(
       (e) =>
-        e.evaluation_status === "draft" || e.evaluation_status === "revision",
+        e.evaluation_status === EvaluationStatus.draft || e.evaluation_status === EvaluationStatus.revision,
     );
   }, [allEvaluations]);
 
@@ -513,10 +514,10 @@ export default function EvaluateeHome() {
                 <SelectContent>
                   <SelectItem value="all">สถานะตนเองทั้งหมด</SelectItem>
                   <SelectItem value="none">ยังไม่เริ่ม</SelectItem>
-                  <SelectItem value="draft">ร่าง</SelectItem>
-                  <SelectItem value="revision">ส่งกลับแก้ไข</SelectItem>
-                  <SelectItem value="submitted">รอผู้ประเมิน</SelectItem>
-                  <SelectItem value="completed">ประเมินเสร็จสิ้น</SelectItem>
+                  <SelectItem value={EvaluationStatus.draft}>ร่าง</SelectItem>
+                  <SelectItem value={EvaluationStatus.revision}>ส่งกลับแก้ไข</SelectItem>
+                  <SelectItem value={EvaluationStatus.submitted}>รอผู้ประเมิน</SelectItem>
+                  <SelectItem value={EvaluationStatus.completed}>ประเมินเสร็จสิ้น</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={filterCommitteeStatus} onValueChange={setFilterCommitteeStatus}>
@@ -542,7 +543,7 @@ export default function EvaluateeHome() {
               <div className="md:hidden px-3 pb-3 space-y-2">
                 {filteredEvaluations.map((item: any) => {
                   const isReadOnly = !item.is_pending && (
-                    item.evaluation_status === "completed" || item.evaluation_status === "submitted" ||
+                    item.evaluation_status === EvaluationStatus.completed || item.evaluation_status === EvaluationStatus.submitted ||
                     item.evaluation_status === "complete" || item.evaluation_status === "submit"
                   );
                   const typeKey = item.evaluation_type ?? "new";
@@ -633,7 +634,7 @@ export default function EvaluateeHome() {
                             <Printer className="h-4 w-4" />
                           </Button>
                         )}
-                        {!item.is_pending && item.evaluation_status === "draft" && (
+                        {!item.is_pending && item.evaluation_status === EvaluationStatus.draft && (
                           <Button variant="outline" size="icon"
                             onClick={() => setDeleteTargetId(item.id)}
                             className="h-9 w-9 rounded-xl border-red-100 bg-red-50/50 text-red-500 hover:bg-red-100 hover:text-red-700 shrink-0">
@@ -663,7 +664,7 @@ export default function EvaluateeHome() {
                   <TableBody>
                     {filteredEvaluations.map((item: any) => {
                       const isReadOnly = !item.is_pending && (
-                        item.evaluation_status === "completed" || item.evaluation_status === "submitted" ||
+                        item.evaluation_status === EvaluationStatus.completed || item.evaluation_status === EvaluationStatus.submitted ||
                         item.evaluation_status === "complete" || item.evaluation_status === "submit"
                       );
                       const typeKey = item.evaluation_type ?? "new";
@@ -728,7 +729,7 @@ export default function EvaluateeHome() {
                                   <Printer className="h-5 w-5" />
                                 </Button>
                               )}
-                              {!item.is_pending && item.evaluation_status === "draft" && (
+                              {!item.is_pending && item.evaluation_status === EvaluationStatus.draft && (
                                 <Button variant="outline" size="icon"
                                   onClick={() => setDeleteTargetId(item.id)}
                                   className="h-10 w-10 rounded-xl border-red-100 bg-red-50/50 text-red-500 hover:bg-red-100 hover:text-red-700 transition-all shadow-sm">

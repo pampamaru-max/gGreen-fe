@@ -5,7 +5,7 @@ import type { UploadedFile, IndicatorNavItem } from "@/components/evaluation/Cat
 import { CategoryCard, IndicatorDialog, getCategoryColor } from "@/components/evaluation/CategoryCard";
 import { ScoreSummary } from "@/components/evaluation/ScoreSummary";
 import { AnimatedScore } from "@/components/ui/animated-score";
-import { ClipboardCheck, Loader2, ArrowLeft, RotateCcw, CheckCircle2, Clock, FileText, AlertCircle, XCircle, FilePlus, RefreshCw, TrendingUp, ChevronDown, Trophy, Medal, Award, Star } from "lucide-react";
+import { ClipboardCheck, Loader2, ArrowLeft, RotateCcw, CheckCircle2, Clock, FileText, AlertCircle, XCircle, FilePlus, RefreshCw, TrendingUp, ChevronDown, Trophy, Medal, Award, Star, Printer } from "lucide-react";
 import { ScoringLevelBadges } from "@/components/self-eval/ScoringLevelBadges";
 import type { EvalCategory, ScoringLevel } from "@/pages/ProjectRegistration";
 import {
@@ -17,6 +17,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
 import { ScoringLevelType } from "./SettingsScoringCriteria";
 import { findScoringLevelMatch, labelScoreType, queryArray } from "@/helpers/functions";
+import { EvaluationStatus } from "@/helpers/enum";
 
 const EVAL_TYPE_CONFIG: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
   new:     { label: "ประเมินใหม่",             icon: <FilePlus   className="h-3 w-3" />, className: "bg-blue-50 text-blue-700 border-blue-200"     },
@@ -61,6 +62,7 @@ const EvaluationByProgramPage = () => {
   // notification IDs ของ indicator ที่ผู้ถูกประเมินแก้ไขใหม่ (เฉพาะฝั่งกรรมการ)
   const [newEvaluateeIndicatorIds, setNewEvaluateeIndicatorIds] = useState<Map<string, { prevScore: number | null; newScore: number | null }>>(new Map());
   const [expandedCategoryId, setExpandedCategoryId] = useState<string | number | null>(null);
+  const [canPrint, setCanPrint] = useState(false);
 
   const handleCategoryClick = useCallback((categoryId: string | number) => {
     setExpandedCategoryId(categoryId);
@@ -203,11 +205,11 @@ const EvaluationByProgramPage = () => {
   };
 
   const handleSaveIndicator = useCallback(async (indicatorId: string) => {
-    if (role === "user" && (evaluationStatus === "submitted" || evaluationStatus === "submit" || evaluationStatus === "completed" || evaluationStatus === "complete")) {
+    if (role === "user" && (evaluationStatus === EvaluationStatus.submitted || evaluationStatus === "submit" || evaluationStatus === EvaluationStatus.completed || evaluationStatus === "complete")) {
       toast.error("ไม่สามารถแก้ไขได้ เอกสารถูกส่งแล้ว");
       return;
     }
-    if (role !== "user" && (evaluationStatus === "completed" || evaluationStatus === "complete")) {
+    if (role !== "user" && (evaluationStatus === EvaluationStatus.completed || evaluationStatus === "complete")) {
       toast.error("ไม่สามารถแก้ไขได้ การประเมินเสร็จสิ้นแล้ว");
       return;
     }
@@ -359,7 +361,9 @@ const EvaluationByProgramPage = () => {
 
   const committeeActiveLevel = useMemo(() => {
     if (role === "user") return null;
-    return findScoringLevelMatch(attemptTypeCount, scoringLevels, evaluationType || ScoringLevelType.new, displayCommitteePct, displayCommitteePctSp, isYesNoProgram);
+    const matchLevel = findScoringLevelMatch(attemptTypeCount, scoringLevels, evaluationType || ScoringLevelType.new, displayCommitteePct, displayCommitteePctSp, isYesNoProgram);
+    setCanPrint(matchLevel ? matchLevel.isPass : false);
+    return matchLevel;
   }, [scoringLevels, evaluationType, displayCommitteePct, displayCommitteePctSp, isYesNoProgram, role]);
 
   // ── Wizard ──────────────────────────────────────────────────────────────────
@@ -411,8 +415,8 @@ const EvaluationByProgramPage = () => {
     })),
   [flatIndicators, scores, committeeScores, role]);
 
-  const isCompleted = evaluationStatus === "completed" || evaluationStatus === "complete";
-  const isSubmitted = evaluationStatus === "submitted" || evaluationStatus === "submit";
+  const isCompleted = evaluationStatus === EvaluationStatus.completed || evaluationStatus === "complete";
+  const isSubmitted = evaluationStatus === EvaluationStatus.submitted || evaluationStatus === "submit";
 
   const statusConfig: Record<string, { label: string; icon: React.ReactNode; badge: string; banner?: string }> = {
     draft:     { label: "ร่าง",             icon: <FileText className="h-3.5 w-3.5" />,    badge: "bg-gray-100 text-gray-600 border-gray-300" },
@@ -569,23 +573,22 @@ const EvaluationByProgramPage = () => {
             <h2 className="text-sm font-bold leading-tight truncate" style={{ color: "var(--green-heading)" }}>{programName}</h2>
             <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
               {evaluationType && EVAL_TYPE_CONFIG[evaluationType] && (
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.625rem] font-semibold border ${EVAL_TYPE_CONFIG[evaluationType].className}`}>
-                  {EVAL_TYPE_CONFIG[evaluationType].icon}
-                  {EVAL_TYPE_CONFIG[evaluationType].label}
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${EVAL_TYPE_CONFIG[evaluationType].className}`}>
+                  {EVAL_TYPE_CONFIG[evaluationType].icon}{EVAL_TYPE_CONFIG[evaluationType].label}{attemptTypeCount && ` (ครั้งที่ ${attemptTypeCount})`}
                 </span>
               )}
               {currentStatus && (
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.625rem] font-semibold border ${currentStatus.badge}`}>
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${currentStatus.badge}`}>
                   {currentStatus.icon}
                   {currentStatus.label}
                 </span>
               )}
               {year && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[0.625rem] font-medium border border-border bg-muted/60 text-muted-foreground">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border border-border bg-muted/60 text-muted-foreground">
                   พ.ศ. {year + 543}
                 </span>
               )}
-              <span className="text-[0.625rem]" style={{ color: "var(--green-muted)" }}>
+              <span className="text-xs" style={{ color: "var(--green-muted)" }}>
                 {visibleCategories.length} หมวด · {totalTopics} ประเด็น · {totalIndicators} ตัวชี้วัด{!isYesNoProgram ? ` · เต็ม ${grandMax}` : ""}
               </span>
             </div>
@@ -593,7 +596,7 @@ const EvaluationByProgramPage = () => {
 
           {/* Scores and Actions */}
           <div className="flex flex-1 flex-col items-end gap-2 shrink-0">
-            <div className="flex flex-col sm:flex-row flex-1 items-end gap-2">
+            <div className="flex flex-col sm:flex-row flex-1 items-start gap-2">
               {role !== "user" ? (
                 <>
                   <div className="inline-flex flex-col gap-1 items-end">
@@ -618,7 +621,7 @@ const EvaluationByProgramPage = () => {
                       <div className="flex flex-col w-full">
                         <p className="flex w-full justify-between items-center text-base font-bold text-muted-foreground leading-tight">
                           <span className="mr-2 text-start text-xs font-normal text-amber-700">{labelScoreType(visibleCategories, evaluationType)}</span>
-                          {grandMaxSP > 0 && <p className="text-end">{selfPctSp}%</p>}
+                          {grandMaxSP > 0 && <span className="text-end">{selfPctSp}%</span>}
                         </p>
                         <span className="text-end text-[0.6rem] text-muted-foreground font-semibold">
                           <AnimatedScore value={grandSelfTotalSp}>
@@ -735,7 +738,7 @@ const EvaluationByProgramPage = () => {
                     <div className="flex flex-col w-full">
                       <p className="flex w-full justify-between items-center text-base font-bold text-primary leading-tight">
                         <span className="mr-2 text-start text-xs font-normal text-amber-700">{labelScoreType(visibleCategories, evaluationType)}</span>
-                        {grandMaxSP > 0 && <p className="text-end">{selfPctSp}%</p>}
+                        {grandMaxSP > 0 && <span className="text-end">{selfPctSp}%</span>}
                       </p>
                       <span className="text-end text-[0.6rem] text-muted-foreground font-semibold">
                         <AnimatedScore value={grandSelfTotalSp}>
@@ -792,11 +795,20 @@ const EvaluationByProgramPage = () => {
                 </DropdownMenu>
               )}
               {isCompleted ? (
-                <Button variant="outline" size="sm"
-                  onClick={() => navigate(`/evaluation/${programId}/summary?evaluationId=${evaluationId || ""}`)}
-                  className="gap-1 text-green-700 border-green-300 bg-green-50 hover:bg-green-100 h-7 px-3 text-[10px] shrink-0">
-                  <CheckCircle2 className="h-3 w-3" /> ดูสรุป
-                </Button>
+                <div className="flex items-center gap-1.5">
+                  <Button variant="outline" size="sm"
+                    onClick={() => navigate(`/evaluation/${programId}/summary?evaluationId=${evaluationId || ""}`)}
+                    className="gap-1 text-green-700 border-green-300 bg-green-50 hover:bg-green-100 h-7 px-3 text-[10px] shrink-0">
+                    <CheckCircle2 className="h-3 w-3" /> ดูสรุป
+                  </Button>
+                  <Button variant="outline" size="icon"
+                    onClick={() => canPrint && window.open(`/certificate/print/${evaluationId}`, "_blank")}
+                    disabled={!canPrint}
+                    title={canPrint ? "พิมพ์ใบประกาศ" : "ระดับนี้ไม่ออกใบประกาศนียบัตร"}
+                    className={`h-7 w-7 px-3 ${canPrint ? "border-amber-300 bg-amber-50/50 text-amber-600 hover:bg-amber-100" : "border-slate-100 bg-slate-50/50 text-slate-400 cursor-not-allowed"}`}>
+                    <Printer className="h-3 w-3" />
+                  </Button>
+                </div>
               ) : (
                 role !== "user" && isSubmitted && (
                   <div className="flex items-center gap-1.5">
@@ -822,7 +834,7 @@ const EvaluationByProgramPage = () => {
         {currentStatus?.banner && (
           <div className={`flex items-center gap-2 mt-2 px-3 py-2 rounded-xl text-xs font-medium ${currentStatus.banner}`}>
             {currentStatus.icon}
-            {evaluationStatus === "revision" && "เอกสารนี้ถูกส่งกลับเพื่อแก้ไข กรุณารอการแก้ไขจากผู้ถูกประเมิน"}
+            {evaluationStatus === EvaluationStatus.revision && "เอกสารนี้ถูกส่งกลับเพื่อแก้ไข กรุณารอการแก้ไขจากผู้ถูกประเมิน"}
             {evaluationStatus === "cancel" && "เอกสารนี้ถูกยกเลิกแล้ว"}
           </div>
         )}
@@ -831,10 +843,11 @@ const EvaluationByProgramPage = () => {
       {/* ── Scrollable content glass card ── */}
       <div className="flex-1 min-h-0 rounded-2xl overflow-hidden" style={glassCard}>
         <div className="h-full overflow-y-auto px-4 py-4 space-y-4">
-          <ScoreSummary data={summaryData} committeeData={committeeSummaryData} onCategoryClick={handleCategoryClick} />
+          <ScoreSummary status={evaluationStatus} data={summaryData} committeeData={committeeSummaryData} onCategoryClick={handleCategoryClick} />
           {visibleCategories.map((category, idx) => (
             <CategoryCard
               key={category.id}
+              status={evaluationStatus}
               category={category}
               colorIndex={idx}
               scores={scores}
