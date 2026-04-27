@@ -5,6 +5,7 @@ import {
   Clock, FileText, AlertCircle, XCircle, RotateCcw,
   FilePlus, RefreshCw, TrendingUp,
   Trophy, Medal, Award, Star, Save,
+  Printer,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { ScoringLevelType } from "./SettingsScoringCriteria";
 import { findScoringLevelMatch, isNewType, isRenewType, isUpgradType, labelScoreType, queryArray } from "@/helpers/functions";
+import { EvaluationStatus } from "@/helpers/enum";
 
 const EVAL_TYPE_CONFIG: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
   new:     { label: "ประเมินใหม่",             icon: <FilePlus   className="h-3 w-3" />, className: "bg-blue-50 text-blue-700 border-blue-200"     },
@@ -117,6 +119,7 @@ export default function ProjectRegistration() {
   const [copyHistoryEvals, setCopyHistoryEvals] = useState<Array<{ evaluationId: string; year: number; status: string; evaluationType: string }>>([]);
   const [copyHistoryLoaded, setCopyHistoryLoaded] = useState(false);
   const [copyDropdownOpen, setCopyDropdownOpen] = useState(false);
+  const [canPrint, setCanPrint] = useState(false);
   const navigate = useNavigate();
 
   const handleCategoryClick = useCallback((categoryId: string | number) => {
@@ -208,7 +211,7 @@ export default function ProjectRegistration() {
           });
           if (newEval?.id) {
             setEvaluationId(newEval.id);
-            setEvaluationStatus("draft");
+            setEvaluationStatus(EvaluationStatus.draft);
             navigate(`/register/evaluate?type=${urlEvalType}&year=${selectedYear}&id=${newEval.id}`, { replace: true });
           }
           return;
@@ -326,7 +329,7 @@ export default function ProjectRegistration() {
 
   // ── Autosave dirty indicators every 30s ───────────────────────────────────
   useEffect(() => {
-    const readOnly = evaluationStatus === "submitted" || evaluationStatus === "completed";
+    const readOnly = evaluationStatus === EvaluationStatus.submitted || evaluationStatus === EvaluationStatus.completed;
     if (readOnly || !evaluationId || !programId) return;
     const interval = setInterval(async () => {
       const dirty = Array.from(dirtyIndicatorIds);
@@ -357,7 +360,7 @@ export default function ProjectRegistration() {
         description: "ทีมงานจะตรวจสอบและแจ้งผลให้ทราบในภายหลัง",
         duration: 5000,
       });
-      setEvaluationStatus("submitted");
+      setEvaluationStatus(EvaluationStatus.submitted);
       navigate("/register");
     } catch (err: any) {
       toast.error(err?.response?.data?.message ?? "เกิดข้อผิดพลาดในการส่งแบบประเมิน");
@@ -514,7 +517,9 @@ export default function ProjectRegistration() {
 
   const committeeActiveLevel = useMemo(() => {
     if (displayCommitteeTotal === undefined) return null;
-    return findScoringLevelMatch(attemptTypeCount, scoringLevels, evaluationType, committeePct, committeePctSp, isYesNoProgram);
+    const matchLevel = findScoringLevelMatch(attemptTypeCount, scoringLevels, evaluationType, committeePct, committeePctSp, isYesNoProgram);
+    setCanPrint(matchLevel ? matchLevel.isPass : false);
+    return matchLevel;
   }, [scoringLevels, evaluationType, committeePct, committeePctSp, isYesNoProgram, displayCommitteeTotal]);
 
   // ── Wizard flat list ───────────────────────────────────────────────────────
@@ -611,8 +616,8 @@ export default function ProjectRegistration() {
   const totalIndicators = visibleCategories.reduce((s, c) => s + c.topics.reduce((ts, t) => ts + t.indicators.length, 0), 0);
 
   // Derived from evaluationStatus
-  const isEvalReadOnly = evaluationStatus === "submitted" || evaluationStatus === "completed";
-  const isEvalCompleted = evaluationStatus === "completed";
+  const isEvalReadOnly = evaluationStatus === EvaluationStatus.submitted || evaluationStatus === EvaluationStatus.completed;
+  const isEvalCompleted = evaluationStatus === EvaluationStatus.completed;
 
   const evalStatusConfig: Record<string, { label: string; icon: React.ReactNode; badge: string; banner?: string }> = {
     draft:     { label: "ร่าง",             icon: <FileText className="h-3.5 w-3.5" />,    badge: "bg-gray-100 text-gray-600 border-gray-300" },
@@ -670,21 +675,21 @@ export default function ProjectRegistration() {
             <h2 data-testid="evaluation-form-title" className="text-sm font-bold leading-tight truncate" style={{ color: "var(--green-heading)" }}>ประเมิน {programName}</h2>
             <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
               {evaluationType && EVAL_TYPE_CONFIG[evaluationType] && (
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.625rem] font-semibold border ${EVAL_TYPE_CONFIG[evaluationType].className}`}>
-                  {EVAL_TYPE_CONFIG[evaluationType].icon}{EVAL_TYPE_CONFIG[evaluationType].label}
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${EVAL_TYPE_CONFIG[evaluationType].className}`}>
+                  {EVAL_TYPE_CONFIG[evaluationType].icon}{EVAL_TYPE_CONFIG[evaluationType].label}{ attemptTypeCount && ` (ครั้งที่ ${attemptTypeCount})`}
                 </span>
               )}
               {currentEvalStatus && (
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.625rem] font-semibold border ${currentEvalStatus.badge}`}>
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${currentEvalStatus.badge}`}>
                   {currentEvalStatus.icon}{currentEvalStatus.label}
                 </span>
               )}
               {year && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[0.625rem] font-medium border border-border bg-muted/60 text-muted-foreground">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border border-border bg-muted/60 text-muted-foreground">
                   พ.ศ. {year + 543}
                 </span>
               )}
-              <span className="text-[0.625rem]" style={{ color: "var(--green-muted)" }}>
+              <span className="text-xs" style={{ color: "var(--green-muted)" }}>
                 {visibleCategories.length} หมวด · {totalTopics} ประเด็น · {totalIndicators} ตัวชี้วัด{!isYesNoProgram ? ` · เต็ม ${grandMax}` : ""}
               </span>
             </div>
@@ -703,7 +708,7 @@ export default function ProjectRegistration() {
           </div>
           {/* Scores and Actions */}
           <div className="flex flex-col items-end gap-2 shrink-0">
-            <div className="flex flex-col sm:flex-row flex-1 items-end gap-2">
+            <div className="flex flex-col sm:flex-row flex-1 items-start gap-2">
               <div className="inline-flex flex-col gap-1 items-end">
                 <p className="text-[0.5625rem] font-semibold text-muted-foreground uppercase tracking-wider">คะแนนรวม</p>
                 <div className="flex flex-col w-full">
@@ -881,6 +886,23 @@ export default function ProjectRegistration() {
                 </DropdownMenu>
               )}
             </div>
+
+            {evaluationStatus === EvaluationStatus.completed && (
+              <div className="flex items-center gap-1.5">
+                <Button variant="outline" size="sm"
+                  onClick={() => navigate(`/evaluation/${programId}/summary?evaluationId=${evaluationId || ""}`)}
+                  className="gap-1 text-green-700 border-green-300 bg-green-50 hover:bg-green-100 h-7 px-3 text-[10px] shrink-0">
+                  <CheckCircle2 className="h-3 w-3" /> ดูสรุป
+                </Button>
+                <Button variant="outline" size="icon"
+                  onClick={() => canPrint && window.open(`/certificate/print/${evaluationId}`, "_blank")}
+                  disabled={!canPrint}
+                  title={canPrint ? "พิมพ์ใบประกาศ" : "ระดับนี้ไม่ออกใบประกาศนียบัตร"}
+                  className={`h-7 w-7 px-3 ${canPrint ? "border-amber-300 bg-amber-50/50 text-amber-600 hover:bg-amber-100" : "border-slate-100 bg-slate-50/50 text-slate-400 cursor-not-allowed"}`}>
+                  <Printer className="h-3 w-3" />
+                </Button> 
+              </div>
+            )}
           </div>
         </div>
 
@@ -888,7 +910,7 @@ export default function ProjectRegistration() {
         {currentEvalStatus?.banner && (
           <div className={`flex items-center gap-2 mt-2 px-3 py-2 rounded-xl text-xs font-medium ${currentEvalStatus.banner}`}>
             {currentEvalStatus.icon}
-            {evaluationStatus === "revision" && "เอกสารนี้ถูกส่งกลับเพื่อแก้ไข กรุณาตรวจสอบและส่งใหม่อีกครั้ง"}
+            {evaluationStatus === EvaluationStatus.revision && "เอกสารนี้ถูกส่งกลับเพื่อแก้ไข กรุณาตรวจสอบและส่งใหม่อีกครั้ง"}
             {evaluationStatus === "cancel" && "เอกสารนี้ถูกยกเลิกแล้ว"}
           </div>
         )}
@@ -905,12 +927,13 @@ export default function ProjectRegistration() {
         ) : (
           <>
             {/* Score summary grid */}
-            {summaryData.length > 0 && <ScoreSummary data={summaryData} committeeData={committeeSummaryData} onCategoryClick={handleCategoryClick} />}
+            {summaryData.length > 0 && <ScoreSummary status={evaluationStatus} data={summaryData} committeeData={committeeSummaryData} onCategoryClick={handleCategoryClick} />}
 
             {/* Category cards */}
             {visibleCategories.map((category, idx) => (
               <CategoryCard
                 key={category.id}
+                status={evaluationStatus}
                 category={category}
                 colorIndex={idx}
                 scores={scores}
@@ -968,7 +991,7 @@ export default function ProjectRegistration() {
                     ? <><Loader2 className="h-4 w-4 animate-spin" />กำลังส่งแบบประเมิน...</>
                     : !allScored
                       ? <><ClipboardCheck className="h-4 w-4" />กรุณาประเมินให้ครบทุกตัวชี้วัด</>
-                      : evaluationStatus === "revision"
+                      : evaluationStatus === EvaluationStatus.revision
                         ? <><RotateCcw className="h-4 w-4" />ส่งแบบประเมินใหม่อีกครั้ง</>
                         : <><ClipboardCheck className="h-4 w-4" />ส่งแบบประเมินตนเอง</>}
                 </Button>

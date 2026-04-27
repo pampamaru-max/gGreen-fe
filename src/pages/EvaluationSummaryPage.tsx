@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { ArrowLeft, ClipboardCheck, Medal } from "lucide-react";
+import { ArrowLeft, ClipboardCheck, Medal, Printer } from "lucide-react";
 import { PageLoading } from "@/components/ui/page-loading";
 import { Button } from "@/components/ui/button";
 import apiClient from "@/lib/axios";
 import { ScoringLevelType } from "./SettingsScoringCriteria";
 import { ScoringLevel } from "./ProjectRegistration";
 import { findScoringLevelMatch, labelScoreType } from "@/helpers/functions";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface YesNoStats {
   passCount: number;
@@ -62,6 +63,8 @@ const EvaluationSummaryPage = () => {
   const [result, setResult] = useState<EvaluationResult | null>(null);
   const [yesNoStats, setYesNoStats] = useState<YesNoStats | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const user = useUserRole();
 
   useEffect(() => {
     if (!evaluationId) {
@@ -156,9 +159,11 @@ const EvaluationSummaryPage = () => {
   const pct = isYesNo
     ? yesNoStats!.passPct
     : (totalMaxScore > 0 ? Math.round((totalScore / totalMaxScore) * 100) : 0);
+  const finalLevel = specialLevel ?? normalLevel;
   const pctSp = (totalMaxScoreSpecial > 0 ? Math.round((totalScoreSpecial / totalMaxScoreSpecial) * 100) : 0);
-  const levelColor = isYesNo ? yesNoStats!.levelColor : ((specialLevel ?? normalLevel)?.color ?? "#6b7280");
-  const levelName = isYesNo ? (yesNoStats!.levelName ?? "ไม่ระบุ") : ((specialLevel ?? normalLevel)?.name ?? "ไม่ระบุ");
+  const levelColor = isYesNo ? yesNoStats!.levelColor : (finalLevel?.color ?? "#6b7280");
+  const levelName = isYesNo ? (yesNoStats!.levelName ?? "ไม่ระบุ") : (finalLevel?.name ?? "ไม่ระบุ");
+  const canPrint = finalLevel ? finalLevel.isPass : false;
 
   const glass = {
     background: "var(--glass-bg)",
@@ -168,13 +173,17 @@ const EvaluationSummaryPage = () => {
     border: "1px solid var(--glass-border)",
   } as React.CSSProperties;
 
+  const backToHomePage = () => {
+    return user?.role === "user" ? navigate("/register")  : navigate("/evaluation");
+  }
+
   return (
     <div className="h-full flex flex-col gap-3 p-3 sm:p-4">
 
       {/* Header */}
       <div className="px-4 py-3 rounded-2xl shrink-0" style={glass}>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/evaluation")} className="shrink-0 h-8 w-8">
+          <Button variant="ghost" size="icon" onClick={backToHomePage} className="shrink-0 h-8 w-8">
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex h-9 w-9 items-center justify-center rounded-lg shrink-0" style={{ background: "#3a7d2c" }}>
@@ -194,7 +203,7 @@ const EvaluationSummaryPage = () => {
 
             {/* Result card */}
             <div
-              className="rounded-2xl border p-6 text-center"
+              className="relative rounded-2xl border p-6 text-center"
               style={{ borderColor: levelColor, backgroundColor: `${levelColor}18` }}
             >
               <Medal className="h-12 w-12 mx-auto mb-3" style={{ color: levelColor }} />
@@ -261,6 +270,14 @@ const EvaluationSummaryPage = () => {
                   {levelName}
                 </span>
               </div>
+              <Button variant="outline"
+                onClick={() => canPrint && window.open(`/certificate/print/${evaluationId}`, "_blank")}
+                disabled={!canPrint}
+                title={canPrint ? "พิมพ์ใบประกาศ" : "ระดับนี้ไม่ออกใบประกาศนียบัตร"}
+                className={`absolute top-2 right-2 size-8 px-3 ${canPrint ? "border-amber-600 bg-amber-50/50 text-amber-600 hover:bg-amber-100" : "border-slate-100 bg-slate-50/50 text-slate-400 cursor-not-allowed"}`}
+              >
+                <Printer />
+              </Button>
             </div>
 
             {/* Category breakdown */}
@@ -275,7 +292,7 @@ const EvaluationSummaryPage = () => {
                         <p className="text-sm font-semibold flex-1">{cat.categoryName}</p>
                         <div className="text-right shrink-0">
                           <p className="text-base font-bold" style={{ color: "var(--green-heading)" }}>
-                            {cat.scaledScore.toFixed(4)}
+                            {cat.scaledScore.toFixed(2)}
                             <span className="text-xs font-normal text-muted-foreground">/{isHaveCatPct ? `${cat.categoryMaxScorePct}%` : cat.categoryMaxScore}</span>
                           </p>
                           <p className="text-xs text-muted-foreground">คะแนนดิบ: {cat.rawScore}/{cat.indicatorMaxTotal}</p>
@@ -293,7 +310,7 @@ const EvaluationSummaryPage = () => {
               </div>
             )}
 
-            <Button className="w-full" onClick={() => navigate("/evaluation")}>
+            <Button className="w-full" onClick={backToHomePage}>
               กลับหน้ารายการประเมิน
             </Button>
           </div>

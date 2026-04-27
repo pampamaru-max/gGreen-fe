@@ -13,6 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { FilePlus, RefreshCw, TrendingUp } from "lucide-react";
 import { ScoringLevelType } from "./SettingsScoringCriteria";
 import { findScoringLevelMatch, labelScoreType } from "@/helpers/functions";
+import { EvaluationStatus } from "@/helpers/enum";
 
 const EVAL_TYPE_CONFIG: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
   new:     { label: "ประเมินใหม่",             icon: <FilePlus   className="h-3 w-3" />, className: "bg-blue-50 text-blue-700 border-blue-200"     },
@@ -159,13 +160,13 @@ const EvaluationPage = () => {
         const hasProgress = row.has_self_score;
 
         if (filterSelfStatus === "none" && (status || hasProgress)) return false;
-        if (filterSelfStatus === "draft" && status !== "draft" && !hasProgress) return false;
-        if (filterSelfStatus === "completed" && status !== "completed" && status !== "submitted") return false;
+        if (filterSelfStatus === EvaluationStatus.draft && status !== EvaluationStatus.draft && !hasProgress) return false;
+        if (filterSelfStatus === EvaluationStatus.completed && status !== EvaluationStatus.completed && status !== EvaluationStatus.submitted) return false;
       }
 
       if (filterCommitteeStatus !== "all") {
         if (filterCommitteeStatus === "none" && row.has_committee_score) return false;
-        if (filterCommitteeStatus === "completed" && !row.has_committee_score) return false;
+        if (filterCommitteeStatus === EvaluationStatus.completed && !row.has_committee_score) return false;
       }
 
       return true;
@@ -183,16 +184,16 @@ const EvaluationPage = () => {
   };
 
   const getSelfAssessmentBadge = (status: string | null) => {
-    if (status === "completed" || status === "complete") {
+    if (status === EvaluationStatus.completed || status === "complete") {
       return <Badge className="bg-emerald-600">เสร็จสิ้น</Badge>;
     }
-    if (status === "submitted" || status === "submit") {
+    if (status === EvaluationStatus.submitted || status === "submit") {
       return <Badge className="bg-blue-600">ส่งแล้ว</Badge>;
     }
-    if (status === "revision") {
+    if (status === EvaluationStatus.revision) {
       return <Badge className="bg-rose-500">ต้องแก้ไข</Badge>;
     }
-    if (status === "draft") {
+    if (status === EvaluationStatus.draft) {
       return (
         <Badge variant="secondary" className="bg-amber-500 text-white border-none">
           ร่าง
@@ -203,13 +204,13 @@ const EvaluationPage = () => {
   };
 
   const getCommitteeBadge = (status: string | null, hasScore: boolean) => {
-    if (status === "completed" || status === "complete") {
+    if (status === EvaluationStatus.completed || status === "complete") {
       return <Badge className="bg-emerald-600 text-white border-none">เสร็จสิ้น</Badge>;
     }
-    if (status === "submitted" || status === "submit") {
+    if (status === EvaluationStatus.submitted || status === "submit") {
       return <Badge className="bg-blue-600 text-white border-none">รอการประเมิน</Badge>;
     }
-    if (status === "revision") {
+    if (status === EvaluationStatus.revision) {
       return <Badge variant="secondary" className="bg-amber-100 text-amber-700 border-amber-300">รอดำเนินการ</Badge>;
     }
     if (hasScore) return <Badge className="bg-emerald-600 hover:bg-emerald-700">ประเมินแล้ว</Badge>;
@@ -270,8 +271,8 @@ const EvaluationPage = () => {
             <SelectContent>
               <SelectItem value="all">สถานะตนเองทั้งหมด</SelectItem>
               <SelectItem value="none">ยังไม่ประเมิน</SelectItem>
-              <SelectItem value="draft">ร่าง</SelectItem>
-              <SelectItem value="completed">ประเมินแล้ว</SelectItem>
+              <SelectItem value={EvaluationStatus.draft}>ร่าง</SelectItem>
+              <SelectItem value={EvaluationStatus.completed}>ประเมินแล้ว</SelectItem>
             </SelectContent>
           </Select>
           <Select value={filterCommitteeStatus} onValueChange={setFilterCommitteeStatus}>
@@ -279,7 +280,7 @@ const EvaluationPage = () => {
             <SelectContent>
               <SelectItem value="all">สถานะกรรมการทั้งหมด</SelectItem>
               <SelectItem value="none">ยังไม่ประเมิน</SelectItem>
-              <SelectItem value="completed">ประเมินแล้ว</SelectItem>
+              <SelectItem value={EvaluationStatus.completed}>ประเมินแล้ว</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -376,8 +377,8 @@ const EvaluationPage = () => {
                     <Button variant="outline" size="sm"
                       onClick={() => navigate(`/evaluation/${row.program_id}?evaluationId=${row.evaluation_id}`)}
                       className="flex-1 h-9 gap-1.5 text-xs font-semibold rounded-xl border-primary/20 bg-primary/5 text-primary hover:bg-primary/10">
-                      {row.self_status === "completed" ? <Eye className="h-3.5 w-3.5" /> : row.evaluation_id ? <Pencil className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
-                      {row.self_status === "completed" ? "ดูผล" : row.evaluation_id ? "แก้ไข" : "เพิ่ม"}
+                      {row.self_status === EvaluationStatus.completed ? <Eye className="h-3.5 w-3.5" /> : row.evaluation_id ? <Pencil className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                      {row.self_status === EvaluationStatus.completed ? "ดูผล" : row.evaluation_id ? "แก้ไข" : "เพิ่ม"}
                     </Button>
                     {row.has_committee_score && (
                       <Button variant="outline" size="icon"
@@ -475,8 +476,8 @@ const EvaluationPage = () => {
                       <TableCell className="text-center">
                         <div className="flex items-center justify-center gap-1">
                           <Button variant="ghost" size="icon" onClick={() => navigate(`/evaluation/${row.program_id}?evaluationId=${row.evaluation_id}`)}
-                            title={row.self_status === "completed" ? "ดูผลการประเมิน" : row.evaluation_id ? "แก้ไขการประเมิน" : "เพิ่มการประเมิน"}>
-                            {row.self_status === "completed" ? <Eye className="h-4 w-4 text-muted-foreground" />
+                            title={row.self_status === EvaluationStatus.completed ? "ดูผลการประเมิน" : row.evaluation_id ? "แก้ไขการประเมิน" : "เพิ่มการประเมิน"}>
+                            {row.self_status === EvaluationStatus.completed ? <Eye className="h-4 w-4 text-muted-foreground" />
                               : row.evaluation_id ? <Pencil className="h-4 w-4 text-primary" />
                               : <Plus className="h-4 w-4 text-primary" />}
                           </Button>
