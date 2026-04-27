@@ -2027,7 +2027,7 @@ const SettingsCertificate = () => {
             const normalLevels = programLevels.filter((l) => l.type === ScoringLevelType.new);
             const specialLevels = programLevels.filter((l) => l.type !== ScoringLevelType.new);
             const combinedLevels = specialLevels.flatMap((special) =>
-              normalLevels.map((normal) => ({
+              normalLevels.filter(l => l.isPass).map((normal) => ({
                 ...special,
                 name: `${normal.name} ${special.name}`,
                 normal_level_id: normal.id,
@@ -2045,6 +2045,10 @@ const SettingsCertificate = () => {
               sortOrder: 0,
               type: ScoringLevelType.new,
               isYesNo: true,
+              attempt: null,
+              isActive: true,
+              isPass: true,
+              programId: program.id,
             };
 
             const allProgLevels: (ScoringLevel & { normal_level_id?: number; isYesNo?: boolean })[] = isYesNo
@@ -2053,7 +2057,7 @@ const SettingsCertificate = () => {
 
             const configuredCount = isYesNo
               ? (templates[`prog_${program.id}`] ? 1 : 0)
-              : allProgLevels.filter((l) => !!templates[l.type !== ScoringLevelType.new ? `${l.normal_level_id}-${l.id}` : l.id]).length;
+              : allProgLevels.filter((l) => !l.isPass || !!templates[l.type !== ScoringLevelType.new ? `${l.normal_level_id}-${l.id}` : l.id]).length;
 
             // Find first available signer info to use as default for new templates
             const firstTemplateWithSigner = templatesRaw.find(

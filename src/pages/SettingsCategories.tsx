@@ -19,6 +19,7 @@ interface DbCategory {
   id: number;
   name: string;
   maxScore: number;
+  maxScorePct: number;
   sortOrder: number;
   isDefault: boolean;
   programId: string | null;
@@ -412,7 +413,7 @@ const CategoryItem = ({ cat, topicCount, indicatorCount, onEdit, onDelete }: Cat
           </p>
         </div>
         <EditCategoryDialog
-          category={{ id: cat.id, name: cat.name, maxScore: cat.maxScore, sortOrder: cat.sortOrder, scoreType: cat.scoreType }}
+          category={{ id: cat.id, name: cat.name, maxScore: cat.maxScore, maxScorePct: cat.maxScorePct, sortOrder: cat.sortOrder, scoreType: cat.scoreType }}
           onSave={(updated) => onEdit({ ...cat, name: updated.name, maxScore: updated.maxScore, sortOrder: updated.sortOrder, scoreType: updated.scoreType })}
         />
         {topicCount > 0 ? (

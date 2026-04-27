@@ -31,7 +31,7 @@ export const isNewType    = (t?: string) => !t || t === "score" || t === "yes_no
 export const isUpgradType = (t?: string) => t === "score_upgrad" || t === "yes_no_upgrad" || t === "upgrade";
 export const isRenewType  = (t?: string) => t === "score_renew" || t === "yes_no_renew";
 
-export const labelScoreType = (categories: EvalCategory[], type: string): string => {
+export const labelScoreType = (categories: any[], type: string): string => {
   const selectType = (val: string) => {
     return type === 'new' ? isNewType(val) : type === 'upgrade' ? isUpgradType(val) : isRenewType(val);
   }
@@ -99,6 +99,7 @@ export const findScoringLevelMatch = (
   const specialLevels = scoringLevels.filter((l) => type !== ScoringLevelType.new && l.type === type);
   
   const normalLevel = getScoringLevel(normalLevels, ScoringLevelType.new, normalPct);
+  if (!normalLevel) return null;
   if (normalLevel.maxScore != 100 || !specialLevels.length) return normalLevel;
   const specialLevel = getScoringLevel(scoringLevels, type, specialPct, attempt);
   return specialLevel ?? normalLevel;

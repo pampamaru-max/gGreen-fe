@@ -27,6 +27,7 @@ export interface Category {
   id: number;
   name: string;
   maxScore: number;
+  maxScorePct: number,
   scoreType?: string;
   topics: Topic[];
 }
@@ -36,6 +37,7 @@ export const evaluationData: Category[] = [
     id: 1,
     name: "กำหนดนโยบายและแผน",
     maxScore: 25,
+    maxScorePct: 0,
     topics: [
       {
         id: "1.1",
@@ -103,6 +105,7 @@ export const evaluationData: Category[] = [
     id: 2,
     name: "การสื่อสารและสร้างจิตสำนึก",
     maxScore: 15,
+    maxScorePct: 0,
     topics: [
       {
         id: "2.1",
@@ -125,6 +128,7 @@ export const evaluationData: Category[] = [
     id: 3,
     name: "ใช้ทรัพยากรและพลังงาน",
     maxScore: 15,
+    maxScorePct: 0,
     topics: [
       {
         id: "3.1",
@@ -170,6 +174,7 @@ export const evaluationData: Category[] = [
     id: 4,
     name: "การจัดการของเสีย",
     maxScore: 15,
+    maxScorePct: 0,
     topics: [
       {
         id: "4.1",
