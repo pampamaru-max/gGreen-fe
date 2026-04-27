@@ -1,4 +1,4 @@
-import { ClipboardCheck, Settings, FolderTree, ListChecks, FolderKanban, Award, FileText, LogOut, FileBarChart, FileArchive, Shield, Clock, ALargeSmall, Sun, Moon, Leaf } from "lucide-react";
+import { ClipboardCheck, Settings, FolderTree, ListChecks, FolderKanban, Award, FileText, LogOut, FileBarChart, FileArchive, Shield, Clock, ALargeSmall, Sun, Moon, Leaf, Sparkles } from "lucide-react";
 import { FONT_SIZE_MIN, FONT_SIZE_MAX } from "@/lib/fontsize";
 import { useTheme } from "@/contexts/ThemeContext";
 import { NavLink } from "@/components/NavLink";
@@ -58,6 +58,12 @@ export function AppSidebar({ fontSize, setFontSize }: AppSidebarProps) {
   const isSettingsActive = currentPath.startsWith("/settings");
 
   const [settingsOpen, setSettingsOpen] = useState(isSettingsActive);
+  const [showDragon, setShowDragon] = useState(() => localStorage.getItem("sidebar-dragon") !== "false");
+  const toggleDragon = () => setShowDragon(prev => {
+    const next = !prev;
+    localStorage.setItem("sidebar-dragon", String(next));
+    return next;
+  });
   return (
     <Sidebar collapsible="icon">
       <SidebarContent>
@@ -292,41 +298,116 @@ export function AppSidebar({ fontSize, setFontSize }: AppSidebarProps) {
         </SidebarGroup>
       </SidebarContent>
 
-      {/* Flower decoration */}
-      {!collapsed && !isDark && (
+      {!collapsed && showDragon && (
         <img
-          src="/flower-decoration.png"
+          src="/toothless-dancing.gif"
           alt=""
-          className="absolute -bottom-8 -left-8 pointer-events-none select-none z-0"
-          style={{ width: 240, height: "auto", display: "block", opacity: 0.92 }}
+          className={`absolute bottom-0 left-0 pointer-events-none select-none z-10${isDark ? " disco" : ""}`}
+          style={{ width: 120, height: "auto" }}
           draggable={false}
         />
       )}
-      {!collapsed && !isDark && (
+
+      {/* ── Disco mode ── */}
+      {!collapsed && isDark && showDragon && (
         <>
-          <img
-            src="/butterfly.gif"
-            alt=""
-            className="absolute bottom-[200px] left-[60px] pointer-events-none select-none z-10"
-            style={{ width: 50, height: "auto" }}
-            draggable={false}
-          />
-          <img
-            src="/butterfly.gif"
-            alt=""
-            className="absolute bottom-[160px] left-[130px] pointer-events-none select-none z-10"
-            style={{ width: 35, height: "auto", opacity: 0.8, transform: "scaleX(-1)" }}
-            draggable={false}
-          />
-          <img
-            src="/butterfly.gif"
-            alt=""
-            className="absolute bottom-[260px] left-[100px] pointer-events-none select-none z-10"
-            style={{ width: 45, height: "auto", opacity: 0.9, transform: "scaleX(-1)" }}
-            draggable={false}
-          />
+          {/* Light beams (behind dragon) */}
+          <div className="absolute inset-0 pointer-events-none select-none overflow-hidden z-[8]">
+            {([
+              { color: "#ff0080", angle: -42, delay: "0s",    dur: "1.8s" },
+              { color: "#ff6600", angle: -22, delay: "0.3s",  dur: "2.2s" },
+              { color: "#00ddff", angle:  -6, delay: "0.6s",  dur: "1.6s" },
+              { color: "#bbff00", angle:  12, delay: "0.9s",  dur: "2.0s" },
+              { color: "#ff00ff", angle:  28, delay: "1.2s",  dur: "1.9s" },
+              { color: "#00ffaa", angle:  46, delay: "1.5s",  dur: "2.3s" },
+            ] as { color: string; angle: number; delay: string; dur: string }[]).map(({ color, angle, delay, dur }, i) => (
+              <div
+                key={i}
+                style={{
+                  position: "absolute",
+                  top: 62,
+                  left: "50%",
+                  width: 120,
+                  height: 560,
+                  transformOrigin: "top center",
+                  transform: `translateX(-50%) rotate(${angle}deg)`,
+                  clipPath: "polygon(50% 0%, 0% 100%, 100% 100%)",
+                  background: `linear-gradient(to bottom, ${color}cc, ${color}33 55%, transparent)`,
+                  animation: `disco-beam-pulse ${dur} ease-in-out infinite ${delay}`,
+                  mixBlendMode: "screen",
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Disco ball (above dragon) */}
+          <div
+            className="absolute pointer-events-none select-none z-[25]"
+            style={{ top: 6, left: "50%", transform: "translateX(-50%)" }}
+          >
+            {/* Hanging string */}
+            <div style={{ width: 1, height: 18, background: "rgba(255,255,255,0.45)", margin: "0 auto" }} />
+
+            {/* Ball */}
+            <div style={{ position: "relative", width: 38, height: 38 }}>
+              <div style={{
+                position: "absolute", inset: 0, borderRadius: "50%",
+                background: "radial-gradient(circle at 35% 30%, #fff 0%, #ccc 35%, #888 65%, #444 100%)",
+                boxShadow: "0 0 14px rgba(255,255,255,0.95), 0 0 28px rgba(255,255,255,0.4)",
+                overflow: "hidden",
+              }}>
+                {/* Spinning grid */}
+                <div style={{
+                  position: "absolute", inset: 0,
+                  backgroundImage: [
+                    "repeating-linear-gradient(0deg, rgba(0,0,0,0.28) 0px, rgba(0,0,0,0.28) 1px, transparent 1px, transparent 5px)",
+                    "repeating-linear-gradient(90deg, rgba(0,0,0,0.28) 0px, rgba(0,0,0,0.28) 1px, transparent 1px, transparent 5px)",
+                  ].join(","),
+                  animation: "disco-ball-spin 3s linear infinite",
+                }} />
+              </div>
+
+              {/* Sparkle dots */}
+              {([
+                "#ff0080","#ff8800","#ffff00","#00ff88",
+                "#00ffff","#0088ff","#cc00ff","#ffffff",
+              ] as string[]).map((c, i) => {
+                const a = (i / 8) * Math.PI * 2;
+                return (
+                  <div key={i} style={{ position: "absolute", top: 19 + Math.sin(a) * 28 - 2, left: 19 + Math.cos(a) * 28 - 2 }}>
+                    <div style={{
+                      width: 4, height: 4, borderRadius: "50%",
+                      background: c, boxShadow: `0 0 5px 2px ${c}`,
+                      animation: `disco-sparkle 1s ease-in-out infinite ${(i * 0.125).toFixed(3)}s`,
+                    }} />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </>
       )}
+
+      {/* Toggle button — bottom-right, show only when expanded */}
+      {!collapsed && (
+        <button
+          onClick={toggleDragon}
+          title={showDragon ? "ซ่อนมังกร" : "แสดงมังกร"}
+          className="absolute bottom-2 right-2 z-[30] flex items-center justify-center w-6 h-6 rounded-full transition-all duration-200 hover:scale-110"
+          style={{
+            background: showDragon
+              ? isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.08)"
+              : isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+            boxShadow: showDragon && isDark ? "0 0 8px rgba(255,255,255,0.3)" : undefined,
+          }}
+        >
+          <Sparkles
+            className="w-3 h-3 transition-colors"
+            style={{ color: showDragon ? (isDark ? "#fff" : "#6b7280") : "#9ca3af", opacity: showDragon ? 1 : 0.4 }}
+          />
+        </button>
+      )}
+
     </Sidebar>);
 
 }

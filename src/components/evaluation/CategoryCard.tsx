@@ -19,14 +19,14 @@ import {
 import { MAX_FILE_SIZE } from "@/helpers/constants";
 
 const categoryColors = [
-  "210 70% 45%",
-  "165 60% 40%",
-  "40 90% 50%",
-  "340 65% 50%",
-  "270 60% 50%",
-  "30 80% 50%",
-  "190 70% 40%",
-  "0 65% 50%",
+  "#2E6FCC", // 210 70% 45%
+  "#29A36A", // 165 60% 40%
+  "#F2B300", // 40 90% 50%
+  "#D93673", // 340 65% 50%
+  "#7A3FD9", // 270 60% 50%
+  "#E67319", // 30 80% 50%
+  "#1F8FA3", // 190 70% 40%
+  "#D93636", // 0 65% 50%
 ];
 
 export function getCategoryColor(index: number): string {

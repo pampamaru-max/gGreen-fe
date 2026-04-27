@@ -4,6 +4,30 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes disco {
+  0%   { filter: drop-shadow(0 0 8px #ff0080) hue-rotate(0deg); }
+  16%  { filter: drop-shadow(0 0 12px #ff8000) hue-rotate(60deg); }
+  33%  { filter: drop-shadow(0 0 10px #ffff00) hue-rotate(120deg); }
+  50%  { filter: drop-shadow(0 0 12px #00ff80) hue-rotate(180deg); }
+  66%  { filter: drop-shadow(0 0 10px #0080ff) hue-rotate(240deg); }
+  83%  { filter: drop-shadow(0 0 12px #8000ff) hue-rotate(300deg); }
+  100% { filter: drop-shadow(0 0 8px #ff0080) hue-rotate(360deg); }
+}
+.disco { animation: disco 1.2s linear infinite; }
+
+@keyframes disco-ball-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes disco-beam-pulse {
+  0%, 100% { opacity: 0.05; }
+  50%       { opacity: 0.42; }
+}
+@keyframes disco-sparkle {
+  0%, 100% { opacity: 0;   transform: scale(0.2); }
+  50%       { opacity: 1;  transform: scale(1);   }
+}
+
 @layer base {
   :root {
     --background: 210 20% 98%;

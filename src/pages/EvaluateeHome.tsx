@@ -36,7 +36,7 @@ import apiClient from "@/lib/axios";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertActionPopup } from "@/components/AlertActionPopup";
 import { ScoringLevelType } from "./SettingsScoringCriteria";
-import { findScoringLevelMatch } from "@/helpers/functions";
+import { findScoringLevelMatch, labelScoreType } from "@/helpers/functions";
 
 interface Registration {
   id: string;
@@ -115,19 +115,22 @@ export default function EvaluateeHome() {
         program_name: item.program_name,
         evaluation_status: item.self_status,
         evaluation_type: item.evaluation_type ?? "new",
+        has_cat_pct: item.has_cat_pct,
+        is_yes_no: item.is_yes_no,
 
         total_score: item.self_total_score,
-        max_self_score : item.self_max_score,
-        total_committee_score: item.committee_total_score,
-        max_committee_score: item.committee_max_score,
+        self_max_score : item.self_max_score,
+        committee_total_score: item.committee_total_score,
+        committee_max_score: item.committee_max_score,
 
         total_score_sp: item.self_total_score_sp,
-        max_self_score_sp: item.self_max_score_sp,
-        total_committee_score_sp: item.committee_total_score_sp,
-        max_committee_score_sp: item.committee_max_score_sp,
+        self_max_score_sp: item.self_max_score_sp,
+        committee_total_score_sp: item.committee_total_score_sp,
+        committee_max_score_sp: item.committee_max_score_sp,
 
         has_committee_score: item.has_committee_score,
         has_self_score: item.has_self_score,
+        committee_result_is_pass: item.committee_result_is_pass,
         year: item.year || new Date().getFullYear(),
         user_name: item.user_name,
       }));
@@ -156,27 +159,30 @@ export default function EvaluateeHome() {
   const renderScoreWithLevel = (
     year: number,
     type: ScoringLevelType,
+    hasCatPct: boolean,
     score: number | null, max: number | null,
     scoreSp: number | null, maxSp: number | null,
     levels: any[]
   ) => {
-    if (score === null || max === null || max === 0) return "-";
+    if (score === null || max === null || max === 0) return <span className="text-muted-foreground">-</span>;
     const numScore = Number(score);
     const numMax = Number(max);
-    if (isNaN(numScore) || isNaN(numMax) || numMax === 0) return "-";
+    if (isNaN(numScore) || isNaN(numMax) || numMax === 0) return <span className="text-muted-foreground">-</span>;
     
-    const pct = Math.round((numScore / numMax) * 100);
-    const pctSp = scoreSp && maxSp ? Math.round((scoreSp / maxSp) * 100) : null;
+    const pct = hasCatPct ? numScore : Math.round((numScore / numMax) * 100);
+    const pctSp = scoreSp && maxSp ? hasCatPct ? scoreSp : Math.round((scoreSp / maxSp) * 100) : null;
     const attempt = allEvaluations
       .filter((e) => e.evaluation_type === type)
       .sort((a, b) => a.year - b.year)
-      .findIndex((e)=> e.year === year);
-    const level = findScoringLevelMatch(attempt, levels, type, pct, pctSp);
+      .findIndex((e)=> e.year === year) + 1;
+    // Check if it's likely a yes/no program (if max score is same as count)
+    // Actually we can just pass true if we want default badges for all programs with no levels defined
+    const level = findScoringLevelMatch(attempt, levels, type, pct, pctSp, levels.length === 0);
     
     return (
       <div className="flex flex-col items-center gap-1">
         <span className="text-sm font-bold">{pct}%</span>
-        {pctSp !== null && <span className="text-sm font-bold">{pctSp}%</span>}
+        {levels.some((l) => l.type === type) && pctSp !== null && <span className="text-sm font-bold">{pctSp}%</span>}
         {level && (
           <Badge 
             className="text-[10px] px-2 py-0 h-4 border-none whitespace-nowrap"
@@ -201,10 +207,10 @@ export default function EvaluateeHome() {
         evaluation_status: null,
         total_score: null,
         total_max: null,
-        total_committee_score: null,
+        committee_total_score: null,
         total_score_sp: null,
         total_max_sp: null,
-        total_committee_score_sp: null,
+        committee_total_score_sp: null,
         has_committee_score: false,
         has_self_score: false,
         year: new Date(reg.createdAt).getFullYear(),
@@ -250,7 +256,7 @@ export default function EvaluateeHome() {
       }
       if (filterEvalType !== "all" && item.evaluation_type !== filterEvalType) return false;
       if (filterCommitteeStatus !== "all") {
-        const hasScore = !!item.total_committee_score || item.has_committee_score;
+        const hasScore = !!item.committee_total_score || item.has_committee_score;
         if (filterCommitteeStatus === "done" && !hasScore) return false;
         if (filterCommitteeStatus === "none" && hasScore) return false;
       }
@@ -541,9 +547,12 @@ export default function EvaluateeHome() {
                   );
                   const typeKey = item.evaluation_type ?? "new";
                   const typeCfg = EVAL_TYPE_CONFIG[typeKey];
-                  const hasCommittee = !!item.total_committee_score || item.has_committee_score;
-                  const canPrint = item.committee_result_is_pass !== false;
-
+                  const hasCommittee = !!item.committee_total_score || item.has_committee_score;
+                  const canPrint = item.committee_result_is_pass !== false ||
+                    (item.is_yes_no && (item.has_committee_score
+                      ? item.committee_total_score === item.committee_max_score
+                      : item.total_score === item.self_max_score
+                    ));
                   return (
                     <div key={item.id} className="rounded-xl border border-border/50 bg-background/60 p-3 space-y-2.5">
                       {/* Row 1: program + year + type */}
@@ -578,9 +587,10 @@ export default function EvaluateeHome() {
                           <p className="text-[10px] text-muted-foreground">คะแนนรวม</p>
                           {renderScoreWithLevel(
                             item.year,
-                            item.evaluation_type,
-                            item.total_score, item.max_self_score,
-                            item.total_score_sp, item.max_self_score_sp,
+                            typeKey,
+                            item.has_cat_pct,
+                            item.total_score, item.self_max_score,
+                            item.total_score_sp, item.self_max_score_sp,
                             scoringLevels
                           )}
                         </div>
@@ -588,9 +598,10 @@ export default function EvaluateeHome() {
                           <p className="text-[10px] text-muted-foreground">กรรมการ</p>
                           {renderScoreWithLevel(
                             item.year,
-                            item.evaluation_type,
-                            item.total_committee_score, item.max_committee_score,
-                            item.total_committee_score_sp, item.max_committee_score_sp,
+                            typeKey,
+                            item.has_cat_pct,
+                            item.committee_total_score, item.committee_max_score,
+                            item.committee_total_score_sp, item.committee_max_score_sp,
                             scoringLevels
                           )}
                         </div>
@@ -657,7 +668,11 @@ export default function EvaluateeHome() {
                       );
                       const typeKey = item.evaluation_type ?? "new";
                       const typeCfg = EVAL_TYPE_CONFIG[typeKey];
-                      const canPrintDesktop = item.committee_result_is_pass !== false;
+                      const canPrintDesktop = item.committee_result_is_pass === null ?
+                        (item.is_yes_no && (item.has_committee_score
+                          ? item.committee_total_score === item.committee_max_score
+                          : item.self_total_score === item.self_max_score
+                        )) : item.committee_result_is_pass;
                       return (
                         <TableRow key={item.id} className="hover:bg-muted/20 transition-colors border-b border-border/30 last:border-0 group">
                           <TableCell className="text-center font-medium">{item.year ? item.year + 543 : "-"}</TableCell>
@@ -673,20 +688,22 @@ export default function EvaluateeHome() {
                             {renderScoreWithLevel(
                               item.year,
                               typeKey,
-                              item.total_score, item.max_self_score,
-                              item.total_score_sp, item.max_self_score_sp,
+                              item.has_cat_pct,
+                              item.total_score, item.self_max_score,
+                              item.total_score_sp, item.self_max_score_sp,
                               scoringLevels
                             )}
                           </TableCell>
                           <TableCell className="text-center">
-                            {getCommitteeBadge(item.evaluation_status, !!item.total_committee_score || item.has_committee_score)}
+                            {getCommitteeBadge(item.evaluation_status, !!item.committee_total_score || item.has_committee_score)}
                           </TableCell>
                           <TableCell className="text-center font-bold text-foreground">
                             {renderScoreWithLevel(
                               item.year,
                               typeKey,
-                              item.total_committee_score, item.max_committee_score,
-                              item.total_committee_score_sp, item.max_committee_score_sp,
+                              item.has_cat_pct,
+                              item.committee_total_score, item.committee_max_score,
+                              item.committee_total_score_sp, item.committee_max_score_sp,
                               scoringLevels
                             )}
                           </TableCell>
@@ -702,7 +719,7 @@ export default function EvaluateeHome() {
                               >
                                 {item.is_pending ? <Plus className="h-5 w-5" /> : isReadOnly ? <Eye className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
                               </Button>
-                              {(!!item.total_committee_score || item.has_committee_score) && (
+                              {(!!item.committee_total_score || item.has_committee_score) && (
                                 <Button variant="outline" size="icon"
                                   onClick={() => canPrintDesktop && window.open(`/certificate/print/${item.id}`, "_blank")}
                                   disabled={!canPrintDesktop}
