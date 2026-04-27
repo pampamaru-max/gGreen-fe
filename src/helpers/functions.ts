@@ -74,7 +74,7 @@ export const findScoringLevelMatch = (
   normalPct: number,
   specialPct: number,
   isYesNo?: boolean
-) => {
+): ScoringLevel => {
   if (scoringLevels.length === 0) {
     if (isYesNo) {
       const isPass = normalPct === 100;
