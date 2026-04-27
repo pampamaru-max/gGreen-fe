@@ -65,7 +65,7 @@ const EvaluationPage = () => {
   });
 
   const renderScoreWithLevel = (
-    year: number,
+    attempt: number | null,
     type: ScoringLevelType,
     hasCatPct: boolean,
     score: number | null, max: number | null,
@@ -80,10 +80,6 @@ const EvaluationPage = () => {
     const pct = hasCatPct ? numScore : Math.round((numScore / numMax) * 100);
     const pctSp = scoreSp && maxSp ? hasCatPct ? scoreSp : Math.round((scoreSp / maxSp) * 100) : null;
     const programLevels = allScoringLevels.filter((l: any) => l.programId === programId);
-    const attempt = rows
-      .filter((e) => e.evaluation_type === type)
-      .sort((a: any, b: any) => a.year - b.year)
-      .findIndex((e: any)=> e.year === year) + 1;
     // Check if it's likely a yes/no program (if max score is same as count)
     // Actually we can just pass true if we want default badges for all programs with no levels defined
     const level = findScoringLevelMatch(attempt, programLevels, type, pct, pctSp, programLevels.length === 0);
@@ -308,104 +304,110 @@ const EvaluationPage = () => {
           <div className="h-full overflow-auto">
             {/* ── Mobile cards (< md) ── */}
             <div className="md:hidden p-3 space-y-2">
-              {filteredRows.map((row, idx) => (
-                <div key={row.evaluation_id} className="rounded-xl border border-border/50 bg-background/60 p-3 space-y-2">
-                  {/* Row 1: index + org + year */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-start gap-2 min-w-0">
-                      <span className="text-[10px] text-muted-foreground font-mono mt-0.5 shrink-0">#{idx + 1}</span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold truncate" style={{ color: "var(--green-heading)" }}>{row.user_name}</p>
-                        <p className="text-xs text-muted-foreground truncate">{row.program_name}</p>
+              {filteredRows.map((row, idx) => {
+                const attempt = row.evaluation_type !== ScoringLevelType.new && rows
+                .filter((e) => e.evaluation_type === row.evaluation_type && e.program_id === row.program_id)
+                .sort((a: any, b: any) => a.year - b.year)
+                .findIndex((e: any)=> e.year === (row as any).year) + 1;
+                return (
+                  <div key={row.evaluation_id} className="rounded-xl border border-border/50 bg-background/60 p-3 space-y-2">
+                    {/* Row 1: index + org + year */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start gap-2 min-w-0">
+                        <span className="text-[10px] text-muted-foreground font-mono mt-0.5 shrink-0">#{idx + 1}</span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold truncate" style={{ color: "var(--green-heading)" }}>{row.user_name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{row.program_name}</p>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0 flex flex-col items-end gap-1">
+                        <p className="text-xs font-semibold text-muted-foreground">{(row as any).year ? (row as any).year + 543 : "-"}</p>
+                        {(() => {
+                          const typeKey = row.evaluation_type ?? "new";
+                          const typeCfg = EVAL_TYPE_CONFIG[typeKey];
+                          return typeCfg && (
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.625rem] font-semibold border ${typeCfg.className}`}>
+                              {typeCfg.icon}{typeCfg.label}{ attempt && ` (ครั้งที่ ${attempt})`}
+                            </span>
+                          );
+                        })()}
+                        <p className="text-[10px] text-muted-foreground">{row.province}</p>
                       </div>
                     </div>
-                    <div className="text-right shrink-0 flex flex-col items-end gap-1">
-                      <p className="text-xs font-semibold text-muted-foreground">{(row as any).year ? (row as any).year + 543 : "-"}</p>
-                      {(() => {
-                        const typeKey = row.evaluation_type ?? "new";
-                        const typeCfg = EVAL_TYPE_CONFIG[typeKey];
-                        return typeCfg && (
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.625rem] font-semibold border ${typeCfg.className}`}>
-                            {typeCfg.icon}{typeCfg.label}
-                          </span>
+
+                    {/* Row 2: statuses */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] text-muted-foreground">ตนเอง:</span>
+                        {getSelfAssessmentBadge(row.self_status)}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] text-muted-foreground">กรรมการ:</span>
+                        {getCommitteeBadge(row.self_status, row.has_committee_score)}
+                      </div>
+                    </div>
+
+                      {/* Row 3: scores */}
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5 flex flex-col items-center">
+                        <p className="text-[10px] text-muted-foreground">คะแนนรวม</p>
+                        {renderScoreWithLevel(
+                          attempt,
+                          row.evaluation_type,
+                          row.has_cat_pct,
+                          row.self_total_score ?? null, row.self_max_score ?? row.total_max ?? null,
+                          row.self_total_score_sp ?? null, row.self_max_score_sp ?? row.total_max_sp ?? null,
+                          row.program_id
+                        )}
+                      </div>
+                      <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5 flex flex-col items-center">
+                        <p className="text-[10px] text-muted-foreground">กรรมการ</p>
+                        {renderScoreWithLevel(
+                          attempt,
+                          row.evaluation_type,
+                          row.has_cat_pct,
+                          row.committee_total_score ?? null, row.committee_max_score ?? row.total_max ?? null,
+                          row.committee_total_score_sp ?? null, row.committee_max_score_sp ?? row.total_max_sp ?? null,
+                          row.program_id
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Row 4: actions */}
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm"
+                        onClick={() => navigate(`/evaluation/${row.program_id}?evaluationId=${row.evaluation_id}`)}
+                        className="flex-1 h-9 gap-1.5 text-xs font-semibold rounded-xl border-primary/20 bg-primary/5 text-primary hover:bg-primary/10">
+                        {row.self_status === EvaluationStatus.completed ? <Eye className="h-3.5 w-3.5" /> : row.evaluation_id ? <Pencil className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                        {row.self_status === EvaluationStatus.completed ? "ดูผล" : row.evaluation_id ? "แก้ไข" : "เพิ่ม"}
+                      </Button>
+                      {row.has_committee_score && (
+                        <Button variant="outline" size="icon"
+                          onClick={() => navigate(`/evaluation/${row.program_id}/summary?evaluationId=${row.evaluation_id}`)}
+                          className="h-9 w-9 rounded-xl border-green-200 bg-green-50/50 text-green-600 hover:bg-green-100 shrink-0">
+                          <BarChart2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {row.has_committee_score && row.evaluation_id && (() => {
+                        const canPrint = row.committee_result_is_pass === null ?
+                          (row.is_yes_no && (row.has_committee_score
+                            ? row.committee_total_score === row.committee_max_score
+                            : row.self_total_score === row.self_max_score
+                          )) : row.committee_result_is_pass;
+                        return (
+                          <Button variant="outline" size="icon"
+                            onClick={() => canPrint && window.open(`/certificate/print/${row.evaluation_id}`, "_blank")}
+                            disabled={!canPrint}
+                            title={canPrint ? "พิมพ์ใบประกาศ" : "ระดับนี้ไม่ออกใบประกาศนียบัตร"}
+                            className={`h-9 w-9 rounded-xl shrink-0 ${canPrint ? "border-amber-200 bg-amber-50/50 text-amber-600 hover:bg-amber-100" : "border-slate-200 bg-slate-50/50 text-slate-400 cursor-not-allowed"}`}>
+                            <Printer className="h-4 w-4" />
+                          </Button>
                         );
                       })()}
-                      <p className="text-[10px] text-muted-foreground">{row.province}</p>
                     </div>
                   </div>
-
-                  {/* Row 2: statuses */}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <div className="flex items-center gap-1">
-                      <span className="text-[10px] text-muted-foreground">ตนเอง:</span>
-                      {getSelfAssessmentBadge(row.self_status)}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-[10px] text-muted-foreground">กรรมการ:</span>
-                      {getCommitteeBadge(row.self_status, row.has_committee_score)}
-                    </div>
-                  </div>
-
-                    {/* Row 3: scores */}
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5 flex flex-col items-center">
-                      <p className="text-[10px] text-muted-foreground">คะแนนรวม</p>
-                      {renderScoreWithLevel(
-                        (row as any).year,
-                        row.evaluation_type,
-                        row.has_cat_pct,
-                        row.self_total_score ?? null, row.self_max_score ?? row.total_max ?? null,
-                        row.self_total_score_sp ?? null, row.self_max_score_sp ?? row.total_max_sp ?? null,
-                        row.program_id
-                      )}
-                    </div>
-                    <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5 flex flex-col items-center">
-                      <p className="text-[10px] text-muted-foreground">กรรมการ</p>
-                      {renderScoreWithLevel(
-                        (row as any).year,
-                        row.evaluation_type,
-                        row.has_cat_pct,
-                        row.committee_total_score ?? null, row.committee_max_score ?? row.total_max ?? null,
-                        row.committee_total_score_sp ?? null, row.committee_max_score_sp ?? row.total_max_sp ?? null,
-                        row.program_id
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Row 4: actions */}
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm"
-                      onClick={() => navigate(`/evaluation/${row.program_id}?evaluationId=${row.evaluation_id}`)}
-                      className="flex-1 h-9 gap-1.5 text-xs font-semibold rounded-xl border-primary/20 bg-primary/5 text-primary hover:bg-primary/10">
-                      {row.self_status === EvaluationStatus.completed ? <Eye className="h-3.5 w-3.5" /> : row.evaluation_id ? <Pencil className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
-                      {row.self_status === EvaluationStatus.completed ? "ดูผล" : row.evaluation_id ? "แก้ไข" : "เพิ่ม"}
-                    </Button>
-                    {row.has_committee_score && (
-                      <Button variant="outline" size="icon"
-                        onClick={() => navigate(`/evaluation/${row.program_id}/summary?evaluationId=${row.evaluation_id}`)}
-                        className="h-9 w-9 rounded-xl border-green-200 bg-green-50/50 text-green-600 hover:bg-green-100 shrink-0">
-                        <BarChart2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {row.has_committee_score && row.evaluation_id && (() => {
-                      const canPrint = row.committee_result_is_pass === null ?
-                        (row.is_yes_no && (row.has_committee_score
-                          ? row.committee_total_score === row.committee_max_score
-                          : row.self_total_score === row.self_max_score
-                        )) : row.committee_result_is_pass;
-                      return (
-                        <Button variant="outline" size="icon"
-                          onClick={() => canPrint && window.open(`/certificate/print/${row.evaluation_id}`, "_blank")}
-                          disabled={!canPrint}
-                          title={canPrint ? "พิมพ์ใบประกาศ" : "ระดับนี้ไม่ออกใบประกาศนียบัตร"}
-                          className={`h-9 w-9 rounded-xl shrink-0 ${canPrint ? "border-amber-200 bg-amber-50/50 text-amber-600 hover:bg-amber-100" : "border-slate-200 bg-slate-50/50 text-slate-400 cursor-not-allowed"}`}>
-                          <Printer className="h-4 w-4" />
-                        </Button>
-                      );
-                    })()}
-                  </div>
-                </div>
-              ))}
+                )}
+              )}
             </div>
 
             {/* ── Desktop table (≥ md) ── */}
@@ -430,6 +432,10 @@ const EvaluationPage = () => {
                 {filteredRows.map((row, idx) => {
                   const typeKey = row.evaluation_type ?? "new";
                   const typeCfg = EVAL_TYPE_CONFIG[typeKey];
+                  const attempt = row.evaluation_type !== ScoringLevelType.new && rows
+                    .filter((e) => e.evaluation_type === row.evaluation_type && e.program_id === row.program_id)
+                    .sort((a: any, b: any) => a.year - b.year)
+                    .findIndex((e: any)=> e.year === (row as any).year) + 1;
                   return (
                     <TableRow key={row.evaluation_id} className="hover:bg-white/40 transition-colors">
                       <TableCell className="text-center text-muted-foreground">{idx + 1}</TableCell>
@@ -439,7 +445,7 @@ const EvaluationPage = () => {
                       <TableCell className="text-center">
                         {typeCfg ? (
                           <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.6875rem] font-semibold border ${typeCfg.className}`}>
-                            {typeCfg.icon}{typeCfg.label}
+                            {typeCfg.icon}{typeCfg.label}{ attempt && ` (ครั้งที่ ${attempt})`}
                           </span>
                         ) : <span className="text-muted-foreground text-xs">{typeKey}</span>}
                       </TableCell>

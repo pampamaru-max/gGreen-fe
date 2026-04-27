@@ -158,7 +158,7 @@ export default function EvaluateeHome() {
   });
 
   const renderScoreWithLevel = (
-    year: number,
+    attempt: number | null,
     type: ScoringLevelType,
     hasCatPct: boolean,
     score: number | null, max: number | null,
@@ -172,10 +172,6 @@ export default function EvaluateeHome() {
     
     const pct = hasCatPct ? numScore : Math.round((numScore / numMax) * 100);
     const pctSp = scoreSp && maxSp ? hasCatPct ? scoreSp : Math.round((scoreSp / maxSp) * 100) : null;
-    const attempt = allEvaluations
-      .filter((e) => e.evaluation_type === type)
-      .sort((a, b) => a.year - b.year)
-      .findIndex((e)=> e.year === year) + 1;
     // Check if it's likely a yes/no program (if max score is same as count)
     // Actually we can just pass true if we want default badges for all programs with no levels defined
     const level = findScoringLevelMatch(attempt, levels, type, pct, pctSp, levels.length === 0);
@@ -548,6 +544,10 @@ export default function EvaluateeHome() {
                   );
                   const typeKey = item.evaluation_type ?? "new";
                   const typeCfg = EVAL_TYPE_CONFIG[typeKey];
+                  const attempt = typeKey !== ScoringLevelType.new && filteredEvaluations
+                    .filter((e) => e.evaluation_type === typeKey && e.program_id === item.program_id)
+                    .sort((a, b) => a.year - b.year)
+                    .findIndex((e)=> e.year === item.year) + 1;
                   const hasCommittee = !!item.committee_total_score || item.has_committee_score;
                   const canPrint = item.committee_result_is_pass !== false ||
                     (item.is_yes_no && (item.has_committee_score
@@ -564,7 +564,7 @@ export default function EvaluateeHome() {
                         <div className="flex flex-col items-end gap-1 shrink-0">
                           {typeCfg && (
                             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.625rem] font-semibold border ${typeCfg.className}`}>
-                              {typeCfg.icon}{typeCfg.label}
+                              {typeCfg.icon}{typeCfg.label}{ attempt && ` (ครั้งที่ ${attempt})`}
                             </span>
                           )}
                         </div>
@@ -587,7 +587,7 @@ export default function EvaluateeHome() {
                         <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5 flex flex-col items-center">
                           <p className="text-[10px] text-muted-foreground">คะแนนรวม</p>
                           {renderScoreWithLevel(
-                            item.year,
+                            attempt,
                             typeKey,
                             item.has_cat_pct,
                             item.total_score, item.self_max_score,
@@ -598,7 +598,7 @@ export default function EvaluateeHome() {
                         <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5 flex flex-col items-center">
                           <p className="text-[10px] text-muted-foreground">กรรมการ</p>
                           {renderScoreWithLevel(
-                            item.year,
+                            attempt,
                             typeKey,
                             item.has_cat_pct,
                             item.committee_total_score, item.committee_max_score,
@@ -669,6 +669,10 @@ export default function EvaluateeHome() {
                       );
                       const typeKey = item.evaluation_type ?? "new";
                       const typeCfg = EVAL_TYPE_CONFIG[typeKey];
+                      const attempt = typeKey !== ScoringLevelType.new && filteredEvaluations
+                        .filter((e) => e.evaluation_type === typeKey && e.program_id === item.program_id)
+                        .sort((a, b) => a.year - b.year)
+                        .findIndex((e)=> e.year === item.year) + 1;
                       const canPrintDesktop = item.committee_result_is_pass === null ?
                         (item.is_yes_no && (item.has_committee_score
                           ? item.committee_total_score === item.committee_max_score
@@ -680,14 +684,14 @@ export default function EvaluateeHome() {
                           <TableCell className="text-center">
                             {typeCfg ? (
                               <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.6875rem] font-semibold border ${typeCfg.className}`}>
-                                {typeCfg.icon}{typeCfg.label}
+                                {typeCfg.icon}{typeCfg.label}{ attempt && ` (ครั้งที่ ${attempt})`}
                               </span>
                             ) : <span className="text-muted-foreground text-xs">{typeKey}</span>}
                           </TableCell>
                           <TableCell className="text-center">{getStatusBadge(item.evaluation_status)}</TableCell>
                           <TableCell className="text-center font-bold text-foreground">
                             {renderScoreWithLevel(
-                              item.year,
+                              attempt,
                               typeKey,
                               item.has_cat_pct,
                               item.total_score, item.self_max_score,
@@ -700,7 +704,7 @@ export default function EvaluateeHome() {
                           </TableCell>
                           <TableCell className="text-center font-bold text-foreground">
                             {renderScoreWithLevel(
-                              item.year,
+                              attempt,
                               typeKey,
                               item.has_cat_pct,
                               item.committee_total_score, item.committee_max_score,
