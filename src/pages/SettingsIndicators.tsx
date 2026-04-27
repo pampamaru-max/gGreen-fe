@@ -46,6 +46,7 @@ interface DbCategory {
   id: number;
   name: string;
   maxScore: number;
+  maxScorePct: number;
   sortOrder: number;
   programId: string | null;
   scoreType: DbScoreType;

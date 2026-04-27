@@ -102,6 +102,7 @@ export default function ProjectRegistration() {
   const [evaluationId, setEvaluationId]     = useState<string | null>(null);
   const [evaluationType, setEvaluationType] = useState<string>("new");
   const [year, setYear]                     = useState<number>(new Date().getFullYear());
+  const [attemptTypeCount, setAttemptTypeCount] = useState<number | null>(null);
   const [committeeScores, setCommitteeScores] = useState<Record<string, number>>({});
   const [committeeComments, setCommitteeComments] = useState<Record<string, string>>({});
   const [submitting, setSubmitting]         = useState(false);
@@ -222,13 +223,14 @@ export default function ProjectRegistration() {
 
         const evalData = evalRes.data;
         setYear(evalData.year);
+        setAttemptTypeCount(evalData.attempt);
         const levRes = await apiClient.get(`scoring-levels?programId=${programId}&${queryArray('type', Array.from(new Set([evalData.evaluationType, ScoringLevelType.new])))}`).catch(() => ({ data: [] }));
 
         // ประมวลผล form structure
         const formData = formRes.data;
         const prog = formData?.program;
         const cats: EvalCategory[] = (formData?.categories ?? []).map((c: any) => ({
-          id: c.id, name: c.name, maxScore: c.maxScore,
+          id: c.id, name: c.name, maxScore: c.maxScore, maxScorePct: c.maxScorePct,
           scoreType: c.scoreType ?? "score", upgradeMode: c.upgradeMode ?? null, renewMode: c.renewMode ?? null,
           topics: (c.topics ?? []).map((t: any) => ({
             id: t.id, name: t.name,
@@ -405,7 +407,7 @@ export default function ProjectRegistration() {
       }));
       return {
         id: cat.id, name: cat.name, score: totalScore,
-        maxScore: cat.maxScore, totalPossible: totalMax, index: idx,
+        maxScore: cat.maxScore, maxScorePct: cat.maxScorePct, totalPossible: totalMax, index: idx,
         scoreType: cat.scoreType,
         ...(isYesNo ? { passCount, totalIndicators } : {}),
       };
@@ -432,7 +434,7 @@ export default function ProjectRegistration() {
       }));
       return {
         id: cat.id, name: cat.name, score: totalScore,
-        maxScore: cat.maxScore, totalPossible: totalMax,
+        maxScore: cat.maxScore, maxScorePct: cat.maxScorePct, totalPossible: totalMax,
         scoreType: cat.scoreType,
         ...(isYesNo ? { passCount, totalIndicators } : {}),
       };
@@ -464,7 +466,10 @@ export default function ProjectRegistration() {
   const displayPct      = displayMax > 0 
     ? (isYesNoProgram 
         ? (displayTotal === displayMax ? 100 : Math.floor((displayTotal / displayMax) * 100))
-        : Math.round((displayTotal / displayMax) * 100)) 
+        : summaryData?.some((c)=> c.scoreType === 'score_new' && c.maxScorePct)
+          ? summaryData.reduce((s, c) => c.scoreType === 'score_new' ? s + Math.round((c.score * c.maxScorePct) / c.maxScore) : s, 0)
+          : Math.round((displayTotal / displayMax) * 100)
+    )
     : 0;
   const displayUnit     = isYesNoProgram ? "ผ่าน" : "";
   const grandCommitteeTotal = committeeSummaryData
@@ -479,28 +484,37 @@ export default function ProjectRegistration() {
   const displayCommitteeMax   = isYesNoProgram ? grandPassTotal : grandMax;
 
   const grandTotalSp = summaryData.reduce((s, c) => c.scoreType !== 'score_new' ? (s + c.score) : s, 0);
-  const grandMaxSP = summaryData.reduce((s, c) => c.scoreType !== 'score_new' ? (s + c.totalPossible) : s, 0);
-  const displayPctSp      = grandMaxSP > 0 ? Math.round((grandTotalSp / grandMaxSP) * 100) : 0;
-  const grandCommitteeTotalSp = committeeSummaryData? committeeSummaryData.reduce((s, c) => c.scoreType !== 'score_new' ? (s + c.totalPossible) : s, 0) : undefined;
+  const grandCommitteeTotalSp = committeeSummaryData ? committeeSummaryData.reduce((s, c) => c.scoreType !== 'score_new' ? (s + c.score) : s, 0) : undefined;
+  const grandMaxSp = summaryData.reduce((s, c) => c.scoreType !== 'score_new' ? (s + c.totalPossible) : s, 0);
+  const displayPctSp =
+    grandMaxSp > 0
+      ? summaryData?.some((c)=> c.scoreType !== 'score_new' && c.maxScorePct)
+        ? summaryData.reduce((s, c) => c.scoreType !== 'score_new' ? (s + Math.round((c.score * c.maxScorePct) / c.maxScore)) : s, 0)
+        : Math.round((grandTotalSp / grandMaxSp) * 100)
+      : 0;
 
   const activeLevel = useMemo(() => {
-    return findScoringLevelMatch(null, scoringLevels, evaluationType, displayPct, displayPctSp, isYesNoProgram);
+    return findScoringLevelMatch(attemptTypeCount, scoringLevels, evaluationType, displayPct, displayPctSp, isYesNoProgram);
   }, [scoringLevels, evaluationType, displayPct, displayPctSp, isYesNoProgram]);
 
   const committeePct = useMemo(() => {
     if (displayCommitteeTotal === undefined || displayCommitteeMax === 0) return 0;
     if (isYesNoProgram) return displayCommitteeTotal === displayCommitteeMax ? 100 : Math.floor((displayCommitteeTotal / displayCommitteeMax) * 100);
-    return Math.round((displayCommitteeTotal / displayCommitteeMax) * 100);
+    return committeeSummaryData?.some((c)=> c.scoreType === 'score_new' && c.maxScorePct)
+            ? committeeSummaryData.reduce((s, c) => c.scoreType === 'score_new' ? (s + Math.round((c.score * c.maxScorePct) / c.maxScore)) : s, 0)
+            : Math.round((displayCommitteeTotal / displayCommitteeMax) * 100);
   }, [displayCommitteeTotal, displayCommitteeMax, isYesNoProgram]);
 
   const committeePctSp = useMemo(() => {
-    if (grandCommitteeTotalSp === undefined || grandMaxSP === 0) return 0;
-    return Math.round((grandCommitteeTotalSp / grandMaxSP) * 100);
-  }, [grandCommitteeTotalSp, grandMaxSP])
+    if (grandCommitteeTotalSp === undefined || grandMaxSp === 0) return 0;
+    return committeeSummaryData?.some((c)=> c.scoreType !== 'score_new' && c.maxScorePct)
+            ? committeeSummaryData.reduce((s, c) => c.scoreType !== 'score_new' ? (s + Math.round((c.score * c.maxScorePct) / c.maxScore)): s, 0)
+            : Math.round((grandCommitteeTotalSp / grandMaxSp) * 100);
+  }, [grandCommitteeTotalSp, grandMaxSp])
 
   const committeeActiveLevel = useMemo(() => {
     if (displayCommitteeTotal === undefined) return null;
-    return findScoringLevelMatch(null, scoringLevels, evaluationType, committeePct, committeePctSp, isYesNoProgram);
+    return findScoringLevelMatch(attemptTypeCount, scoringLevels, evaluationType, committeePct, committeePctSp, isYesNoProgram);
   }, [scoringLevels, evaluationType, committeePct, committeePctSp, isYesNoProgram, displayCommitteeTotal]);
 
   // ── Wizard flat list ───────────────────────────────────────────────────────
@@ -637,6 +651,8 @@ export default function ProjectRegistration() {
     border: "1px solid var(--glass-border)",
   } as React.CSSProperties;
 
+  const hasScoreSp = evaluationType !== ScoringLevelType.new && scoringLevels.some((sl) => sl.type === evaluationType);
+
   return (
     <div className="h-full flex flex-col gap-3 p-4">
 
@@ -687,41 +703,43 @@ export default function ProjectRegistration() {
           </div>
           {/* Scores and Actions */}
           <div className="flex flex-col items-end gap-2 shrink-0">
-            <div className="flex items-center gap-2">
-              <div className="flex flex-col items-end">
+            <div className="flex flex-col sm:flex-row flex-1 items-end gap-2">
+              <div className="inline-flex flex-col gap-1 items-end">
                 <p className="text-[0.5625rem] font-semibold text-muted-foreground uppercase tracking-wider">คะแนนรวม</p>
                 <div className="flex flex-col w-full">
-                  <p className="flex w-full justify-between items-center text-base font-bold text-primary leading-tight">
-                    {evaluationType !== ScoringLevelType.new && scoringLevels.some((sl) => sl.type === evaluationType) ?
-                      <span className="mr-2 text-start text-xs font-normal text-amber-700">{labelScoreType(visibleCategories, ScoringLevelType.new)}</span> : <span></span>
+                  <p className={`flex w-full ${hasScoreSp ? 'justify-between' : 'justify-end'} items-center text-base font-bold text-primary leading-tight`}>
+                    {hasScoreSp &&
+                      <span className="mr-2 text-start text-xs font-normal text-amber-700">
+                        {labelScoreType(visibleCategories, ScoringLevelType.new)}
+                      </span>
                     }
-                    <span>
-                      <AnimatedScore value={displayTotal}>
-                        {displayTotal}{displayUnit && <span className="text-end text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}
-                      </AnimatedScore>
-                      <span className="text-end text-xs font-normal text-muted-foreground">/{displayMax}</span>
-                    </span>
+                    {displayMax > 0 && <span className="text-end">{displayPct}%</span>}
                   </p>
-                  {displayMax > 0 && <p className="text-end text-[0.5625rem] text-muted-foreground">{displayPct}%</p>}
+                  <span className="text-end text-[0.6rem] text-primary font-semibold">
+                    <AnimatedScore value={displayTotal}>
+                        {displayTotal}{displayUnit && <span className="text-end font-normal ml-0.5">{displayUnit}</span>}
+                    </AnimatedScore>
+                    <span className="text-end font-normal text-muted-foreground">/{displayMax}</span>
+                  </span>
                 </div>
-                {evaluationType !== ScoringLevelType.new && scoringLevels.some((sl) => sl.type === evaluationType) &&
+                {hasScoreSp &&
                   <div className="flex flex-col w-full">
                     <p className="flex w-full justify-between items-center text-base font-bold text-primary leading-tight">
                       <span className="mr-2 text-start text-xs font-normal text-amber-700">{labelScoreType(visibleCategories, evaluationType)}</span>
-                      <span>
-                        <AnimatedScore value={grandTotalSp}>
-                          {grandTotalSp}{displayUnit && <span className="text-end text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}
-                        </AnimatedScore>
-                        <span className="text-end text-xs font-normal text-muted-foreground">/{grandMaxSP}</span>
-                      </span>
+                      {grandMaxSp > 0 && <span className="text-end">{displayPctSp}%</span>}
                     </p>
-                    {displayMax > 0 && <p className="text-end text-[0.5625rem] text-muted-foreground">{displayPctSp}%</p>}
+                    <span className="text-end text-[0.6rem] text-primary font-semibold">
+                      <AnimatedScore value={grandTotalSp}>
+                        {grandTotalSp}{displayUnit && <span className="text-end font-normal ml-0.5">{displayUnit}</span>}
+                      </AnimatedScore>
+                      <span className="text-end font-normal text-muted-foreground">/{grandMaxSp}</span>
+                    </span>
                   </div>
                 }
                 
                 {activeLevel && (
-                  <div className="mt-1">
-                    <div className="score-active-wrap scale-[0.8] origin-right">
+                  <div className="flex w-full justify-end">
+                    <div className="score-active-wrap origin-right">
                       <div className="score-sparkles">
                         <div className="score-sparkle" />
                         <div className="score-sparkle" />
@@ -783,17 +801,42 @@ export default function ProjectRegistration() {
               {displayCommitteeTotal !== undefined && (
                 <>
                   <div className="w-px self-stretch bg-border mx-1" />
-                  <div className="flex flex-col items-end">
+                  <div className="inline-flex flex-col gap-1 items-end">
                     <p className="text-[0.5625rem] font-semibold text-muted-foreground uppercase tracking-wider">กรรมการ</p>
-                    <p className="text-base font-bold text-muted-foreground leading-tight">
-                      <AnimatedScore value={displayCommitteeTotal ?? 0}>{displayCommitteeTotal}{displayUnit && <span className="text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}</AnimatedScore>
-                      <span className="text-xs font-normal text-muted-foreground">/{displayCommitteeMax}</span>
-                    </p>
-                    {displayCommitteeMax > 0 && <p className="text-[0.5625rem] text-muted-foreground">{committeePct}%</p>}
+                    <div className="flex flex-col w-full">
+                      <p className={`flex w-full ${hasScoreSp ? 'justify-between' : 'justify-end'} items-center text-base font-bold text-muted-foreground leading-tight`}>
+                        {hasScoreSp &&
+                          <span className="mr-2 text-start text-xs font-normal text-amber-700">
+                            {labelScoreType(visibleCategories, ScoringLevelType.new)}
+                          </span>
+                        }
+                        {displayCommitteeMax > 0 && <span className="text-end">{committeePct}%</span>}
+                      </p>
+                      <span className="text-end text-[0.6rem] text-muted-foreground font-semibold">
+                        <AnimatedScore value={displayCommitteeTotal ?? 0}>
+                          {displayCommitteeTotal}{displayUnit && <span className="text-end font-normal ml-0.5">{displayUnit}</span>}
+                        </AnimatedScore>
+                        <span className="text-end font-normal">/{displayCommitteeMax}</span>
+                      </span>
+                    </div>
+                    {hasScoreSp &&
+                      <div className="flex flex-col w-full">
+                        <p className="flex w-full justify-between items-center text-base font-bold text-muted-foreground leading-tight">
+                          <span className="mr-2 text-start text-xs font-normal text-amber-700">{labelScoreType(visibleCategories, evaluationType)}</span>
+                          {grandMaxSp > 0 && <span className="text-end">{committeePctSp}%</span>}
+                        </p>
+                        <span className="text-end text-[0.6rem] text-muted-foreground font-semibold">
+                          <AnimatedScore value={grandCommitteeTotalSp}>
+                            {grandCommitteeTotalSp}{displayUnit && <span className="text-end font-normal ml-0.5">{displayUnit}</span>}
+                          </AnimatedScore>
+                          <span className="text-end font-normal">/{grandMaxSp}</span>
+                        </span>
+                      </div>
+                    }
                     
                     {committeeActiveLevel && (
-                      <div className="mt-1">
-                        <div className="score-active-wrap scale-[0.8] origin-right">
+                      <div className="flex w-full justify-end">
+                        <div className="score-active-wrap origin-right">
                           <div className="score-sparkles">
                             <div className="score-sparkle" />
                             <div className="score-sparkle" />
@@ -819,7 +862,7 @@ export default function ProjectRegistration() {
               )}
             </div>
             
-            <div className="flex items-center gap-1.5">
+            <div className="flex flex-1 items-center gap-1.5">
               {!isEvalReadOnly && !evalLoading && categories.length > 0 && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>

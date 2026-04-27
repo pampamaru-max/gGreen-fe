@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import apiClient from "@/lib/axios";
 import { ScoringLevelType } from "./SettingsScoringCriteria";
 import { ScoringLevel } from "./ProjectRegistration";
-import { findScoringLevelMatch } from "@/helpers/functions";
+import { findScoringLevelMatch, labelScoreType } from "@/helpers/functions";
 
 interface YesNoStats {
   passCount: number;
@@ -22,7 +22,9 @@ interface CategoryResult {
   rawScore: number;
   scaledScore: number;
   categoryMaxScore: number;
+  categoryMaxScorePct: number;
   indicatorMaxTotal: number;
+  scoreType: string;
 }
 
 interface EvaluationResult {
@@ -45,6 +47,9 @@ interface EvaluationResult {
   totalIndicators?: number;
   passPct?: number;
   scoringLevelName?: string | null;
+  // check condition count attempt
+  scoreType: ScoringLevelType,
+  attempt: number | null,
 }
 
 const EvaluationSummaryPage = () => {
@@ -90,7 +95,7 @@ const EvaluationSummaryPage = () => {
             const passCount = scores.filter(s => Number(s.committeeScore) === 1).length;
             const totalIndicators = scores.length;
             const passPct = totalIndicators > 0 ? (passCount === totalIndicators ? 100 : Math.floor((passCount / totalIndicators) * 100)) : 0;
-            const matched = findScoringLevelMatch(programLevels, ScoringLevelType.new, passPct, 0, true);
+            const matched = findScoringLevelMatch(null, programLevels, ScoringLevelType.new, passPct, 0, true);
             setYesNoStats({
               passCount,
               totalIndicators,
@@ -101,7 +106,8 @@ const EvaluationSummaryPage = () => {
           } else if (!isYesNoProgram && data.totalMaxScore > 0) {
             // score-based: คำนวณ % จาก totalScore แล้ว match level
             const pct = Math.round((data.totalScore / data.totalMaxScore) * 100);
-            const matched = programLevels.find(l => pct >= l.minScore && pct <= l.maxScore);
+            const pctSp = Math.round((data.totalScoreSpecial / data.totalMaxScoreSpecial) * 100);
+            const matched = findScoringLevelMatch(data.attempt, programLevels, data.scoreType, pct, pctSp);
             if (matched) {
               setResult(prev => prev ? {
                 ...prev,
@@ -140,13 +146,19 @@ const EvaluationSummaryPage = () => {
     );
   }
 
-  const { normalLevel, totalScore, totalMaxScore, categoryResults } = result;
+  const { normalLevel, specialLevel, totalScore, totalMaxScore, totalScoreSpecial, totalMaxScoreSpecial, categoryResults } = result;
   const isYesNo = !!yesNoStats;
+  const isHaveCatPct = categoryResults[0].categoryMaxScorePct !== 0;
+  const rawTotal = isHaveCatPct ? categoryResults.reduce((s, c) => c.scoreType.endsWith('_new') ? (s + c.rawScore) : s , 0) : null;
+  const rawTotalSp = isHaveCatPct ? categoryResults.reduce((s, c) => !c.scoreType.endsWith('_new') ? (s + c.rawScore) : s , 0) : null;
+  const rawMaxTotal = isHaveCatPct ? categoryResults.reduce((s, c) => c.scoreType.endsWith('_new') ? (s + c.categoryMaxScore) : s, 0) : null;
+  const rawMaxTotalSp = isHaveCatPct ? categoryResults.reduce((s, c) => !c.scoreType.endsWith('_new') ? (s + c.categoryMaxScore) : s, 0) : null;
   const pct = isYesNo
     ? yesNoStats!.passPct
     : (totalMaxScore > 0 ? Math.round((totalScore / totalMaxScore) * 100) : 0);
-  const levelColor = isYesNo ? yesNoStats!.levelColor : (normalLevel?.color ?? "#6b7280");
-  const levelName = isYesNo ? (yesNoStats!.levelName ?? "ไม่ระบุ") : (normalLevel?.name ?? "ไม่ระบุ");
+  const pctSp = (totalMaxScoreSpecial > 0 ? Math.round((totalScoreSpecial / totalMaxScoreSpecial) * 100) : 0);
+  const levelColor = isYesNo ? yesNoStats!.levelColor : ((specialLevel ?? normalLevel)?.color ?? "#6b7280");
+  const levelName = isYesNo ? (yesNoStats!.levelName ?? "ไม่ระบุ") : ((specialLevel ?? normalLevel)?.name ?? "ไม่ระบุ");
 
   const glass = {
     background: "var(--glass-bg)",
@@ -195,13 +207,44 @@ const EvaluationSummaryPage = () => {
                   <p className="text-2xl font-semibold mb-2" style={{ color: levelColor }}>{pct}%</p>
                 </>
               ) : (
-                <>
-                  <p className="text-4xl font-bold mb-1">
-                    <span style={{ color: levelColor }}>{Number.isInteger(totalScore) ? totalScore : totalScore.toFixed(2)}</span>
-                    <span className="text-xl font-normal text-muted-foreground">/{totalMaxScore}</span>
-                  </p>
-                  <p className="text-2xl font-semibold mb-2" style={{ color: levelColor }}>{pct}%</p>
-                </>
+                <div className="flex gap-6 justify-center">
+                  <div className="flex flex-col">
+                    {specialLevel &&
+                      <p className="mb-3 font-semibold" style={{ color: normalLevel.color }}>
+                        เกณฑ์{specialLevel ? labelScoreType(categoryResults, ScoringLevelType.new) : ''}: {normalLevel.minScore} – {normalLevel.maxScore}%
+                      </p>
+                    }
+                    <p className="text-4xl font-bold mb-1" style={{ color: normalLevel.color }}>{pct}%</p>
+                    <p className="text-2xl font-semibold mb-2">
+                      <span style={{ color: normalLevel.color }}>
+                        {rawTotal ?? (
+                          Number.isInteger(totalScore)
+                          ? totalScore
+                          : totalScore.toFixed(2)
+                        )}
+                      </span>
+                      <span className="text-xl font-normal text-muted-foreground">/{rawMaxTotal ?? totalMaxScore}</span>
+                    </p>
+                  </div>
+                  {specialLevel &&
+                    <div className="flex flex-col">
+                      <p className="mb-3 font-semibold"  style={{ color: specialLevel.color }}>
+                        เกณฑ์{labelScoreType(categoryResults, result.scoreType)}: {specialLevel.minScore} – {specialLevel.maxScore}%
+                      </p>
+                      <p className="text-4xl font-bold mb-1" style={{ color: specialLevel.color }}>{pctSp}%</p>
+                      <p className="text-2xl font-semibold mb-2">
+                        <span style={{ color: specialLevel.color }}>
+                          {rawTotalSp ?? (
+                            Number.isInteger((totalScoreSpecial))
+                            ? totalScoreSpecial 
+                            : totalScoreSpecial.toFixed(2)
+                          )}
+                        </span>
+                        <span className="text-xl font-normal text-muted-foreground">/{rawMaxTotalSp ?? totalMaxScoreSpecial}</span>
+                      </p>
+                    </div>
+                  }
+                </div>
               )}
               <div className="score-active-wrap">
                 <div className="score-sparkles">
@@ -218,11 +261,6 @@ const EvaluationSummaryPage = () => {
                   {levelName}
                 </span>
               </div>
-              {normalLevel && (
-                <p className="mt-3 text-xs text-muted-foreground">
-                  เกณฑ์: {normalLevel.minScore} – {normalLevel.maxScore}%
-                </p>
-              )}
             </div>
 
             {/* Category breakdown */}
@@ -230,7 +268,7 @@ const EvaluationSummaryPage = () => {
               <div className="space-y-3">
                 <h3 className="text-xs font-semibold uppercase tracking-wide px-1" style={{ color: "var(--green-muted)" }}>รายละเอียดตามหมวด</h3>
                 {categoryResults.map((cat) => {
-                  const catPct = cat.categoryMaxScore > 0 ? (cat.scaledScore / cat.categoryMaxScore) * 100 : 0;
+                  const catPct = cat.categoryMaxScore > 0 ? (cat.scaledScore / (isHaveCatPct ? cat.categoryMaxScorePct : cat.categoryMaxScore)) * 100 : 0;
                   return (
                     <div key={cat.categoryId} className="rounded-xl p-4" style={glass}>
                       <div className="flex items-start justify-between mb-2 gap-2">
@@ -238,7 +276,7 @@ const EvaluationSummaryPage = () => {
                         <div className="text-right shrink-0">
                           <p className="text-base font-bold" style={{ color: "var(--green-heading)" }}>
                             {cat.scaledScore.toFixed(4)}
-                            <span className="text-xs font-normal text-muted-foreground">/{cat.categoryMaxScore}</span>
+                            <span className="text-xs font-normal text-muted-foreground">/{isHaveCatPct ? `${cat.categoryMaxScorePct}%` : cat.categoryMaxScore}</span>
                           </p>
                           <p className="text-xs text-muted-foreground">คะแนนดิบ: {cat.rawScore}/{cat.indicatorMaxTotal}</p>
                         </div>

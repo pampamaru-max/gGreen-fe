@@ -19,6 +19,7 @@ interface EditCategoryData {
   id: number;
   name: string;
   maxScore: number;
+  maxScorePct: number;
   sortOrder: number;
   scoreType: DbScoreType;
 }
@@ -38,6 +39,7 @@ export function EditCategoryDialog({ category, onSave }: Props) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(category.name);
   const [maxScore, setMaxScore] = useState<string>(category.maxScore.toString());
+  const [maxScorePct, setMaxScorePct] = useState<string>(category.maxScorePct.toString());
   const [sortOrder, setSortOrder] = useState<string>(category.sortOrder.toString());
   const [isYesNo, setIsYesNo] = useState(category.scoreType.startsWith("yes_no"));
 
@@ -58,6 +60,7 @@ export function EditCategoryDialog({ category, onSave }: Props) {
       id: category.id,
       name: name.trim(),
       maxScore: isYesNo ? 0 : Number(maxScore),
+      maxScorePct: isYesNo ? 0 : Number(maxScorePct),
       sortOrder: Number(sortOrder),
       scoreType: newScoreType,
     });
@@ -96,9 +99,15 @@ export function EditCategoryDialog({ category, onSave }: Props) {
             <Switch checked={isYesNo} onCheckedChange={setIsYesNo} />
           </div>
           {!isYesNo && (
-            <div className="space-y-1.5">
-              <Label>คะแนนเต็มหมวด</Label>
-              <Input type="number" value={maxScore} onChange={(e) => setMaxScore(e.target.value)} min={1} />
+            <div className="flex w-full justify-between">
+              <div className="space-y-1.5">
+                <Label>คะแนนเต็มหมวด</Label>
+                <Input type="number" value={maxScore} onChange={(e) => setMaxScore(e.target.value)} min={1} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>คะแนนเต็มหมวด (ร้อยละ)</Label>
+                <Input type="number" value={maxScorePct === '0' ? "" : maxScorePct} onChange={(e) => setMaxScorePct(e.target.value)} min={1} />
+              </div>
             </div>
           )}
         </div>
