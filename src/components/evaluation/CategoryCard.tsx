@@ -19,14 +19,14 @@ import {
 import { MAX_FILE_SIZE } from "@/helpers/constants";
 
 const categoryColors = [
-  "210 70% 45%",
-  "165 60% 40%",
-  "40 90% 50%",
-  "340 65% 50%",
-  "270 60% 50%",
-  "30 80% 50%",
-  "190 70% 40%",
-  "0 65% 50%",
+  "#2E6FCC", // 210 70% 45%
+  "#29A36A", // 165 60% 40%
+  "#F2B300", // 40 90% 50%
+  "#D93673", // 340 65% 50%
+  "#7A3FD9", // 270 60% 50%
+  "#E67319", // 30 80% 50%
+  "#1F8FA3", // 190 70% 40%
+  "#D93636", // 0 65% 50%
 ];
 
 export function getCategoryColor(index: number): string {
@@ -1030,22 +1030,43 @@ export function CategoryCard({ category, colorIndex, scores, onScoreChange, onDe
     ? category.topics.some((t) => t.indicators.some((i) => newIndicatorNotifs.has(i.id)))
     : false;
   const totalScore = category.topics.reduce(
-    (sum, t) => sum + t.indicators.reduce((s, i) => s + (displayScores[i.id] || 0), 0),
+    (sum, t) => sum + t.indicators.reduce((s, i) => {
+      const hasChildren = t.indicators.some(other => other.parentId === i.id);
+      if (i.isHeader || hasChildren) return s;
+      return s + (displayScores[i.id] || 0);
+    }, 0),
     0
   );
   const totalMax = category.topics.reduce(
-    (sum, t) => sum + t.indicators.reduce((s, i) => s + i.maxScore, 0),
+    (sum, t) => sum + t.indicators.reduce((s, i) => {
+      const hasChildren = t.indicators.some(other => other.parentId === i.id);
+      if (i.isHeader || hasChildren) return s;
+      return s + i.maxScore;
+    }, 0),
     0
   );
-  const totalIndicators = isYesNoCat ? category.topics.reduce((s, t) => s + t.indicators.length, 0) : 0;
-  const passCount = isYesNoCat ? category.topics.reduce(
-    (sum, t) => sum + t.indicators.reduce((s, i) => s + ((displayScores[i.id] ?? -1) === 1 ? 1 : 0), 0),
+
+  const leafIndicators = category.topics.flatMap(t => 
+    t.indicators.filter(i => {
+      const hasChildren = t.indicators.some(other => other.parentId === i.id);
+      return !i.isHeader && !hasChildren;
+    })
+  );
+
+  const totalIndicators = isYesNoCat ? leafIndicators.length : 0;
+  const passCount = isYesNoCat ? leafIndicators.reduce(
+    (sum, i) => sum + ((displayScores[i.id] ?? -1) === 1 ? 1 : 0),
     0
   ) : 0;
-  const totalIndCount = category.topics.reduce((s, t) => s + t.indicators.length, 0);
-  const filledCount = isYesNoCat
-    ? category.topics.reduce((sum, t) => sum + t.indicators.reduce((s, i) => s + ((displayScores[i.id] ?? -1) !== -1 ? 1 : 0), 0), 0)
-    : category.topics.reduce((sum, t) => sum + t.indicators.reduce((s, i) => s + ((displayScores[i.id] ?? 0) > 0 ? 1 : 0), 0), 0);
+  
+  const totalIndCount = leafIndicators.length;
+  const filledCount = leafIndicators.reduce((sum, i) => {
+    const score = displayScores[i.id];
+    if (isYesNoCat) {
+      return sum + (score !== undefined && score !== -1 ? 1 : 0);
+    }
+    return sum + (score !== undefined && score > 0 ? 1 : 0);
+  }, 0);
   const fillPct = totalIndCount > 0 ? (filledCount / totalIndCount) * 100 : 0;
   const fillColor = filledCount === totalIndCount && totalIndCount > 0 ? "#059669" : `hsl(${color})`;
 

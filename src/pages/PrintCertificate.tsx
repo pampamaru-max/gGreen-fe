@@ -95,7 +95,7 @@ export default function PrintCertificate() {
             
             // Try to match level using passPct
             const programLevels = allLevels.filter(l => l.programId === evalRes.data.programId);
-            const matched = findScoringLevelMatch(programLevels, ScoringLevelType.new, passPct, 0, true);
+            const matched = findScoringLevelMatch(null, programLevels, ScoringLevelType.new, passPct, 0, true);
             
             if (matched) {
               // Find template for this level or program

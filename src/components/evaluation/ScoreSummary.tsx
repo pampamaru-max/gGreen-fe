@@ -1,10 +1,12 @@
-const CAT_COLORS = ["#2563EB", "#7C3AED", "#059669"];
+import { useUserRole } from "@/hooks/useUserRole";
+import { getCategoryColor } from "./CategoryCard";
 
 interface SummaryItem {
   id: number | string;
   name: string;
   score: number;
   maxScore: number;
+  maxScorePct: number;
   totalPossible: number;
   index?: number;
   scoreType?: string;
@@ -19,6 +21,9 @@ interface Props {
 }
 
 export function ScoreSummary({ data, committeeData, onCategoryClick }: Props) {
+  const { role } = useUserRole();
+  const scoreView = role !== "user" ? "committee" : "self";
+  const isSelfView = scoreView === 'self';
   const isCommittee = !!committeeData;
 
   return (
@@ -26,7 +31,7 @@ export function ScoreSummary({ data, committeeData, onCategoryClick }: Props) {
       {data.map((item, idx) => {
         const isYesNo = item.scoreType?.includes('yes_no');
         const committee = committeeData?.[idx];
-        const accentColor = CAT_COLORS[idx % CAT_COLORS.length];
+        const accentColor = getCategoryColor(idx);
 
         if (isYesNo) {
           const total = item.totalIndicators ?? 0;
@@ -87,7 +92,11 @@ export function ScoreSummary({ data, committeeData, onCategoryClick }: Props) {
         // score type
         const selfPct = item.totalPossible > 0 ? Math.round((item.score / item.totalPossible) * 100) : 0;
         const committeePct = committee && item.totalPossible > 0
-          ? Math.round((committee.score / item.totalPossible) * 100) : 0;
+          ? Math.round((committee.score / item.maxScore) * 100) : 0;
+        const selfPctCat = item.maxScorePct ? Math.round((item.score * item.maxScorePct) / item.maxScore) : null;
+        const committeePctCat = item.maxScorePct
+          ? committee ? Math.round((committee.score * item.maxScorePct) / item.maxScore) : 0
+          : null;
 
         return (
           <div
@@ -97,14 +106,24 @@ export function ScoreSummary({ data, committeeData, onCategoryClick }: Props) {
             style={{ borderLeftColor: accentColor }}
           >
             <p className="text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wider">หมวดที่ {idx + 1}</p>
-            <p className="text-sm font-bold text-foreground mt-0.5 mb-4 leading-tight">{item.name}</p>
+            <div className="flex w-full justify-between">
+              <p className="text-sm font-bold text-foreground mt-0.5 mb-4 leading-tight">{item.name}</p>
+              {!!item.maxScorePct &&
+                <p className="text-end text-3xl font-semibold">
+                  <span className={`${isSelfView ? "text-blue-500 dark:text-blue-400" : "text-[#0F766E]"}`}>
+                    {isSelfView ? selfPctCat : committeePctCat}%
+                  </span>
+                </p>
+              }
+            </div>
 
             <div className="space-y-1.5">
               {isCommittee && <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-blue-500 dark:text-blue-400">ประเมินตนเอง</p>}
               <div className="flex items-baseline gap-1">
                 <span className="text-3xl font-extrabold text-foreground leading-none">{item.score}</span>
                 <span className="text-sm font-medium text-muted-foreground">/{item.totalPossible}</span>
-                <span className="ml-auto text-sm font-bold text-blue-500 dark:text-blue-400">{selfPct}%</span>
+                <span className="ml-auto text-sm font-bold text-blue-500 dark:text-blue-400">{selfPctCat ?? selfPct}%</span>
+                {!!selfPctCat && <span className="text-sm font-medium text-muted-foreground">/{item.maxScorePct}%</span>}
               </div>
               <div className="h-2 w-full rounded-full overflow-hidden bg-blue-100 dark:bg-blue-900/40">
                 <div
@@ -122,7 +141,8 @@ export function ScoreSummary({ data, committeeData, onCategoryClick }: Props) {
                   <div className="flex items-baseline gap-1">
                     <span className="text-2xl font-bold text-foreground leading-none">{committee.score}</span>
                     <span className="text-sm font-medium text-muted-foreground">/{item.totalPossible}</span>
-                    <span className="ml-auto text-sm font-bold" style={{ color: "#0F766E" }}>{committeePct}%</span>
+                    <span className="ml-auto text-sm font-bold" style={{ color: "#0F766E" }}>{committeePctCat ?? committeePct}%</span>
+                    {!!committeePctCat && <span className="text-sm font-medium text-muted-foreground">/{item.maxScorePct}%</span>}
                   </div>
                   <div className="h-2 w-full rounded-full overflow-hidden" style={{ backgroundColor: "#CCFBF1" }}>
                     <div

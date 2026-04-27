@@ -1,9 +1,10 @@
 import { EvalCategory, ScoringLevel } from "@/pages/ProjectRegistration";
 import { ScoringLevelType } from "@/pages/SettingsScoringCriteria";
+import { number } from "zod";
 
-export const formatNumber = (score: number | string) => {
-  if (score === "") return "";
-  return score.toString().replace(/^0+(?!$)/, "");
+export const formatNumber = (val: number | string) => {
+  if (val === "" || !val) return "";
+  return val.toString().replace(/^0+(?!$)/, "");
 };
 
 export const mergeUniqueById = <T extends { id: any }>(
@@ -30,7 +31,7 @@ export const isNewType    = (t?: string) => !t || t === "score" || t === "yes_no
 export const isUpgradType = (t?: string) => t === "score_upgrad" || t === "yes_no_upgrad" || t === "upgrade";
 export const isRenewType  = (t?: string) => t === "score_renew" || t === "yes_no_renew";
 
-export const labelScoreType = (categories: EvalCategory[], type: string): string => {
+export const labelScoreType = (categories: any[], type: string): string => {
   const selectType = (val: string) => {
     return type === 'new' ? isNewType(val) : type === 'upgrade' ? isUpgradType(val) : isRenewType(val);
   }
@@ -45,11 +46,29 @@ export const labelScoreType = (categories: EvalCategory[], type: string): string
     : `หมวด ${idxStart} - ${idxEnd}`;
 };
 
-const getScoringLevel = (levels: ScoringLevel[], type: ScoringLevelType | string, pct: number) => {
+const getScoringLevel = (levels: ScoringLevel[], type: ScoringLevelType | string, pct: number, attempt?: number | null) => {
+  let selectedLevels;
+  if (type !== ScoringLevelType.new && levels.some((sl) => sl.type === type && sl.attempt)) {
+    const spLevels = levels.filter((sl) => sl.type === type);
+    const exact = spLevels.filter((sl) => sl.attempt === attempt);
+    if (exact.length > 0) {
+      selectedLevels = exact;
+    } else {
+      const lower = spLevels.filter((sl) => sl.attempt && sl.attempt < attempt).sort((a, b) => b.attempt! - a.attempt!);
+      if (lower.length > 0) {
+        const max = lower[0].attempt;
+        selectedLevels = lower.filter((sl) => sl.attempt === max);
+      } else {
+        selectedLevels = [];
+      }
+    }
+    return [...selectedLevels].reverse().find((l) => pct >= l.minScore && pct <= l.maxScore);
+  }
   return [...levels].reverse().find(l => l.type === type && pct >= l.minScore && pct <= l.maxScore);
 }
 
 export const findScoringLevelMatch = (
+  attempt: number,
   scoringLevels: ScoringLevel[],
   type: ScoringLevelType | string,
   normalPct: number,
@@ -68,7 +87,7 @@ export const findScoringLevelMatch = (
         icon: isPass ? "trophy" : "x-circle",
         type: ScoringLevelType.new,
         sortOrder: 1,
-        condition: null,
+        attempt: null,
         isActive: true,
         isPass: isPass,
         programId: null,
@@ -80,9 +99,8 @@ export const findScoringLevelMatch = (
   const specialLevels = scoringLevels.filter((l) => type !== ScoringLevelType.new && l.type === type);
   
   const normalLevel = getScoringLevel(normalLevels, ScoringLevelType.new, normalPct);
-  if (!specialLevels.length) return normalLevel;
-
-  const specialLevel = getScoringLevel(scoringLevels, type, specialPct);
-  if (!specialLevel) return normalLevel;
-  return { ...specialLevel, name: `${normalLevel?.name || ''} ${specialLevel.name}`.trim() };
+  if (!normalLevel) return null;
+  if (normalLevel.maxScore != 100 || !specialLevels.length) return normalLevel;
+  const specialLevel = getScoringLevel(scoringLevels, type, specialPct, attempt);
+  return specialLevel ?? normalLevel;
 }

@@ -21,7 +21,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import * as XLSX from "xlsx";
+import * as XLSX from "xlsx-js-style";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   BarChart, Bar
@@ -43,14 +43,16 @@ const glassCard = {
 } as React.CSSProperties;
 
 const greenCard = {
-  background: "#f0fdf4",
-  border: "1px solid #dcfce7",
+  background: "var(--glass-bg-soft)",
+  backdropFilter: "blur(8px)",
+  WebkitBackdropFilter: "blur(8px)",
+  border: "1px solid var(--glass-border)",
 } as React.CSSProperties;
 
-const cellCls = "border border-border/60 text-center text-xs";
-const headerCls = "border border-border/60 bg-[#4e8a3a] text-white text-xs font-semibold text-center px-1 py-1.5 whitespace-nowrap";
-const inputCls = "h-7 w-20 text-xs text-center border-0 bg-transparent focus:ring-1 focus:ring-primary/50 rounded p-1";
-const totalCls = "border border-border/60 bg-amber-50/60 dark:bg-amber-900/10 text-center text-xs font-semibold";
+const cellCls = "border border-border/40 text-center text-xs";
+const headerCls = "border border-border/40 bg-[#4e8a3a] text-white text-xs font-semibold text-center px-1 py-1.5 whitespace-nowrap";
+const inputCls = "h-7 w-20 text-xs text-center border-0 bg-transparent focus:ring-1 focus:ring-primary/50 rounded p-1 text-foreground";
+const totalCls = "border border-border/40 bg-amber-50/60 dark:bg-amber-900/20 text-center text-xs font-semibold";
 
 // Number input helper
 function NumInput({
@@ -85,8 +87,8 @@ function NumInput({
 export default function ResourceUsageFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { role } = useUserRole();
-  const isReadOnly = role !== "user";
+  const { isAdmin, role } = useUserRole();
+  const isReadOnly = role === "evaluator";
 
   const [loading, setLoading] = useState(true);
   const [recordYear, setRecordYear] = useState<number>(new Date().getFullYear());
@@ -462,72 +464,297 @@ export default function ResourceUsageFormPage() {
   const handleExport = () => {
     const wb = XLSX.utils.book_new();
     const thYear = recordYear + 543;
+    const E = '';
 
-    // Sheet 1 — General info
-    const info = [
-      [`บันทึกข้อมูลการใช้ทรัพยากร ปี พ.ศ. ${thYear}`],
-      [],
-      ['พื้นที่ในสำนักงาน', '', 'ตร.ม.'],
-      ['เฉพาะอาคาร', officeBuilding],
-      ['เฉพาะพื้นที่นอกอาคาร', officeOutdoor],
-      ['จำนวนพนักงาน', '', 'คน'],
-      ['พนักงานประจำ', staffPermanent],
-      ['พนักงานชั่วคราว', staffTemp],
-      ['ผู้รับจ้างช่วง', staffContract],
-      ['รวมทั้งสิ้น', staffTotal],
-    ];
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(info), 'ข้อมูลทั่วไป');
-
-    // Sheet 2 — Section 1
-    const s1Header = ['รายการ', 'หน่วย', ...MONTHS_TH, 'รวม'];
-    const s1Rows = [
-      ['1. น้ำประปา', 'ลบ.ม.', ...section1.water, s1Total('water')],
-      ['2. ไฟฟ้า', 'kWh', ...section1.electricity, s1Total('electricity')],
-      ['3. กระดาษ', 'รีม', ...section1.paper, s1Total('paper')],
-      ['4.1 ขยะทั่วไป', 'กก.', ...section1.wasteGeneral, s1Total('wasteGeneral')],
-      ['4.2 ขยะรีไซเคิล', 'กก.', ...section1.wasteRecyclable, s1Total('wasteRecyclable')],
-      ['4.3 เศษอาหาร', 'กก.', ...section1.wasteFood, s1Total('wasteFood')],
-      ['5.1 น้ำมันดีเซล', 'ลิตร', ...section1.fuelDiesel, s1Total('fuelDiesel')],
-      ['5.2 น้ำมันเบนซิน', 'ลิตร', ...section1.fuelGasoline, s1Total('fuelGasoline')],
-      ['5.3 ก๊าซโซฮอลล์', 'ลิตร', ...section1.fuelGasohol, s1Total('fuelGasohol')],
-    ];
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([s1Header, ...s1Rows]), 'ส่วนที่ 1');
-
-    // Sheet 3 — Section 2 Baseline
-    const sbHeader = ['ข้อมูล', 'หน่วย', ...MONTHS_TH, 'รวม'];
-    const sbRows = [
-      ['1. วันเปิดบริการ', 'วัน', ...section2Baseline.operatingDays, sbTotal('operatingDays')],
-      ['2. จำนวนพนักงาน', 'คน', ...section2Baseline.staffCount, sbTotal('staffCount')],
-      ['3. มีเทน septic tank', 'kgCH4', ...section2Baseline.methaneSeptic, sbTotal('methaneSeptic')],
-      ['4. ปริมาณน้ำใช้', 'ลบ.ม.', ...section2Baseline.waterUsed, sbTotal('waterUsed')],
-      ['5. น้ำเสีย 80%', 'ลบ.ม.', ...section2Baseline.wastewater80, sbTotal('wastewater80')],
-      ['ประเภทบำบัด', '', ...section2Baseline.wastewaterType, ''],
-      ['6. มีเทนบ่อบำบัด', 'kgCH4', ...section2Baseline.methaneWastewater, sbTotal('methaneWastewater')],
-    ];
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([sbHeader, ...sbRows]), 'ส่วนที่ 2 ข้อมูลพื้นฐาน');
-
-    // Sheet 4 — GHG emissions
-    const ghgHeader = ['รายการ', 'หน่วย', ...MONTHS_TH.flatMap(m => [`ปริมาณ-${m}`, `CF-${m}`]), 'รวม (kgCO2e)'];
-    const ghgRows = GHG_ITEMS.map(item => {
-      const monthCells = MONTHS_TH.flatMap((_, i) => [section2Ghg[item.key].amounts[i], section2Ghg[item.key].cfs[i]]);
-      return [item.label, item.unit, ...monthCells, calcItemTotal(section2Ghg[item.key])];
+    // ─── Style factory ────────────────────────────────────────────────
+    const thin = (hex = 'D9D9D9') => ({ style: 'thin' as const, color: { rgb: `FF${hex}` } });
+    const bdr  = (hex = 'D9D9D9') => ({ top: thin(hex), bottom: thin(hex), left: thin(hex), right: thin(hex) });
+    const mk   = (fill: string | null, bold: boolean, align: string, color: string, sz: number, bc = 'D9D9D9', italic = false) => ({
+      ...(fill ? { fill: { patternType: 'solid' as const, fgColor: { rgb: `FF${fill}` } } } : {}),
+      font:      { bold, italic, sz, color: { rgb: `FF${color}` } },
+      alignment: { horizontal: align, vertical: 'center' as const, wrapText: align === 'center' },
+      border:    bdr(bc),
     });
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([ghgHeader, ...ghgRows]), 'ส่วนที่ 2 GHG');
 
-    // Sheet 5 — Summary
-    const sumData = calcSummary(section2Ghg);
-    const sumRows = [
-      ['สรุปข้อมูลปริมาณการปลดปล่อยก๊าซเรือนกระจก'],
-      [],
-      ['ขอบเขตดำเนินงาน', 'tCO2e', '%GHG'],
-      ['ประเภท 1 (Scope 1)', sumData.scope1Tco2e.toFixed(4), sumData.scope1Pct.toFixed(2)],
-      ['ประเภท 2 (Scope 2)', sumData.scope2Tco2e.toFixed(4), sumData.scope2Pct.toFixed(2)],
-      ['ประเภท 3 (Scope 3)', sumData.scope3Tco2e.toFixed(4), sumData.scope3Pct.toFixed(2)],
-      ['รวม', sumData.totalTco2e.toFixed(4), '100.00'],
+    const TITLE  = mk('4E8A3A', true,  'left',   'FFFFFF', 13);
+    const SEC    = mk('70AD47', true,  'left',   'FFFFFF', 11, '70AD47');
+    const HDR    = mk('548235', true,  'center', 'FFFFFF', 10, 'FFFFFF');
+    const HDR_L  = mk('548235', true,  'left',   'FFFFFF', 10, 'FFFFFF');
+    const LBL    = mk(null,     false, 'left',   '000000', 10);
+    const NUM    = mk(null,     false, 'right',  '000000', 10);
+    const LBL_A  = mk('F5F5F5', false, 'left',   '000000', 10);
+    const NUM_A  = mk('F5F5F5', false, 'right',  '000000', 10);
+    const TOT    = mk('FFF2CC', true,  'right',  '7B6300', 10, 'FFC000');
+    const TOT_L  = mk('FFF2CC', true,  'left',   '7B6300', 10, 'FFC000');
+    const S1T    = mk('E2EFDA', true,  'left',   '375623', 10, '70AD47');
+    const S1TR   = mk('E2EFDA', true,  'right',  '375623', 10, '70AD47');
+    const S2T    = mk('DDEEFF', true,  'left',   '1A4C8A', 10, '5B9BD5');
+    const S2TR   = mk('DDEEFF', true,  'right',  '1A4C8A', 10, '5B9BD5');
+    const S3T    = mk('FFEEDD', true,  'left',   '7A3C00', 10, 'E07B28');
+    const S3TR   = mk('FFEEDD', true,  'right',  '7A3C00', 10, 'E07B28');
+    const GRD    = mk('FFC000', true,  'left',   '000000', 11, 'B8860B');
+    const GRD_R  = mk('FFC000', true,  'right',  '000000', 11, 'B8860B');
+    const NOTE   = mk(null,     false, 'left',   '808080',  9, 'EEEEEE', true);
+    const S1_TAG = mk('C6EFCE', true,  'center', '276221', 10);
+    const S2_TAG = mk('BDD7EE', true,  'center', '1F497D', 10);
+    const S3_TAG = mk('FCE4D6', true,  'center', '833C00', 10);
+
+    const sr = (ws: any, r1: number, c1: number, r2: number, c2: number, style: any) => {
+      for (let r = r1; r <= r2; r++) {
+        for (let c = c1; c <= c2; c++) {
+          const a = XLSX.utils.encode_cell({ r, c });
+          if (!ws[a]) ws[a] = { v: E, t: 's' };
+          ws[a].s = style;
+        }
+      }
+    };
+
+    // ── Sheet 1: 1-ข้อมูลพื้นฐาน ──────────────────────────────────────
+    const ws1Data = [
+      [`1. ข้อมูลพื้นฐาน ปี พ.ศ. ${thYear}`, E, E],
+      [E, E, E],
+      ['พื้นที่สำนักงาน', E, E],
+      ['รายการ', 'ค่า', 'หน่วย'],
+      ['พื้นที่อาคารสำนักงาน (Indoor)', officeBuilding, 'ตร.ม.'],
+      ['พื้นที่ภายนอกสำนักงาน (Outdoor)', officeOutdoor, 'ตร.ม.'],
+      ['รวมพื้นที่ทั้งหมด', officeTotal, 'ตร.ม.'],
+      [E, E, E],
+      ['จำนวนพนักงาน', E, E],
+      ['ประเภท', 'จำนวน', 'หน่วย'],
+      ['พนักงานประจำ', staffPermanent, 'คน'],
+      ['พนักงานชั่วคราว', staffTemp, 'คน'],
+      ['พนักงานรับจ้างช่วง', staffContract, 'คน'],
+      ['รวมพนักงานทั้งหมด', staffTotal, 'คน'],
     ];
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sumRows), 'สรุป');
+    const ws1 = XLSX.utils.aoa_to_sheet(ws1Data);
+    ws1['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } },
+      { s: { r: 2, c: 0 }, e: { r: 2, c: 2 } },
+      { s: { r: 8, c: 0 }, e: { r: 8, c: 2 } },
+    ];
+    ws1['!cols'] = [{ wch: 34 }, { wch: 12 }, { wch: 10 }];
+    ws1['!rows'] = [{ hpt: 24 }];
+    sr(ws1, 0, 0, 0, 2, TITLE);
+    sr(ws1, 2, 0, 2, 2, SEC);
+    sr(ws1, 3, 0, 3, 0, HDR_L); sr(ws1, 3, 1, 3, 2, HDR);
+    sr(ws1, 4, 0, 4, 0, LBL);   sr(ws1, 4, 1, 4, 2, NUM);
+    sr(ws1, 5, 0, 5, 0, LBL_A); sr(ws1, 5, 1, 5, 2, NUM_A);
+    sr(ws1, 6, 0, 6, 0, TOT_L); sr(ws1, 6, 1, 6, 2, TOT);
+    sr(ws1, 8, 0, 8, 2, SEC);
+    sr(ws1, 9, 0, 9, 0, HDR_L); sr(ws1, 9, 1, 9, 2, HDR);
+    sr(ws1, 10, 0, 10, 0, LBL);   sr(ws1, 10, 1, 10, 2, NUM);
+    sr(ws1, 11, 0, 11, 0, LBL_A); sr(ws1, 11, 1, 11, 2, NUM_A);
+    sr(ws1, 12, 0, 12, 0, LBL);   sr(ws1, 12, 1, 12, 2, NUM);
+    sr(ws1, 13, 0, 13, 0, TOT_L); sr(ws1, 13, 1, 13, 2, TOT);
+    XLSX.utils.book_append_sheet(wb, ws1, '1-ข้อมูลพื้นฐาน');
 
-    XLSX.writeFile(wb, `ข้อมูลการใช้ทรัพยากร_${thYear}.xlsx`);
+    // ── Sheet 2: 2-ทรัพยากรรายเดือน ─────────────────────────────────────
+    const NC2 = 15;
+    const mTot = MONTHS_TH.map((_, i) =>
+      section1.water[i] + section1.electricity[i] + section1.paper[i] +
+      section1.wasteGeneral[i] + section1.wasteRecyclable[i] + section1.wasteFood[i] +
+      section1.fuelDiesel[i] + section1.fuelGasoline[i] + section1.fuelGasohol[i]
+    );
+    const ws2Data = [
+      [`2. ทรัพยากร พลังงาน ของเสีย รายเดือน ปี พ.ศ. ${thYear}`, ...Array(NC2 - 1).fill(E)],
+      Array(NC2).fill(E),
+      ['รายการ', 'หน่วย', ...MONTHS_TH, 'รวมปี'],
+      ['น้ำประปา',           'ลบ.ม.',  ...section1.water,           s1Total('water')],
+      ['ไฟฟ้า',              'kWh',    ...section1.electricity,      s1Total('electricity')],
+      ['กระดาษ',             'รีม',    ...section1.paper,            s1Total('paper')],
+      ['ขยะทั่วไป',          'กก.',    ...section1.wasteGeneral,     s1Total('wasteGeneral')],
+      ['ขยะรีไซเคิล',        'กก.',    ...section1.wasteRecyclable,  s1Total('wasteRecyclable')],
+      ['เศษอาหาร',           'กก.',    ...section1.wasteFood,        s1Total('wasteFood')],
+      ['น้ำมันดีเซล',        'ลิตร',  ...section1.fuelDiesel,       s1Total('fuelDiesel')],
+      ['น้ำมันเบนซิน',       'ลิตร',  ...section1.fuelGasoline,     s1Total('fuelGasoline')],
+      ['น้ำมันแก๊สโซฮอลล์',  'ลิตร',  ...section1.fuelGasohol,      s1Total('fuelGasohol')],
+      ['รวมทุกประเภท',        '-',     ...mTot,                      mTot.reduce((a, b) => a + b, 0)],
+    ];
+    const ws2 = XLSX.utils.aoa_to_sheet(ws2Data);
+    ws2['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: NC2 - 1 } }];
+    ws2['!cols'] = [{ wch: 24 }, { wch: 8 }, ...Array(12).fill({ wch: 10 }), { wch: 12 }];
+    ws2['!rows'] = [{ hpt: 24 }];
+    sr(ws2, 0, 0, 0, NC2 - 1, TITLE);
+    sr(ws2, 2, 0, 2, 0, HDR_L); sr(ws2, 2, 1, 2, NC2 - 1, HDR);
+    for (let r = 3; r <= 11; r++) {
+      const alt = r % 2 === 0;
+      sr(ws2, r, 0, r, 1, alt ? LBL_A : LBL);
+      sr(ws2, r, 2, r, NC2 - 1, alt ? NUM_A : NUM);
+    }
+    sr(ws2, 12, 0, 12, 1, TOT_L); sr(ws2, 12, 2, 12, NC2 - 1, TOT);
+    XLSX.utils.book_append_sheet(wb, ws2, '2-ทรัพยากรรายเดือน');
+
+    // ── Sheet 3: 3-GHG Baseline ──────────────────────────────────────────
+    const NC3 = 15;
+    const wwFactor = section2Baseline.wastewaterType[0];
+    const ws3Data = [
+      [`3. การปลดปล่อยก๊าซเรือนกระจก (Baseline) ปี พ.ศ. ${thYear}`, ...Array(NC3 - 1).fill(E)],
+      Array(NC3).fill(E),
+      ['ข้อมูลพื้นฐานการดำเนินงาน', ...Array(NC3 - 1).fill(E)],
+      ['รายการ', 'หน่วย', ...MONTHS_TH, 'รวม/เฉลี่ย'],
+      ['วันเปิดให้บริการ', 'วัน',   ...section2Baseline.operatingDays, sbTotal('operatingDays')],
+      ['จำนวนพนักงาน',     'คน',    ...section2Baseline.staffCount,    section2Baseline.staffCount[0]],
+      ['ปริมาณน้ำใช้',     'ลบ.ม.', ...section2Baseline.waterUsed,     sbTotal('waterUsed')],
+      Array(NC3).fill(E),
+      ['ผลคำนวณการปลดปล่อยมีเทน (CH₄ → CO₂e)', ...Array(NC3 - 1).fill(E)],
+      ['รายการ', 'หน่วย', ...MONTHS_TH, 'รวม'],
+      ['มีเทน Septic Tank',       'kgCH4',  ...section2Baseline.methaneSeptic,     sbTotal('methaneSeptic')],
+      ['น้ำเสีย (80% ของน้ำใช้)', 'ลบ.ม.',  ...section2Baseline.wastewater80,      sbTotal('wastewater80')],
+      ['มีเทนบ่อบำบัด',           'kgCH4',  ...section2Baseline.methaneWastewater, sbTotal('methaneWastewater')],
+      Array(NC3).fill(E),
+      [`* ค่า EF น้ำเสีย (wastewater factor) ที่ใช้: ${wwFactor}`, ...Array(NC3 - 1).fill(E)],
+    ];
+    const ws3 = XLSX.utils.aoa_to_sheet(ws3Data);
+    ws3['!merges'] = [
+      { s: { r: 0,  c: 0 }, e: { r: 0,  c: NC3 - 1 } },
+      { s: { r: 2,  c: 0 }, e: { r: 2,  c: NC3 - 1 } },
+      { s: { r: 8,  c: 0 }, e: { r: 8,  c: NC3 - 1 } },
+      { s: { r: 14, c: 0 }, e: { r: 14, c: NC3 - 1 } },
+    ];
+    ws3['!cols'] = [{ wch: 36 }, { wch: 8 }, ...Array(12).fill({ wch: 10 }), { wch: 12 }];
+    ws3['!rows'] = [{ hpt: 24 }];
+    sr(ws3, 0, 0, 0, NC3 - 1, TITLE);
+    sr(ws3, 2, 0, 2, NC3 - 1, SEC);
+    sr(ws3, 3, 0, 3, 0, HDR_L); sr(ws3, 3, 1, 3, NC3 - 1, HDR);
+    sr(ws3, 4, 0, 4, 0, LBL);   sr(ws3, 4, 1, 4, NC3 - 1, NUM);
+    sr(ws3, 5, 0, 5, 0, LBL_A); sr(ws3, 5, 1, 5, NC3 - 1, NUM_A);
+    sr(ws3, 6, 0, 6, 0, LBL);   sr(ws3, 6, 1, 6, NC3 - 1, NUM);
+    sr(ws3, 8, 0, 8, NC3 - 1, SEC);
+    sr(ws3, 9, 0, 9, 0, HDR_L); sr(ws3, 9, 1, 9, NC3 - 1, HDR);
+    sr(ws3, 10, 0, 10, 0, LBL);   sr(ws3, 10, 1, 10, NC3 - 1, NUM);
+    sr(ws3, 11, 0, 11, 0, LBL_A); sr(ws3, 11, 1, 11, NC3 - 1, NUM_A);
+    sr(ws3, 12, 0, 12, 0, LBL);   sr(ws3, 12, 1, 12, NC3 - 1, NUM);
+    sr(ws3, 14, 0, 14, 0, NOTE);
+    XLSX.utils.book_append_sheet(wb, ws3, '3-GHG Baseline');
+
+    // ── Sheet 4: 4-ปริมาณ GHG รายเดือน ──────────────────────────────────
+    const NC4 = 18;
+    const s1Items = GHG_ITEMS.filter(i => i.scope === 1);
+    const s2Items = GHG_ITEMS.filter(i => i.scope === 2);
+    const s3Items = GHG_ITEMS.filter(i => i.scope === 3);
+    let scope1Kg = 0, scope2Kg = 0, scope3Kg = 0;
+    s1Items.forEach(i => { scope1Kg += calcItemTotal(section2Ghg[i.key]); });
+    s2Items.forEach(i => { scope2Kg += calcItemTotal(section2Ghg[i.key]); });
+    s3Items.forEach(i => { scope3Kg += calcItemTotal(section2Ghg[i.key]); });
+
+    const makeGhgRow = (item: typeof GHG_ITEMS[0], scopeLabel: string) => {
+      const ef = section2Ghg[item.key].cfs[0];
+      const amounts = MONTHS_TH.map((_, i) => section2Ghg[item.key].amounts[i]);
+      const totalAmt = amounts.reduce((a, b) => a + b, 0);
+      return [scopeLabel, item.label, item.unit, ef, ...amounts, totalAmt, calcItemTotal(section2Ghg[item.key])];
+    };
+    const makeScopeTot = (label: string, kg: number) =>
+      [E, label, E, E, ...Array(12).fill(E), E, kg];
+
+    const ws4Data: any[][] = [
+      [`4. ปริมาณก๊าซเรือนกระจกรายเดือน ปี พ.ศ. ${thYear}`, ...Array(NC4 - 1).fill(E)],
+      Array(NC4).fill(E),
+      ['ขอบเขต', 'รายการ', 'หน่วย', 'EF (kgCO2e/หน่วย)', ...MONTHS_TH, 'รวมปริมาณ', 'รวม kgCO2e'],
+      ...s1Items.map(i => makeGhgRow(i, 'S1')),
+      makeScopeTot('รวมขอบเขต 1 (ประเภทที่ 1)', scope1Kg),
+      ...s2Items.map(i => makeGhgRow(i, 'S2')),
+      makeScopeTot('รวมขอบเขต 2 (ประเภทที่ 2)', scope2Kg),
+      ...s3Items.map(i => makeGhgRow(i, 'S3')),
+      makeScopeTot('รวมขอบเขต 3 (ประเภทที่ 3)', scope3Kg),
+      [E, 'รวมทั้งหมด', E, E, ...Array(12).fill(E), E, scope1Kg + scope2Kg + scope3Kg],
+    ];
+    const ws4 = XLSX.utils.aoa_to_sheet(ws4Data);
+    ws4['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: NC4 - 1 } }];
+    ws4['!cols'] = [{ wch: 9 }, { wch: 36 }, { wch: 9 }, { wch: 15 }, ...Array(12).fill({ wch: 11 }), { wch: 13 }, { wch: 15 }];
+    ws4['!rows'] = [{ hpt: 24 }];
+
+    sr(ws4, 0, 0, 0, NC4 - 1, TITLE);
+    sr(ws4, 2, 0, 2, 0, HDR); sr(ws4, 2, 1, 2, 1, HDR_L); sr(ws4, 2, 2, 2, NC4 - 1, HDR);
+
+    const s1R0 = 3, s1R1 = s1R0 + s1Items.length - 1;
+    const s1Tot = s1R1 + 1;
+    const s2R0 = s1Tot + 1, s2R1 = s2R0 + s2Items.length - 1;
+    const s2Tot = s2R1 + 1;
+    const s3R0 = s2Tot + 1, s3R1 = s3R0 + s3Items.length - 1;
+    const s3Tot = s3R1 + 1;
+    const grandR = s3Tot + 1;
+
+    for (let r = s1R0; r <= s1R1; r++) {
+      sr(ws4, r, 0, r, 0, S1_TAG);
+      const alt = r % 2 === 0;
+      sr(ws4, r, 1, r, 1, alt ? LBL_A : LBL);
+      sr(ws4, r, 2, r, NC4 - 1, alt ? NUM_A : NUM);
+    }
+    sr(ws4, s1Tot, 0, s1Tot, 0, S1T); sr(ws4, s1Tot, 1, s1Tot, NC4 - 2, S1T); sr(ws4, s1Tot, NC4 - 1, s1Tot, NC4 - 1, S1TR);
+
+    for (let r = s2R0; r <= s2R1; r++) {
+      sr(ws4, r, 0, r, 0, S2_TAG);
+      sr(ws4, r, 1, r, 1, LBL);
+      sr(ws4, r, 2, r, NC4 - 1, NUM);
+    }
+    sr(ws4, s2Tot, 0, s2Tot, 0, S2T); sr(ws4, s2Tot, 1, s2Tot, NC4 - 2, S2T); sr(ws4, s2Tot, NC4 - 1, s2Tot, NC4 - 1, S2TR);
+
+    for (let r = s3R0; r <= s3R1; r++) {
+      sr(ws4, r, 0, r, 0, S3_TAG);
+      const alt = r % 2 === 0;
+      sr(ws4, r, 1, r, 1, alt ? LBL_A : LBL);
+      sr(ws4, r, 2, r, NC4 - 1, alt ? NUM_A : NUM);
+    }
+    sr(ws4, s3Tot, 0, s3Tot, 0, S3T); sr(ws4, s3Tot, 1, s3Tot, NC4 - 2, S3T); sr(ws4, s3Tot, NC4 - 1, s3Tot, NC4 - 1, S3TR);
+
+    sr(ws4, grandR, 0, grandR, NC4 - 2, GRD); sr(ws4, grandR, NC4 - 1, grandR, NC4 - 1, GRD_R);
+    XLSX.utils.book_append_sheet(wb, ws4, '4-ปริมาณ GHG รายเดือน');
+
+    // ── Sheet 5: 5-สรุปการปลดปล่อย ──────────────────────────────────────
+    const NC5 = 6;
+    const sumData = calcSummary(section2Ghg);
+    const totalKgAll = sumData.totalTco2e * 1000;
+
+    const monthlyRows = MONTHS_TH.map((m, i) => {
+      const s1 = SCOPE1_KEYS.reduce((sum, k) => sum + section2Ghg[k].amounts[i] * section2Ghg[k].cfs[i], 0);
+      const s2 = SCOPE2_KEYS.reduce((sum, k) => sum + section2Ghg[k].amounts[i] * section2Ghg[k].cfs[i], 0);
+      const s3 = SCOPE3_KEYS.reduce((sum, k) => sum + section2Ghg[k].amounts[i] * section2Ghg[k].cfs[i], 0);
+      const tot = s1 + s2 + s3;
+      return [m, s1, s2, s3, tot, totalKgAll > 0 ? tot / totalKgAll : 0];
+    });
+
+    const ws5Data = [
+      [`5. สรุปการปลดปล่อยก๊าซเรือนกระจก ปี พ.ศ. ${thYear}`, E, E, E, E, E],
+      [E, E, E, E, E, E],
+      ['สรุปตามขอบเขต', E, E, E, E, E],
+      ['ขอบเขต', 'kgCO2e', 'tCO2e', '%GHG', E, E],
+      ['ประเภทที่ 1', sumData.scope1Tco2e * 1000, sumData.scope1Tco2e, sumData.scope1Pct / 100, E, E],
+      ['ประเภทที่ 2', sumData.scope2Tco2e * 1000, sumData.scope2Tco2e, sumData.scope2Pct / 100, E, E],
+      ['ประเภทที่ 3', sumData.scope3Tco2e * 1000, sumData.scope3Tco2e, sumData.scope3Pct / 100, E, E],
+      ['รวมทั้งหมด',  totalKgAll,                 sumData.totalTco2e,  1,                        E, E],
+      [E, E, E, E, E, E],
+      ['รายเดือนแยกตามขอบเขต (kgCO2e)', E, E, E, E, E],
+      ['เดือน', 'ประเภทที่ 1', 'ประเภทที่ 2', 'ประเภทที่ 3', 'รวม', '% ของทั้งปี'],
+      ...monthlyRows,
+      ['รวมทั้งปี', sumData.scope1Tco2e * 1000, sumData.scope2Tco2e * 1000, sumData.scope3Tco2e * 1000, totalKgAll, 1],
+    ];
+    const ws5 = XLSX.utils.aoa_to_sheet(ws5Data);
+    ws5['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: NC5 - 1 } },
+      { s: { r: 2, c: 0 }, e: { r: 2, c: NC5 - 1 } },
+      { s: { r: 9, c: 0 }, e: { r: 9, c: NC5 - 1 } },
+    ];
+    ws5['!cols'] = [{ wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 12 }, { wch: 16 }, { wch: 14 }];
+    ws5['!rows'] = [{ hpt: 24 }];
+
+    sr(ws5, 0, 0, 0, NC5 - 1, TITLE);
+    sr(ws5, 2, 0, 2, NC5 - 1, SEC);
+    sr(ws5, 3, 0, 3, 0, HDR_L); sr(ws5, 3, 1, 3, NC5 - 1, HDR);
+    sr(ws5, 4, 0, 4, 0, LBL);   sr(ws5, 4, 1, 4, NC5 - 1, NUM);
+    sr(ws5, 5, 0, 5, 0, LBL_A); sr(ws5, 5, 1, 5, NC5 - 1, NUM_A);
+    sr(ws5, 6, 0, 6, 0, LBL);   sr(ws5, 6, 1, 6, NC5 - 1, NUM);
+    sr(ws5, 7, 0, 7, 0, TOT_L); sr(ws5, 7, 1, 7, NC5 - 1, TOT);
+    sr(ws5, 9, 0, 9, NC5 - 1, SEC);
+    sr(ws5, 10, 0, 10, 0, HDR_L); sr(ws5, 10, 1, 10, NC5 - 1, HDR);
+    for (let r = 11; r <= 22; r++) {
+      const alt = r % 2 === 0;
+      sr(ws5, r, 0, r, 0, alt ? LBL_A : LBL);
+      sr(ws5, r, 1, r, NC5 - 1, alt ? NUM_A : NUM);
+    }
+    sr(ws5, 23, 0, 23, 0, TOT_L); sr(ws5, 23, 1, 23, NC5 - 1, TOT);
+    XLSX.utils.book_append_sheet(wb, ws5, '5-สรุปการปลดปล่อย');
+
+    XLSX.writeFile(wb, `รายงาน_GHG_Green Office_${thYear}.xlsx`);
   };
 
   if (loading) return <PageLoading />;
@@ -597,24 +824,24 @@ export default function ResourceUsageFormPage() {
               onClick={() => setActiveTab(step.id)}
               className={`flex flex-col gap-1 p-3 rounded-xl border transition-all text-left ${
                 isActive 
-                  ? "bg-[#f0fdf4] border-[#16a34a] shadow-sm" 
-                  : "bg-white border-border/60 hover:border-border/100 shadow-sm"
+                  ? "bg-background dark:bg-primary/20 border-primary shadow-md ring-1 ring-primary/40" 
+                  : "bg-background/90 backdrop-blur-md border-border/40 hover:border-border/80 shadow-sm"
               }`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[0.625rem] font-bold ${
-                    isActive ? "bg-[#16a34a] text-white" : "bg-muted text-muted-foreground"
+                    isActive ? "bg-primary text-white" : "bg-muted text-muted-foreground"
                   }`}>
                     {idx + 1}
                   </div>
-                  <span className={`text-[0.625rem] font-medium ${isActive ? "text-[#16a34a]" : "text-muted-foreground"}`}>
+                  <span className={`text-[0.625rem] font-medium ${isActive ? "text-primary" : "text-muted-foreground"}`}>
                     {step.label}
                   </span>
                 </div>
                 {isActive && (
-                  <div className="w-5 h-5 rounded-full border border-[#16a34a] flex items-center justify-center">
-                    <Check className="w-3 h-3 text-[#16a34a]" />
+                  <div className="w-5 h-5 rounded-full border border-primary flex items-center justify-center">
+                    <Check className="w-3 h-3 text-primary" />
                   </div>
                 )}
               </div>
@@ -645,10 +872,10 @@ export default function ResourceUsageFormPage() {
               </div>
             )}
             {/* Section: พื้นที่สำนักงาน */}
-            <div className="rounded-2xl border border-emerald-100 bg-white shadow-sm overflow-hidden">
-              <div className="bg-[#f0fdf4] px-4 py-3 flex items-center gap-2 border-b border-emerald-50">
-                <Building2 className="w-5 h-5 text-[#16a34a]" />
-                <h3 className="text-sm font-bold text-[#16a34a]">พื้นที่สำนักงาน</h3>
+            <div className="rounded-2xl border border-border/40 bg-background/60 backdrop-blur-md shadow-sm overflow-hidden">
+              <div className="bg-primary/5 dark:bg-primary/10 px-4 py-3 flex items-center gap-2 border-b border-border/40">
+                <Building2 className="w-5 h-5 text-primary" />
+                <h3 className="text-sm font-bold text-primary">พื้นที่สำนักงาน</h3>
               </div>
               <div className="p-6">
                 <div className="grid grid-cols-3 gap-6">
@@ -660,7 +887,7 @@ export default function ResourceUsageFormPage() {
                       type="number" 
                       min={0} 
                       step="any" 
-                      className="h-10 text-sm bg-slate-50/50" 
+                      className="h-10 text-sm bg-muted/30 border-border/40 focus:border-primary/50" 
                       disabled={isReadOnly}
                       value={officeBuilding || ""}
                       onChange={e => setOfficeBuilding(parseFloat(e.target.value) || 0)} 
@@ -674,7 +901,7 @@ export default function ResourceUsageFormPage() {
                       type="number" 
                       min={0} 
                       step="any" 
-                      className="h-10 text-sm bg-slate-50/50" 
+                      className="h-10 text-sm bg-muted/30 border-border/40 focus:border-primary/50" 
                       disabled={isReadOnly}
                       value={officeOutdoor || ""}
                       onChange={e => setOfficeOutdoor(parseFloat(e.target.value) || 0)} 
@@ -682,7 +909,7 @@ export default function ResourceUsageFormPage() {
                   </div>
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-muted-foreground">รวมพื้นที่ทั้งหมด (ตร.ม.)</label>
-                    <div className="h-10 px-3 rounded-md flex items-center justify-end bg-amber-50/50 border border-amber-100 text-sm font-bold">
+                    <div className="h-10 px-3 rounded-md flex items-center justify-end bg-amber-500/10 dark:bg-amber-900/20 border border-amber-500/20 text-sm font-bold text-amber-600 dark:text-amber-400">
                       {officeTotal.toLocaleString()}
                     </div>
                   </div>
@@ -691,10 +918,10 @@ export default function ResourceUsageFormPage() {
             </div>
 
             {/* Section: จำนวนพนักงาน */}
-            <div className="rounded-2xl border border-emerald-100 bg-white shadow-sm overflow-hidden">
-              <div className="bg-[#f0fdf4] px-4 py-3 flex items-center gap-2 border-b border-emerald-50">
-                <Users2 className="w-5 h-5 text-[#16a34a]" />
-                <h3 className="text-sm font-bold text-[#16a34a]">จำนวนพนักงาน</h3>
+            <div className="rounded-2xl border border-border/40 bg-background/60 backdrop-blur-md shadow-sm overflow-hidden">
+              <div className="bg-primary/5 dark:bg-primary/10 px-4 py-3 flex items-center gap-2 border-b border-border/40">
+                <Users2 className="w-5 h-5 text-primary" />
+                <h3 className="text-sm font-bold text-primary">จำนวนพนักงาน</h3>
               </div>
               <div className="p-6">
                 <div className="grid grid-cols-4 gap-6">
@@ -706,7 +933,7 @@ export default function ResourceUsageFormPage() {
                       type="number" 
                       min={0} 
                       step={1} 
-                      className="h-10 text-sm bg-slate-50/50" 
+                      className="h-10 text-sm bg-muted/30 border-border/40 focus:border-primary/50" 
                       disabled={isReadOnly}
                       value={staffPermanent || ""}
                       onChange={e => setStaffPermanent(parseInt(e.target.value) || 0)} 
@@ -720,7 +947,7 @@ export default function ResourceUsageFormPage() {
                       type="number" 
                       min={0} 
                       step={1} 
-                      className="h-10 text-sm bg-slate-50/50" 
+                      className="h-10 text-sm bg-muted/30 border-border/40 focus:border-primary/50" 
                       disabled={isReadOnly}
                       value={staffTemp || ""}
                       onChange={e => setStaffTemp(parseInt(e.target.value) || 0)} 
@@ -734,7 +961,7 @@ export default function ResourceUsageFormPage() {
                       type="number" 
                       min={0} 
                       step={1} 
-                      className="h-10 text-sm bg-slate-50/50" 
+                      className="h-10 text-sm bg-muted/30 border-border/40 focus:border-primary/50" 
                       disabled={isReadOnly}
                       value={staffContract || ""}
                       onChange={e => setStaffContract(parseInt(e.target.value) || 0)} 
@@ -742,7 +969,7 @@ export default function ResourceUsageFormPage() {
                   </div>
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-muted-foreground">รวมทั้งสิ้น (คน)</label>
-                    <div className="h-10 px-3 rounded-md flex items-center justify-end bg-amber-50/50 border border-amber-100 text-sm font-bold">
+                    <div className="h-10 px-3 rounded-md flex items-center justify-end bg-amber-500/10 dark:bg-amber-900/20 border border-amber-500/20 text-sm font-bold text-amber-600 dark:text-amber-400">
                       {staffTotal.toLocaleString()}
                     </div>
                   </div>
@@ -753,18 +980,18 @@ export default function ResourceUsageFormPage() {
 
           {/* ── Tab 2: ส่วนที่ 1 ── */}
           <TabsContent value="section1" className="flex-1 overflow-auto m-0">
-            <div className="rounded-2xl border border-emerald-100 bg-white shadow-sm overflow-hidden">
-              <div className="bg-[#f0fdf4] px-4 py-3 border-b border-emerald-50">
-                <h3 className="text-sm font-bold text-[#16a34a]">ส่วนที่ 2 ข้อมูลปริมาณการใช้ทรัพยากร พลังงาน ของเสีย</h3>
+            <div className="rounded-2xl border border-border/40 bg-background/60 backdrop-blur-md shadow-sm overflow-hidden">
+              <div className="bg-primary/5 dark:bg-primary/10 px-4 py-3 border-b border-border/40">
+                <h3 className="text-sm font-bold text-primary">ส่วนที่ 2 ข้อมูลปริมาณการใช้ทรัพยากร พลังงาน ของเสีย</h3>
               </div>
-              <div className="p-4 overflow-x-auto">
+              <div className="p-4 overflow-x-auto text-foreground">
                 <table className="border-collapse text-xs w-full" style={{ minWidth: 900 }}>
                   <thead>
                     <tr>
                       <th className={`${headerCls} min-w-[180px] text-left px-4 rounded-tl-lg`}>รายการ</th>
                       <th className={`${headerCls} min-w-[70px]`}>หน่วย</th>
                       {MONTHS_TH.map(m => <th key={m} className={`${headerCls} min-w-[70px]`}>{m}</th>)}
-                      <th className={`${headerCls} min-w-[80px] bg-amber-600/80 rounded-tr-lg`}>รวม</th>
+                      <th className={`${headerCls} min-w-[80px] bg-amber-600 dark:bg-amber-700 rounded-tr-lg`}>รวม</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -780,7 +1007,7 @@ export default function ResourceUsageFormPage() {
                       { key: 'fuelGasohol',     label: '5.3 ก๊าซโซฮอลล์',              unit: 'ลิตร' },
                     ] as { key: keyof Section1Data; label: string; unit: string; spacer?: boolean }[])
                       .map(({ key, label, unit }) => (
-                        <tr key={key} className="hover:bg-muted/10 transition-colors">
+                        <tr key={key} className="hover:bg-muted/30 transition-colors">
                           <td className={`${cellCls} text-left px-4 py-2 font-medium`}>{label}</td>
                           <td className={`${cellCls} py-2`}>{unit}</td>
                           {MONTHS_TH.map((_, mi) => (
@@ -789,7 +1016,7 @@ export default function ResourceUsageFormPage() {
                                 onChange={v => setS1Row(key, mi, v)} />
                             </td>
                           ))}
-                          <td className={`${totalCls} py-2 px-2 text-right font-mono text-amber-700`}>
+                          <td className={`${totalCls} py-2 px-2 text-right font-mono text-amber-600 dark:text-amber-400`}>
                             {s1Total(key).toLocaleString()}
                           </td>
                         </tr>
@@ -803,16 +1030,16 @@ export default function ResourceUsageFormPage() {
           {/* ── Tab 3: Section 2 Baseline ── */}
           <TabsContent value="section2b" className="flex-1 overflow-auto m-0 space-y-4">
             {/* Card 1: ข้อมูลพื้นฐาน (รายเดือน) */}
-            <div className="rounded-2xl border border-emerald-100 bg-white shadow-sm overflow-hidden">
-              <div className="bg-[#f0fdf4] px-4 py-3 border-b border-emerald-50 flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600">
+            <div className="rounded-2xl border border-border/40 bg-background/60 backdrop-blur-md shadow-sm overflow-hidden">
+              <div className="bg-primary/5 dark:bg-primary/10 px-4 py-3 border-b border-border/40 flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
                   <TrendingUp className="w-4 h-4" />
                 </div>
-                <h3 className="text-sm font-bold text-[#16a34a]">ข้อมูลพื้นฐาน (รายเดือน)</h3>
+                <h3 className="text-sm font-bold text-primary">ข้อมูลพื้นฐาน (รายเดือน)</h3>
               </div>
               <div className="p-6 space-y-6">
                 <div className="max-w-md">
-                  <label className="text-xs font-bold text-slate-600 mb-2 block">ประเภทการบำบัดน้ำเสีย</label>
+                  <label className="text-xs font-bold text-muted-foreground mb-2 block">ประเภทการบำบัดน้ำเสีย</label>
                   <Select
                     value={section2Baseline.wastewaterType[0]}
                     onValueChange={v => {
@@ -823,7 +1050,7 @@ export default function ResourceUsageFormPage() {
                     }}
                     disabled={isReadOnly}
                   >
-                    <SelectTrigger className="h-10 text-sm bg-slate-50/50 border-slate-200">
+                    <SelectTrigger className="h-10 text-sm bg-muted/30 border-border/40">
                       <SelectValue placeholder="เลือกประเภทการบำบัด" />
                     </SelectTrigger>
                     <SelectContent>
@@ -839,9 +1066,9 @@ export default function ResourceUsageFormPage() {
                 <div className="overflow-x-auto">
                   <table className="border-collapse w-full text-sm min-w-[1000px]">
                     <thead>
-                      <tr className="bg-emerald-50/50">
-                        <th className="border border-emerald-100 px-4 py-2 text-left font-bold text-emerald-800 w-[200px]">รายการ</th>
-                        {MONTHS_TH.map(m => <th key={m} className="border border-emerald-100 px-2 py-2 text-center font-bold text-emerald-800">{m}</th>)}
+                      <tr className="bg-primary/5 dark:bg-primary/10">
+                        <th className="border border-border/40 px-4 py-2 text-left font-bold text-primary w-[200px]">รายการ</th>
+                        {MONTHS_TH.map(m => <th key={m} className="border border-border/40 px-2 py-2 text-center font-bold text-primary">{m}</th>)}
                       </tr>
                     </thead>
                     <tbody>
@@ -850,14 +1077,14 @@ export default function ResourceUsageFormPage() {
                         { key: 'staffCount',    label: 'จำนวนพนักงาน (คน)', step: 1 },
                         { key: 'waterUsed',     label: 'น้ำใช้รายเดือน (ลบ.ม.)', step: 'any' },
                       ].map((row) => (
-                        <tr key={row.key} className="hover:bg-slate-50 transition-colors">
-                          <td className="border border-slate-100 px-4 py-3 font-medium text-slate-700">{row.label}</td>
+                        <tr key={row.key} className="hover:bg-muted/20 transition-colors">
+                          <td className="border border-border/30 px-4 py-3 font-medium text-foreground">{row.label}</td>
                           {MONTHS_TH.map((_, mi) => (
-                            <td key={mi} className="border border-slate-100 px-1 py-1">
+                            <td key={mi} className="border border-border/30 px-1 py-1">
                               <input
                                 type="number"
                                 step={row.step}
-                                className="w-full h-9 text-center bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-100 outline-none"
+                                className="w-full h-9 text-center bg-muted/20 border border-border/40 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 outline-none text-foreground"
                                 value={(section2Baseline[row.key as keyof Section2BaselineData] as number[])[mi] || ""}
                                 disabled={isReadOnly}
                                 onChange={e => setSbRow(row.key as any, mi, parseFloat(e.target.value) || 0)}
@@ -873,16 +1100,16 @@ export default function ResourceUsageFormPage() {
             </div>
 
             {/* Card 2: ผลคำนวณอัตโนมัติ */}
-            <div className="rounded-2xl border border-emerald-100 bg-white shadow-sm overflow-hidden">
-              <div className="bg-[#f0fdf4] px-4 py-3 border-b border-emerald-50">
-                <h3 className="text-sm font-bold text-[#16a34a]">ผลคำนวณอัตโนมัติ</h3>
+            <div className="rounded-2xl border border-border/40 bg-background/60 backdrop-blur-md shadow-sm overflow-hidden">
+              <div className="bg-primary/5 dark:bg-primary/10 px-4 py-3 border-b border-border/40">
+                <h3 className="text-sm font-bold text-primary">ผลคำนวณอัตโนมัติ</h3>
               </div>
-              <div className="p-6 overflow-x-auto">
+              <div className="p-6 overflow-x-auto text-foreground">
                 <table className="border-collapse w-full text-sm min-w-[1000px]">
                   <thead>
-                    <tr className="bg-slate-50">
-                      <th className="border border-slate-200 px-4 py-2 text-left font-bold text-slate-700 w-[200px]">รายการ</th>
-                      {MONTHS_TH.map(m => <th key={m} className="border border-slate-200 px-2 py-2 text-center font-bold text-slate-700">{m}</th>)}
+                    <tr className="bg-muted/30">
+                      <th className="border border-border/40 px-4 py-2 text-left font-bold text-foreground w-[200px]">รายการ</th>
+                      {MONTHS_TH.map(m => <th key={m} className="border border-border/40 px-2 py-2 text-center font-bold text-foreground">{m}</th>)}
                     </tr>
                   </thead>
                   <tbody>
@@ -891,11 +1118,11 @@ export default function ResourceUsageFormPage() {
                       { key: 'wastewater80',      label: 'น้ำเสีย 80% ของน้ำใช้ (ลบ.ม.)', formula: 'น้ำใช้รายเดือน (ลบ.ม.) * 0.8' },
                       { key: 'methaneWastewater', label: 'มีเทนจากบ่อบำบัด (kgCH4)', formula: 'น้ำเสีย 80% ของน้ำใช้ * ประเภทการบำบัดน้ำเสีย * 0.12' },
                     ].map((row) => (
-                      <tr key={row.key} className="hover:bg-slate-50 transition-colors">
-                        <td className="border border-slate-100 px-4 py-3 font-medium text-slate-700">
+                      <tr key={row.key} className="hover:bg-muted/20 transition-colors">
+                        <td className="border border-border/30 px-4 py-3 font-medium text-foreground/80">
                           <UITooltip>
                             <TooltipTrigger asChild>
-                              <span className="cursor-help border-b border-dotted border-slate-300">{row.label}</span>
+                              <span className="cursor-help border-b border-dotted border-border/60">{row.label}</span>
                             </TooltipTrigger>
                             <TooltipContent side="right" className="bg-slate-800 text-white border-slate-700 p-2">
                               <p className="text-[0.625rem] font-bold mb-1 uppercase text-slate-400">สูตรการคำนวณ:</p>
@@ -906,7 +1133,7 @@ export default function ResourceUsageFormPage() {
                         {MONTHS_TH.map((_, mi) => {
                           const val = (section2Baseline[row.key as keyof Section2BaselineData] as number[])[mi];
                           return (
-                            <td key={mi} className="border border-slate-100 px-2 py-3 text-center font-mono text-xs text-slate-500 bg-slate-50/30">
+                            <td key={mi} className="border border-border/30 px-2 py-3 text-center font-mono text-xs text-muted-foreground bg-muted/10">
                               <UITooltip>
                                 <TooltipTrigger asChild>
                                   <span className="cursor-help w-full block">
@@ -930,35 +1157,35 @@ export default function ResourceUsageFormPage() {
 
           {/* ── Tab 4: Section 2 GHG ── */}
           <TabsContent value="section2g" className="flex-1 overflow-auto m-0">
-            <div className="rounded-2xl border border-emerald-100 bg-white shadow-md overflow-hidden flex flex-col h-full">
-              <div className="bg-gradient-to-r from-[#f0fdf4] to-white px-6 py-4 border-b border-emerald-50 flex items-center justify-between shrink-0">
+            <div className="rounded-2xl border border-border/40 bg-background/60 backdrop-blur-md shadow-md overflow-hidden flex flex-col h-full">
+              <div className="bg-gradient-to-r from-primary/5 to-transparent px-6 py-4 border-b border-border/40 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
                     <CheckCircle2 className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-emerald-900">บันทึกปริมาณการใช้รายเดือน และ Emission Factor (EF)</h3>
-                    <p className="text-[0.6875rem] text-emerald-600/80">กรอกค่า EF และปริมาณการใช้ในแต่ละเดือน ระบบจะคำนวณ kgCO2e ให้อัตโนมัติ</p>
+                    <h3 className="text-base font-bold text-foreground">บันทึกปริมาณการใช้รายเดือน และ Emission Factor (EF)</h3>
+                    <p className="text-[0.6875rem] text-muted-foreground">กรอกค่า EF และปริมาณการใช้ในแต่ละเดือน ระบบจะคำนวณ kgCO2e ให้อัตโนมัติ</p>
                   </div>
                 </div>
               </div>
               
               <div className="flex-1 overflow-auto">
-                <table className="border-collapse text-[0.8125rem] w-full min-w-[2000px] table-fixed">
+                <table className="border-collapse text-[0.8125rem] w-full min-w-[2000px] table-fixed text-foreground">
                   <thead>
-                    <tr className="sticky top-0 z-20 bg-[#f8fafc]">
-                      <th className="sticky left-0 z-30 bg-[#f8fafc] border-b border-r border-slate-200 px-6 py-4 text-left font-bold text-slate-700 w-[350px]">รายการ</th>
-                      <th className="sticky left-[349px] z-30 bg-[#ecfdf5] border-b border-r border-emerald-200 px-2 py-4 text-center font-bold text-emerald-800 w-28 shadow-[1px_0_0_0_#e2e8f0]">Emission Factor</th>
+                    <tr className="sticky top-0 z-20 bg-background shadow-sm">
+                      <th className="sticky left-0 z-30 bg-background border-b border-r border-border/40 px-6 py-4 text-left font-bold text-foreground/80 w-[350px]">รายการ</th>
+                      <th className="sticky left-[350px] z-30 bg-background border-b border-r border-border/40 px-2 py-4 text-center font-bold text-emerald-600 dark:text-emerald-400 w-28 shadow-[1px_0_0_0_var(--border)]">Emission Factor</th>
                       {MONTHS_TH.map(m => (
                         <Fragment key={m}>
-                          <th className="border-b border-r border-slate-200 px-2 py-4 text-center font-bold text-slate-600 w-32 bg-white">ปริมาณ {m}</th>
-                          <th className="border-b border-r border-slate-200 px-2 py-4 text-center font-bold text-emerald-700 w-32 bg-[#f0fdf4]">kgCO2e {m}</th>
+                          <th className="border-b border-r border-border/40 px-2 py-4 text-center font-bold text-foreground/60 w-32 bg-background">ปริมาณ {m}</th>
+                          <th className="border-b border-r border-border/40 px-2 py-4 text-center font-bold text-emerald-600 dark:text-emerald-400 w-32 bg-emerald-500/5">kgCO2e {m}</th>
                         </Fragment>
                       ))}
-                      <th className="sticky right-0 z-30 border-b border-l border-amber-200 px-6 py-4 text-center font-bold text-amber-900 w-36 bg-[#fffbeb]">รวมปี (kgCO2e)</th>
+                      <th className="sticky right-0 z-30 border-b border-l border-amber-500/40 px-6 py-4 text-center font-bold text-amber-600 dark:text-amber-400 w-36 bg-background shadow-[-1px_0_0_0_var(--border)]">รวมปี (kgCO2e)</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-border/20">
                     {(() => {
                       const rows: React.ReactNode[] = [];
                       let lastScope = 0;
@@ -990,28 +1217,28 @@ export default function ResourceUsageFormPage() {
 
                           if (customScopeLabel) {
                             rows.push(
-                              <tr key={`scope-header-${item.key}`} className="bg-slate-50/80">
-                                <td className="sticky left-0 z-10 bg-[#f8fafc] border-r border-slate-200 px-6 py-3 font-bold text-slate-800 text-sm">
+                              <tr key={`scope-header-${item.key}`} className="bg-muted/30">
+                                <td className="sticky left-0 z-10 bg-background border-r border-border/40 px-6 py-3 font-bold text-foreground/80 text-sm">
                                   {customScopeLabel}
                                 </td>
-                                <td className="sticky left-[349px] z-10 bg-[#f8fafc] border-r border-slate-200 shadow-[1px_0_0_0_#e2e8f0]"></td>
-                                <td colSpan={24} className="bg-slate-50/50"></td>
-                                <td className="sticky right-0 z-10 bg-[#fffbeb]/50 border-l border-amber-100"></td>
+                                <td className="sticky left-[350px] z-10 bg-background border-r border-border/40 shadow-[1px_0_0_0_var(--border)]"></td>
+                                <td colSpan={24} className="bg-transparent"></td>
+                                <td className="sticky right-0 z-10 bg-background border-l border-border/40 shadow-[-1px_0_0_0_var(--border)]"></td>
                               </tr>
                             );
                           }
                         }
 
                         rows.push(
-                          <tr key={item.key} className="hover:bg-blue-50/30 transition-colors group">
-                            <td className="sticky left-0 z-10 bg-white group-hover:bg-blue-50 border-r border-slate-200 px-8 py-3 font-medium text-slate-700 leading-tight">
-                              {item.label} <span className="text-[0.625rem] text-slate-400 font-normal">({item.unit})</span>
+                          <tr key={item.key} className="hover:bg-primary/5 transition-colors group">
+                            <td className="sticky left-0 z-10 bg-background group-hover:bg-muted border-r border-border/40 px-8 py-3 font-medium text-foreground/80 leading-tight">
+                              {item.label} <span className="text-[0.625rem] text-muted-foreground font-normal">({item.unit})</span>
                             </td>
-                            <td className="sticky left-[349px] z-10 bg-[#ecfdf5] group-hover:bg-[#dcfce7] border-r border-emerald-100 px-3 py-2 shadow-[1px_0_0_0_#e2e8f0]">
+                            <td className="sticky left-[350px] z-10 bg-background group-hover:bg-muted border-r border-border/40 px-3 py-2 shadow-[1px_0_0_0_var(--border)]">
                               <input
                                 type="number"
                                 step="any"
-                                className="w-full h-9 px-2 text-center text-sm border border-emerald-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all font-mono bg-white outline-none shadow-sm"
+                                className="w-full h-9 px-2 text-center text-sm border border-emerald-500/20 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-mono bg-muted/20 outline-none shadow-sm text-foreground"
                                 value={section2Ghg[item.key].cfs[0]}
                                 disabled={isReadOnly}
                                 onChange={(e) => {
@@ -1032,27 +1259,27 @@ export default function ResourceUsageFormPage() {
                               const cf = amount * ef;
                               return (
                                 <Fragment key={mi}>
-                                  <td className="px-3 py-2 border-r border-slate-100">
+                                  <td className="px-3 py-2 border-r border-border/20 bg-background/20">
                                     <input
                                       type="number"
                                       step="any"
                                       min={0}
-                                      className="w-full h-9 px-2 text-center text-sm border border-slate-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white outline-none shadow-sm"
+                                      className="w-full h-9 px-2 text-center text-sm border border-border/40 rounded-lg focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all bg-muted/10 outline-none shadow-sm text-foreground"
                                       value={amount || ""}
                                       disabled={isReadOnly}
                                       onChange={(e) => setGhgAmount(item.key, mi, parseFloat(e.target.value) || 0)}
                                     />
                                   </td>
-                                  <td className="px-3 py-2 bg-[#f0fdf4]/20 border-r border-emerald-50/50">
-                                    <div className="w-full h-9 flex items-center justify-center text-center font-mono text-xs text-emerald-700 font-semibold bg-emerald-50/40 rounded-lg border border-emerald-100/50">
+                                  <td className="px-3 py-2 bg-emerald-500/5 border-r border-emerald-500/10">
+                                    <div className="w-full h-9 flex items-center justify-center text-center font-mono text-xs text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-500/10 rounded-lg border border-emerald-500/10">
                                       {cf === 0 ? "-" : cf.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}
                                     </div>
                                   </td>
                                 </Fragment>
                               );
                             })}
-                            <td className="sticky right-0 z-10 bg-[#fffbeb] group-hover:bg-[#fef3c7] border-l border-amber-200 px-3 py-2">
-                              <div className="w-full h-9 flex items-center justify-end px-3 text-right font-mono text-sm font-bold bg-white rounded-lg border border-amber-200 text-amber-700 shadow-sm">
+                            <td className="sticky right-0 z-10 bg-background group-hover:bg-muted border-l border-border/40 px-3 py-2 shadow-[-1px_0_0_0_var(--border)]">
+                              <div className="w-full h-9 flex items-center justify-end px-3 text-right font-mono text-sm font-bold bg-muted/20 rounded-lg border border-amber-500/20 text-amber-600 dark:text-amber-400 shadow-sm">
                                 {calcItemTotal(section2Ghg[item.key]).toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}
                               </div>
                             </td>
@@ -1072,10 +1299,10 @@ export default function ResourceUsageFormPage() {
             <div className="space-y-8 p-6">
               
               {/* Summary Cards Section */}
-              <div className="space-y-12 bg-slate-50/50 p-8 rounded-[2rem] border border-slate-100 shadow-sm">
+              <div className="space-y-12 bg-background/40 backdrop-blur-md p-8 rounded-[2rem] border border-border/40 shadow-sm">
                 {/* Row 1: สัดส่วน % tCO2e */}
                 <div className="space-y-4">
-                  <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] px-2">สัดส่วน % tCO2e</h3>
+                  <h3 className="text-sm font-black text-muted-foreground uppercase tracking-[0.2em] px-2">สัดส่วน % tCO2e</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                     {[
                       { label: 'ประเภทที่ 1', val: summary.scope1Tco2e, pct: summary.scope1Pct, dot: 'bg-emerald-500', unit: 'tCO2e' },
@@ -1083,29 +1310,29 @@ export default function ResourceUsageFormPage() {
                       { label: 'ประเภทที่ 3', val: summary.scope3Tco2e, pct: summary.scope3Pct, dot: 'bg-blue-400',    unit: 'tCO2e' },
                       { label: 'รวมทั้งหมด',  val: summary.totalTco2e,  pct: 100,             dot: 'bg-emerald-700', unit: 'tCO2e', isTotal: true },
                     ].map((item) => (
-                      <div key={item.label} className={`relative p-6 rounded-3xl border transition-all duration-300 hover:shadow-md ${item.isTotal ? 'bg-[#f0fdf4] border-emerald-200' : 'bg-white border-slate-200/60'} flex flex-col gap-2`}>
+                      <div key={item.label} className={`relative p-6 rounded-3xl border transition-all duration-300 hover:shadow-md ${item.isTotal ? 'bg-primary/10 border-primary/20' : 'bg-background/60 border-border/40'} flex flex-col gap-2`}>
                         <div className="flex items-center gap-2">
                           {item.isTotal ? (
-                            <div className="flex items-center gap-1 text-emerald-800 font-bold text-xs uppercase tracking-tighter">
+                            <div className="flex items-center gap-1 text-primary font-bold text-xs uppercase tracking-tighter">
                               <TrendingUp className="w-4 h-4" /> {item.label}
                             </div>
                           ) : (
                             <>
                               <div className={`w-3 h-3 rounded-full ${item.dot} shadow-sm`} />
-                              <span className="text-xs font-bold text-slate-500">{item.label}</span>
+                              <span className="text-xs font-bold text-muted-foreground">{item.label}</span>
                             </>
                           )}
                         </div>
                         <div className="flex items-baseline gap-1 mt-1">
-                          <span className="text-3xl font-black text-slate-900 tracking-tight">{item.pct.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                          <span className="text-[0.625rem] font-black text-slate-400 uppercase tracking-wider">%tCO2e</span>
+                          <span className="text-3xl font-black text-foreground tracking-tight">{item.pct.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          <span className="text-[0.625rem] font-black text-muted-foreground uppercase tracking-wider">%tCO2e</span>
                         </div>
-                        <div className="text-[0.6875rem] text-slate-500 font-bold -mt-1">
+                        <div className="text-[0.6875rem] text-muted-foreground font-bold -mt-1">
                           {item.val.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 6 })} {item.unit}
                         </div>
-                        <div className="mt-4 h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                        <div className="mt-4 h-2 w-full bg-muted rounded-full overflow-hidden">
                           <div 
-                            className="h-full bg-blue-600 rounded-full shadow-sm" 
+                            className="h-full bg-primary rounded-full shadow-sm" 
                             style={{ width: `${item.pct}%` }} 
                           />
                         </div>
@@ -1116,7 +1343,7 @@ export default function ResourceUsageFormPage() {
 
                 {/* Row 2: สัดส่วน %GHG */}
                 <div className="space-y-4">
-                  <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] px-2">สัดส่วน %GHG</h3>
+                  <h3 className="text-sm font-black text-muted-foreground uppercase tracking-[0.2em] px-2">สัดส่วน %GHG</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                     {[
                       { label: 'ประเภทที่ 1', val: summary.scope1Tco2e * 1000, pct: summary.scope1Pct, dot: 'bg-emerald-500', unit: 'kgCO2e' },
@@ -1124,29 +1351,29 @@ export default function ResourceUsageFormPage() {
                       { label: 'ประเภทที่ 3', val: summary.scope3Tco2e * 1000, pct: summary.scope3Pct, dot: 'bg-blue-400',    unit: 'kgCO2e' },
                       { label: 'รวมทั้งหมด',  val: summary.totalTco2e * 1000,  pct: 100,             dot: 'bg-emerald-700', unit: 'kgCO2e', isTotal: true },
                     ].map((item) => (
-                      <div key={item.label} className={`relative p-6 rounded-3xl border transition-all duration-300 hover:shadow-md ${item.isTotal ? 'bg-[#f0fdf4] border-emerald-200' : 'bg-white border-slate-200/60'} flex flex-col gap-2`}>
+                      <div key={item.label} className={`relative p-6 rounded-3xl border transition-all duration-300 hover:shadow-md ${item.isTotal ? 'bg-primary/10 border-primary/20' : 'bg-background/60 border-border/40'} flex flex-col gap-2`}>
                         <div className="flex items-center gap-2">
                           {item.isTotal ? (
-                            <div className="flex items-center gap-1 text-emerald-800 font-bold text-xs uppercase tracking-tighter">
+                            <div className="flex items-center gap-1 text-primary font-bold text-xs uppercase tracking-tighter">
                               <TrendingUp className="w-4 h-4" /> {item.label}
                             </div>
                           ) : (
                             <>
                               <div className={`w-3 h-3 rounded-full ${item.dot} shadow-sm`} />
-                              <span className="text-xs font-bold text-slate-500">{item.label}</span>
+                              <span className="text-xs font-bold text-muted-foreground">{item.label}</span>
                             </>
                           )}
                         </div>
                         <div className="flex items-baseline gap-1 mt-1">
-                          <span className="text-3xl font-black text-slate-900 tracking-tight">{item.pct.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                          <span className="text-[0.625rem] font-black text-slate-400 uppercase tracking-wider">%GHG</span>
+                          <span className="text-3xl font-black text-foreground tracking-tight">{item.pct.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          <span className="text-[0.625rem] font-black text-muted-foreground uppercase tracking-wider">%GHG</span>
                         </div>
-                        <div className="text-[0.6875rem] text-slate-500 font-bold -mt-1">
+                        <div className="text-[0.6875rem] text-muted-foreground font-bold -mt-1">
                           {item.val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} {item.unit}
                         </div>
-                        <div className="mt-4 h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                        <div className="mt-4 h-2 w-full bg-muted rounded-full overflow-hidden">
                           <div 
-                            className="h-full bg-blue-600 rounded-full shadow-sm" 
+                            className="h-full bg-primary rounded-full shadow-sm" 
                             style={{ width: `${item.pct}%` }} 
                           />
                         </div>
@@ -1157,21 +1384,21 @@ export default function ResourceUsageFormPage() {
               </div>
 
               {/* Chart Section */}
-              <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl overflow-hidden">
-                <div className="px-8 py-6 border-b border-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="bg-background/60 backdrop-blur-md rounded-[2rem] border border-border/40 shadow-xl overflow-hidden">
+                <div className="px-8 py-6 border-b border-border/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
-                    <h3 className="text-xl font-black text-slate-800 tracking-tight">เปรียบเทียบรายเดือน</h3>
-                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Monthly Analytics Breakdown</p>
+                    <h3 className="text-xl font-black text-foreground tracking-tight">เปรียบเทียบรายเดือน</h3>
+                    <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mt-1">Monthly Analytics Breakdown</p>
                   </div>
-                  <div className="flex bg-slate-100 p-1.5 rounded-2xl w-fit">
+                  <div className="flex bg-muted p-1.5 rounded-2xl w-fit">
                     <button 
                       onClick={() => setChartView("trend")}
-                      className={`px-6 py-2 text-xs font-black rounded-xl transition-all ${chartView === "trend" ? "bg-white text-blue-600 shadow-md" : "text-slate-500 hover:text-slate-800"}`}>
+                      className={`px-6 py-2 text-xs font-black rounded-xl transition-all ${chartView === "trend" ? "bg-background text-primary shadow-md" : "text-muted-foreground hover:text-foreground"}`}>
                       แนวโน้ม
                     </button>
                     <button 
                       onClick={() => setChartView("proportion")}
-                      className={`px-6 py-2 text-xs font-black rounded-xl transition-all ${chartView === "proportion" ? "bg-white text-blue-600 shadow-md" : "text-slate-500 hover:text-slate-800"}`}>
+                      className={`px-6 py-2 text-xs font-black rounded-xl transition-all ${chartView === "proportion" ? "bg-background text-primary shadow-md" : "text-muted-foreground hover:text-foreground"}`}>
                       สัดส่วนรวม
                     </button>
                   </div>
@@ -1180,15 +1407,15 @@ export default function ResourceUsageFormPage() {
                 <div className="p-8 space-y-8">
                   {/* Chart Stat Cards */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-slate-50 rounded-[1.5rem] p-5 border border-slate-100 shadow-sm">
-                      <p className="text-[0.625rem] font-black text-slate-400 uppercase tracking-widest mb-2">Peak Month</p>
-                      <p className="text-base font-black text-slate-800">
-                        {peakMonth.name} • <span className="text-blue-600">{peakMonth.val.toLocaleString()}</span> <span className="text-[0.6875rem] text-slate-400 font-bold">kgCO2e</span>
+                    <div className="bg-muted/30 rounded-[1.5rem] p-5 border border-border/40 shadow-sm">
+                      <p className="text-[0.625rem] font-black text-muted-foreground uppercase tracking-widest mb-2">Peak Month</p>
+                      <p className="text-base font-black text-foreground">
+                        {peakMonth.name} • <span className="text-primary">{peakMonth.val.toLocaleString()}</span> <span className="text-[0.6875rem] text-muted-foreground font-bold">kgCO2e</span>
                       </p>
                     </div>
-                    <div className="bg-slate-50 rounded-[1.5rem] p-5 border border-slate-100 shadow-sm">
-                      <p className="text-[0.625rem] font-black text-slate-400 uppercase tracking-widest mb-2">Top Performer</p>
-                      <p className="text-base font-black text-slate-800">
+                    <div className="bg-muted/30 rounded-[1.5rem] p-5 border border-border/40 shadow-sm">
+                      <p className="text-[0.625rem] font-black text-muted-foreground uppercase tracking-widest mb-2">Top Performer</p>
+                      <p className="text-base font-black text-foreground">
                         {(() => {
                           const maxScope = summary.scope1Pct > summary.scope2Pct && summary.scope1Pct > summary.scope3Pct ? "ประเภทที่ 1" : summary.scope2Pct > summary.scope3Pct ? "ประเภทที่ 2" : "ประเภทที่ 3";
                           const maxPct = Math.max(summary.scope1Pct, summary.scope2Pct, summary.scope3Pct);
@@ -1201,8 +1428,8 @@ export default function ResourceUsageFormPage() {
                         })()}
                       </p>
                     </div>
-                    <div className="bg-slate-50 rounded-[1.5rem] p-5 border border-slate-100 shadow-sm">
-                      <p className="text-[0.625rem] font-black text-slate-400 uppercase tracking-widest mb-2">Growth Trend</p>
+                    <div className="bg-muted/30 rounded-[1.5rem] p-5 border border-border/40 shadow-sm">
+                      <p className="text-[0.625rem] font-black text-muted-foreground uppercase tracking-widest mb-2">Growth Trend</p>
                       <p className="text-base font-black flex items-center gap-2">
                         <TrendingUp className={`w-5 h-5 ${trendQ4vsQ1 >= 0 ? "text-red-500" : "text-emerald-500"}`} />
                         <span className={trendQ4vsQ1 >= 0 ? "text-red-600" : "text-emerald-600"}>
@@ -1217,28 +1444,28 @@ export default function ResourceUsageFormPage() {
                     <ResponsiveContainer width="100%" height="100%">
                       {chartView === "trend" ? (
                         <LineChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-border/40" />
                           <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: '0.75rem', fill: '#94a3b8', fontWeight: 600 }} dy={10} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: '0.75rem', fill: '#cbd5e1', fontWeight: 600 }} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: '0.75rem', fill: '#94a3b8', fontWeight: 600 }} />
                           <Tooltip
-                            contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', padding: '16px' }}
+                            contentStyle={{ borderRadius: '20px', border: 'none', background: 'var(--popover)', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.25)', padding: '16px' }}
                             itemStyle={{ fontSize: '0.8125rem', fontWeight: 800 }}
                           />
-                          <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '0.75rem', fontWeight: 800, paddingTop: '30px', color: '#64748b' }} />
-                          <Line type="monotone" dataKey="ประเภทที่ 1" stroke="#10b981" strokeWidth={4} dot={{ r: 6, strokeWidth: 3, fill: 'white' }} activeDot={{ r: 8, strokeWidth: 0 }} />
-                          <Line type="monotone" dataKey="ประเภทที่ 2" stroke="#f59e0b" strokeWidth={4} dot={{ r: 6, strokeWidth: 3, fill: 'white' }} activeDot={{ r: 8, strokeWidth: 0 }} />
-                          <Line type="monotone" dataKey="ประเภทที่ 3" stroke="#3b82f6" strokeWidth={4} dot={{ r: 6, strokeWidth: 3, fill: 'white' }} activeDot={{ r: 8, strokeWidth: 0 }} />
+                          <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '0.75rem', fontWeight: 800, paddingTop: '30px', color: '#94a3b8' }} />
+                          <Line type="monotone" dataKey="ประเภทที่ 1" stroke="#10b981" strokeWidth={4} dot={{ r: 6, strokeWidth: 3, fill: 'var(--background)' }} activeDot={{ r: 8, strokeWidth: 0 }} />
+                          <Line type="monotone" dataKey="ประเภทที่ 2" stroke="#f59e0b" strokeWidth={4} dot={{ r: 6, strokeWidth: 3, fill: 'var(--background)' }} activeDot={{ r: 8, strokeWidth: 0 }} />
+                          <Line type="monotone" dataKey="ประเภทที่ 3" stroke="#3b82f6" strokeWidth={4} dot={{ r: 6, strokeWidth: 3, fill: 'var(--background)' }} activeDot={{ r: 8, strokeWidth: 0 }} />
                         </LineChart>
                       ) : (
                         <BarChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-border/40" />
                           <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: '0.75rem', fill: '#94a3b8', fontWeight: 600 }} dy={10} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: '0.75rem', fill: '#cbd5e1', fontWeight: 600 }} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: '0.75rem', fill: '#94a3b8', fontWeight: 600 }} />
                           <Tooltip
-                            cursor={{ fill: '#f8fafc', radius: 10 }}
-                            contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', padding: '16px' }}
+                            cursor={{ fill: 'var(--muted)', opacity: 0.4, radius: 10 }}
+                            contentStyle={{ borderRadius: '20px', border: 'none', background: 'var(--popover)', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.25)', padding: '16px' }}
                           />
-                          <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '0.75rem', fontWeight: 800, paddingTop: '30px', color: '#64748b' }} />
+                          <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '0.75rem', fontWeight: 800, paddingTop: '30px', color: '#94a3b8' }} />
                           <Bar dataKey="ประเภทที่ 1" stackId="a" fill="#10b981" barSize={45} />
                           <Bar dataKey="ประเภทที่ 2" stackId="a" fill="#f59e0b" />
                           <Bar dataKey="ประเภทที่ 3" stackId="a" fill="#3b82f6" radius={[10, 10, 0, 0]} />

@@ -28,6 +28,8 @@ interface RegistrationRow {
   program_id: string;
   program_name: string;
   evaluation_type: ScoringLevelType;
+  has_cat_pct: boolean;
+  is_yes_no: boolean;
   self_status: string | null;
   committee_status: string | null;
   has_committee_score: boolean;
@@ -62,7 +64,9 @@ const EvaluationPage = () => {
   });
 
   const renderScoreWithLevel = (
+    year: number,
     type: ScoringLevelType,
+    hasCatPct: boolean,
     score: number | null, max: number | null,
     scoreSp: number | null, maxSp: number | null,
     programId: string
@@ -72,18 +76,21 @@ const EvaluationPage = () => {
     const numMax = Number(max);
     if (isNaN(numScore) || isNaN(numMax) || numMax === 0) return <span className="text-muted-foreground">-</span>;
 
-    const pct = Math.round((numScore / numMax) * 100);
-    const pctSp = scoreSp && maxSp ? Math.round((scoreSp / maxSp) * 100) : null;
+    const pct = hasCatPct ? numScore : Math.round((numScore / numMax) * 100);
+    const pctSp = scoreSp && maxSp ? hasCatPct ? scoreSp : Math.round((scoreSp / maxSp) * 100) : null;
     const programLevels = allScoringLevels.filter((l: any) => l.programId === programId);
-    
+    const attempt = rows
+      .filter((e) => e.evaluation_type === type)
+      .sort((a: any, b: any) => a.year - b.year)
+      .findIndex((e: any)=> e.year === year) + 1;
     // Check if it's likely a yes/no program (if max score is same as count)
     // Actually we can just pass true if we want default badges for all programs with no levels defined
-    const level = findScoringLevelMatch(programLevels, type, pct, pctSp, programLevels.length === 0);
+    const level = findScoringLevelMatch(attempt, programLevels, type, pct, pctSp, programLevels.length === 0);
     
     return (
       <div className="flex flex-col items-center gap-1">
         <span className="text-sm font-bold">{pct}%</span>
-        {pctSp !== null && <span className="text-sm font-bold">{pctSp}%</span>}
+        {programLevels.some((l) => l.type === type) && pctSp !== null && <span className="text-sm font-bold">{pctSp}%</span>}
         {level && (
           <Badge 
             className="text-[10px] px-2 py-0 h-4 border-none whitespace-nowrap"
@@ -343,7 +350,9 @@ const EvaluationPage = () => {
                     <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5 flex flex-col items-center">
                       <p className="text-[10px] text-muted-foreground">คะแนนรวม</p>
                       {renderScoreWithLevel(
+                        (row as any).year,
                         row.evaluation_type,
+                        row.has_cat_pct,
                         row.self_total_score ?? null, row.self_max_score ?? row.total_max ?? null,
                         row.self_total_score_sp ?? null, row.self_max_score_sp ?? row.total_max_sp ?? null,
                         row.program_id
@@ -352,7 +361,9 @@ const EvaluationPage = () => {
                     <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5 flex flex-col items-center">
                       <p className="text-[10px] text-muted-foreground">กรรมการ</p>
                       {renderScoreWithLevel(
+                        (row as any).year,
                         row.evaluation_type,
+                        row.has_cat_pct,
                         row.committee_total_score ?? null, row.committee_max_score ?? row.total_max ?? null,
                         row.committee_total_score_sp ?? null, row.committee_max_score_sp ?? row.total_max_sp ?? null,
                         row.program_id
@@ -376,7 +387,11 @@ const EvaluationPage = () => {
                       </Button>
                     )}
                     {row.has_committee_score && row.evaluation_id && (() => {
-                      const canPrint = row.committee_result_is_pass !== false;
+                      const canPrint = row.committee_result_is_pass === null ?
+                        (row.is_yes_no && (row.has_committee_score
+                          ? row.committee_total_score === row.committee_max_score
+                          : row.self_total_score === row.self_max_score
+                        )) : row.committee_result_is_pass;
                       return (
                         <Button variant="outline" size="icon"
                           onClick={() => canPrint && window.open(`/certificate/print/${row.evaluation_id}`, "_blank")}
@@ -432,7 +447,9 @@ const EvaluationPage = () => {
                       <TableCell className="text-center">{getCommitteeBadge(row.self_status, row.has_committee_score)}</TableCell>
                       <TableCell className="text-center">
                         {renderScoreWithLevel(
+                          (row as any).year,
                           row.evaluation_type,
+                          row.has_cat_pct,
                           row.self_total_score ?? null, row.self_max_score ?? row.total_max ?? null,
                           row.self_total_score_sp ?? null, row.self_max_score_sp ?? row.total_max_sp ?? null,
                           row.program_id
@@ -440,7 +457,9 @@ const EvaluationPage = () => {
                       </TableCell>
                       <TableCell className="text-center">
                         {renderScoreWithLevel(
+                          (row as any).year,
                           row.evaluation_type,
+                          row.has_cat_pct,
                           row.committee_total_score ?? null, row.committee_max_score ?? row.total_max ?? null,
                           row.committee_total_score_sp ?? null, row.committee_max_score_sp ?? row.total_max_sp ?? null,
                           row.program_id
@@ -462,7 +481,11 @@ const EvaluationPage = () => {
                               : <Plus className="h-4 w-4 text-primary" />}
                           </Button>
                           {row.has_committee_score && row.evaluation_id && (() => {
-                            const canPrint = row.committee_result_is_pass !== false;
+                            const canPrint = row.committee_result_is_pass === null ?
+                              (row.is_yes_no && (row.has_committee_score
+                                ? row.committee_total_score === row.committee_max_score
+                                : row.self_total_score === row.self_max_score
+                              )) : row.committee_result_is_pass;
                             return (
                               <Button variant="ghost" size="icon"
                                 onClick={() => canPrint && window.open(`/certificate/print/${row.evaluation_id}`, "_blank")}
