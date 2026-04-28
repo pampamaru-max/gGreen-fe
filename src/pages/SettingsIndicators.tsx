@@ -527,7 +527,7 @@ function EditIndicatorDialog({
 
   const isDirty = useMemo(() => {
     if(!indicator) return false;
-    return name !== indicator.name || maxScore !== indicator.maxScore || description !== (indicator.description || "") || detail !== (indicator.detail || "") || notes !== (indicator.notes || "") || evidenceDescription !== (indicator.evidenceDescription || "") || JSON.stringify(scoringCriteria) !== JSON.stringify(indicator.scoringCriteria) || isCritical !== (indicator.isCritical || false);
+    return name !== indicator.name || maxScore !== indicator.maxScore || description !== indicator.description || detail !== indicator.detail || notes !== indicator.notes || evidenceDescription !== indicator.evidenceDescription || JSON.stringify(scoringCriteria) !== JSON.stringify(indicator.scoringCriteria) || isCritical !== indicator.isCritical;
   }, [name, maxScore, description, detail, notes, evidenceDescription, scoringCriteria, isCritical, indicator]);
 
   const handleSave = (closeDialog: boolean = true) => {
@@ -1049,12 +1049,12 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
     }
   }, [topics]);
 
-  useEffect(() => {
-    if(openEditIndDialog) {
-      const indTopics = indicators.filter((i)=>i.topicId === selectedIndicator?.topicId).sort((a,b)=> a.sortOrder - b.sortOrder);
-      if (indTopics.length > 0) setSelectedIndicator(indTopics[indTopics.length - 1]);
-    }
-  },[indicators])
+  // useEffect(() => {
+  //   if(openEditIndDialog) {
+  //     const indTopics = indicators.filter((i)=>i.topicId === selectedIndicator.topicId).sort((a,b)=> a.sortOrder - b.sortOrder);
+  //     if (indTopics.length > 0) setSelectedIndicator(indTopics[indTopics.length - 1]);
+  //   }
+  // },[indicators])
 
   const getNextTopicNum = (catId: number) => topics.filter((t) => t.categoryId === catId).length + 1;
 
