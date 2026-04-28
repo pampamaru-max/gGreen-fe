@@ -736,7 +736,7 @@ function IndicatorTreeNode({
             </div>
             <div className="flex items-center gap-1 opacity-0 group-hover/header:opacity-100 transition-opacity shrink-0">
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(ind)}><Pencil className="h-3.5 w-3.5" /></Button>
-              <AlertActionPopup action={() => onDelete(ind.id)} type="delete" title="ยืนยันลบ" description={`ต้องการลบ "${ind.name}" และข้อมูลภายในทั้งหมดหรือไม่?`}/>
+              <AlertActionPopup action={() => onDelete(ind.id)} type="delete" triggerClassName="h-7 w-7" title="ยืนยันลบ" description={`ต้องการลบ "${ind.name}" และข้อมูลภายในทั้งหมดหรือไม่?`}/>
             </div>
           </div>
 
@@ -847,7 +847,7 @@ function IndicatorTreeNode({
             }
           />
         )}
-        <AlertActionPopup action={() => onDelete(ind.id)} type="delete" title="ยืนยันลบ" description={`ลบตัวชี้วัด "${ind.name}" หรือไม่?`}/>
+        <AlertActionPopup action={() => onDelete(ind.id)} type="delete" triggerClassName="h-7 w-7" title="ยืนยันลบ" description={`ลบตัวชี้วัด "${ind.name}" หรือไม่?`}/>
       </div>
     </div>
   );
@@ -1533,7 +1533,7 @@ const SettingsIndicators = ({role = "admin"}: {role?: string}) => {
                                       )}
                                       <div className="flex gap-1 opacity-40 hover:opacity-100 transition-opacity">
                                         <EditTopicDialog topic={topic} onSave={(name, isCritical) => handleEditTopic(cat.id, topic.id, name, isCritical)} />
-                                        <AlertActionPopup action={() => handleDeleteTopic(cat.id, topic.id)} type="delete" title="ยืนยันลบ" description={`ลบ "${topic.name}" หรือไม่?`}/>
+                                        <AlertActionPopup action={() => handleDeleteTopic(cat.id, topic.id)} type="delete" triggerClassName="h-7 w-7" title="ยืนยันลบ" description={`ลบ "${topic.name}" หรือไม่?`}/>
                                       </div>
                                     </div>
 
