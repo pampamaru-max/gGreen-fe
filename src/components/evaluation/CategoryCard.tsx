@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { MAX_FILE_SIZE } from "@/helpers/constants";
+import { MAX_FILE_SIZE, MAX_FILE_SIZE_MB } from "@/helpers/constants";
 import { EvaluationStatus } from "@/helpers/enum";
 
 const categoryColors = [
@@ -180,7 +180,7 @@ function EvaluateeIndicatorDialog({
     const newFiles: UploadedFile[] = [];
     for (const file of Array.from(selectedFiles)) {
       if (file.size > MAX_FILE_SIZE) {
-        toast.error(`ไฟล์ ${file.name} ใหญ่เกิน 10MB`);
+        toast.error(`ไฟล์ ${file.name} ใหญ่เกิน ${MAX_FILE_SIZE_MB}MB`);
         continue;
       }
       try {

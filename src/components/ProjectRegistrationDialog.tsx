@@ -67,7 +67,7 @@ import apiClient from "@/lib/axios";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { AlertActionPopup } from "./AlertActionPopup";
-import { MAX_FILE_SIZE } from "@/helpers/constants";
+import { MAX_FILE_SIZE, MAX_FILE_SIZE_MB } from "@/helpers/constants";
 import { BackToTopButton } from "./BackToTopButton";
 
 interface DocumentTemplate {
@@ -107,8 +107,8 @@ const registrationSchema = z.object({
   subdistrict: z.string().trim().min(1, "กรุณาระบุตำบล/แขวง"),
   postal_code: z.string().trim().optional(),
   map_link: z.string().trim().optional(),
-  latitude: z.string().trim().optional(),
-  longitude: z.string().trim().optional(),
+  latitude: z.string().trim().min(1, "กรุณาระบุละติจูด"),
+  longitude: z.string().trim().min(1, "กรุณาระบุลองจิจูด"),
   contact_name: z.string().trim().min(1, "กรุณาระบุชื่อผู้ติดต่อ").max(100),
   contact_last_name: z.string().trim().optional(),
   contact_position: z.string().trim().optional(),
@@ -953,7 +953,7 @@ export default function ProjectRegistrationDialog({
                         name="latitude"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Latitude</FormLabel>
+                            <FormLabel>ละติจูด (Latitude) <span className="text-destructive">*</span></FormLabel>
                             <FormControl>
                               <Input
                                 placeholder="เช่น 13.7563"
@@ -972,7 +972,7 @@ export default function ProjectRegistrationDialog({
                         name="longitude"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Longitude</FormLabel>
+                            <FormLabel>ลองจิจูด (Longitude) <span className="text-destructive">*</span></FormLabel>
                             <FormControl>
                               <Input
                                 placeholder="เช่น 100.5018"
@@ -1131,7 +1131,7 @@ export default function ProjectRegistrationDialog({
                 <div className="space-y-1.5">
                   <p className="text-xs font-bold text-muted-foreground tracking-wider">
                     เอกสารการสมัคร
-                    <span className="text-destructive text-xs"> รองรับ PDF, Word, Excel, PowerPoint และรูปภาพ (ไม่เกิน 10MB)</span>
+                    <span className="text-destructive text-xs"> รองรับ PDF, Word, Excel, PowerPoint และรูปภาพ (ไม่เกิน {MAX_FILE_SIZE_MB}MB)</span>
                   </p>
                   <div className="rounded-xl border border-border/60 bg-muted/30 p-4 space-y-3">
                     {documentTemplates.map((tpl, idx) => {
@@ -1199,7 +1199,7 @@ export default function ProjectRegistrationDialog({
                                 onChange={(e) => {
                                   const file = e.target.files?.[0];
                                   if (file && file.size > MAX_FILE_SIZE) {
-                                    toast({title: `ไฟล์ ${file.name} ใหญ่เกิน 10MB`, variant: "destructive"});
+                                    toast({title: `ไฟล์ ${file.name} ใหญ่เกิน ${MAX_FILE_SIZE_MB}MB`, variant: "destructive"});
                                   } else if (file) {
                                     setPendingFiles((prev) => ({ ...prev, [tpl.id]: file }));
                                   }

@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Plus, Pencil, FileUp, ExternalLink, FileText, Trash2 } from "lucide-react";
 import { AlertActionPopup } from "@/components/AlertActionPopup";
-import { MAX_FILE_SIZE } from "@/helpers/constants";
+import { MAX_FILE_SIZE, MAX_FILE_SIZE_MB } from "@/helpers/constants";
 
 interface Program { id: string; name: string; }
 interface DocTemplate {
@@ -273,7 +273,7 @@ export default function SettingsDocuments() {
                     className="hidden"
                     onChange={(e) => {
                       if (e.target.files?.[0] && e.target.files[0].size > MAX_FILE_SIZE) {
-                        toast({ title: `ไฟล์ ${e.target.files[0].name} ใหญ่เกิน 10MB`, variant: "destructive" });
+                        toast({ title: `ไฟล์ ${e.target.files[0].name} ใหญ่เกิน ${MAX_FILE_SIZE_MB}MB`, variant: "destructive" });
                       } else if (e.target.files?.[0]) {
                         setFile(e.target.files[0]);
                       }

@@ -122,18 +122,18 @@ export default function ProgramDetailPage() {
 
           <TabsContent value="about" className="mt-3">
             <div className="rounded-2xl p-5" style={glassCard}>
-              <h2 className="text-sm font-bold mb-4 break-words" style={{ color: "var(--green-heading)" }}>เกี่ยวกับโครงการ {program.name}</h2>
+              <h2 className="font-bold mb-4 break-words" style={{ color: "var(--green-heading)" }}>เกี่ยวกับโครงการ {program.name}</h2>
               <AboutContentRenderer blocks={program.about} />
             </div>
           </TabsContent>
 
           <TabsContent value="guidelines" className="mt-3">
             <div className="rounded-2xl p-5" style={glassCard}>
-              <h2 className="text-sm font-bold mb-4" style={{ color: "var(--green-heading)" }}>แนวทางการดำเนินงาน</h2>
+              <h2 className="font-bold mb-4" style={{ color: "var(--green-heading)" }}>แนวทางการดำเนินงาน</h2>
               <ul className="space-y-4">
                 {program.guidelines.map((g, i) => (
                   <li key={i} className="space-y-1.5">
-                    <div className="flex items-start gap-3 text-sm font-medium text-foreground">
+                    <div className="flex items-start gap-3 font-medium text-foreground">
                       <span className="mt-1.5 h-2 w-2 rounded-full bg-accent shrink-0" />
                       <span>{g.title}</span>
                     </div>
@@ -155,14 +155,14 @@ export default function ProgramDetailPage() {
 
           <TabsContent value="reports" className="mt-3">
             <div className="rounded-2xl p-5" style={glassCard}>
-              <h2 className="text-sm font-bold mb-4" style={{ color: "var(--green-heading)" }}>รายงาน</h2>
+              <h2 className="font-bold mb-4" style={{ color: "var(--green-heading)" }}>รายงาน</h2>
               {program.reports.length === 0 ? (
-                <p className="text-sm text-muted-foreground">ยังไม่มีรายงาน</p>
+                <p className="text-muted-foreground">ยังไม่มีรายงาน</p>
               ) : (
                 <ul className="space-y-4">
                   {program.reports.map((r, i) => (
                     <li key={i} className="space-y-1.5">
-                      <div className="flex items-start gap-3 text-sm font-medium text-foreground">
+                      <div className="flex items-start gap-3 font-medium text-foreground">
                         <span className="mt-1.5 h-2 w-2 rounded-full bg-accent shrink-0" />
                         <span>{r.title}</span>
                       </div>

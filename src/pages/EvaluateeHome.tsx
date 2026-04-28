@@ -19,6 +19,7 @@ import {
   FilePlus,
   RefreshCw,
   TrendingUp,
+  BarChart2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,8 +37,9 @@ import apiClient from "@/lib/axios";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertActionPopup } from "@/components/AlertActionPopup";
 import { ScoringLevelType } from "./SettingsScoringCriteria";
-import { findScoringLevelMatch, labelScoreType } from "@/helpers/functions";
+import { findScoringLevelMatch } from "@/helpers/functions";
 import { EvaluationStatus } from "@/helpers/enum";
+import { ScoringLevel } from "./ProjectRegistration";
 
 interface Registration {
   id: string;
@@ -55,9 +57,9 @@ interface Registration {
 }
 
 const EVAL_TYPE_CONFIG: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
-  new:     { label: "ประเมินใหม่",             icon: <FilePlus   className="h-3 w-3" />, className: "bg-blue-50 text-blue-700 border-blue-200"     },
-  renew:   { label: "ต่ออายุใบประกาศนียบัตร", icon: <RefreshCw  className="h-3 w-3" />, className: "bg-amber-50 text-amber-700 border-amber-200"   },
-  upgrade: { label: "ยกระดับคะแนน",           icon: <TrendingUp className="h-3 w-3" />, className: "bg-purple-50 text-purple-700 border-purple-200" },
+  new:     { label: "ประเมินใหม่", icon: <FilePlus   className="h-3 w-3" />, className: "bg-blue-50 text-blue-700 border-blue-200" },
+  renew:   { label: "ต่ออายุ", icon: <RefreshCw  className="h-3 w-3" />, className: "bg-amber-50 text-amber-700 border-amber-200" },
+  upgrade: { label: "ยกระดับ", icon: <TrendingUp className="h-3 w-3" />, className: "bg-purple-50 text-purple-700 border-purple-200" },
 };
 
 const statusMap: Record<
@@ -163,32 +165,108 @@ export default function EvaluateeHome() {
     hasCatPct: boolean,
     score: number | null, max: number | null,
     scoreSp: number | null, maxSp: number | null,
-    levels: any[]
+    levels: any[],
+    isColumnSelf: boolean,
+    isMobile?: boolean,
   ) => {
-    if (score === null || max === null || max === 0) return <span className="text-muted-foreground">-</span>;
-    const numScore = Number(score);
-    const numMax = Number(max);
-    if (isNaN(numScore) || isNaN(numMax) || numMax === 0) return <span className="text-muted-foreground">-</span>;
-    
-    const pct = hasCatPct ? numScore : Math.round((numScore / numMax) * 100);
+    const pct = hasCatPct ? score : Math.round((score / max) * 100);
     const pctSp = scoreSp && maxSp ? hasCatPct ? scoreSp : Math.round((scoreSp / maxSp) * 100) : null;
     // Check if it's likely a yes/no program (if max score is same as count)
     // Actually we can just pass true if we want default badges for all programs with no levels defined
-    const level = findScoringLevelMatch(attempt, levels, type, pct, pctSp, levels.length === 0);
-    
+    const { normalLevel, specialLevel } = findScoringLevelMatch(attempt, levels, type, pct, pctSp, true, levels.length === 0) as { normalLevel: ScoringLevel, specialLevel: ScoringLevel };
+    const hasScoreSp = levels.some((l) => l.type === type) && pctSp !== null;
+    const finalLevel = hasScoreSp ? (specialLevel ?? normalLevel) : normalLevel;
+
+    if (isMobile) {
+      return (
+        <div className="flex flex-col items-center gap-1">
+          <span>
+            {hasScoreSp && <span className="mr-2 text-start text-xs font-normal text-amber-700">หมวดหลัก: </span>}
+            <span className="text-sm font-bold">{pct}%</span>
+          </span>
+          {hasScoreSp && 
+            <span>
+              <span className="mr-2 text-start text-xs font-normal text-amber-700">หมวดเพิ่มเติม: </span>
+              <span className="text-sm font-bold">{pctSp}%</span>
+            </span>
+          }
+          {finalLevel && (
+            <Badge 
+              className="text-[10px] px-2 py-0 h-4 border-none whitespace-nowrap"
+              style={{ backgroundColor: finalLevel.color, color: '#fff' }}
+            >
+              {finalLevel.name}
+            </Badge>
+          )}
+        </div>
+      );
+    }
+
     return (
-      <div className="flex flex-col items-center gap-1">
-        <span className="text-sm font-bold">{pct}%</span>
-        {levels.some((l) => l.type === type) && pctSp !== null && <span className="text-sm font-bold">{pctSp}%</span>}
-        {level && (
-          <Badge 
-            className="text-[10px] px-2 py-0 h-4 border-none whitespace-nowrap"
-            style={{ backgroundColor: level.color, color: '#fff' }}
-          >
-            {level.name}
-          </Badge>
-        )}
-      </div>
+      <>
+        <TableCell className={`text-center ${isColumnSelf && 'border-l-2 border-gray-400'}`}>
+          {!normalLevel
+            ? <span className="text-muted-foreground">-</span> :
+            <div className="flex flex-col flex-1 gap-1 items-center">
+              <Badge 
+                className={`px-4 justify-center text-sm border-none whitespace-nowrap text-white
+                  ${normalLevel.isPass ? 'bg-gradient-to-br from-emerald-400 to-emerald-500 border-emerald-300/40'
+                  : 'bg-gradient-to-br from-rose-400 to-rose-500 border-rose-300/40'}
+                `}
+              >
+                {pct}%
+              </Badge>
+              <div className="h-1.5 w-full rounded-full bg-muted/60 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-500
+                    ${normalLevel.isPass ? 'bg-gradient-to-br from-emerald-400 to-emerald-500 border-emerald-300/40'
+                    : 'bg-gradient-to-br from-rose-400 to-rose-500 border-rose-300/40'}
+                  `}
+                  style={{ width: `${pct ?? 0}%`}} />
+              </div>
+              <span className={`text-[10px] font-medium ${normalLevel.isPass ? 'text-emerald-700' : 'text-rose-600'}`}>
+                {normalLevel.isPass ? 'ผ่าน' : 'ไม่ผ่าน'}
+              </span>
+            </div>
+          }
+        </TableCell>
+        <TableCell className="text-center">
+          {!hasScoreSp ? <span className="text-muted-foreground">-</span> :
+            <div className="flex flex-col flex-1 gap-1 items-center">
+              <Badge 
+                className={`px-4 justify-center text-sm border-none whitespace-nowrap text-white
+                  ${specialLevel?.isPass ? 'bg-gradient-to-br from-emerald-400 to-emerald-500 border-emerald-300/40'
+                  : 'bg-gradient-to-br from-rose-400 to-rose-500 border-rose-300/40'}
+                `}
+              >
+                {pctSp}%
+              </Badge>
+              <div className="h-1.5 w-full rounded-full bg-muted/60 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-500
+                    ${specialLevel?.isPass ? 'bg-gradient-to-br from-emerald-400 to-emerald-500 border-emerald-300/40'
+                    : 'bg-gradient-to-br from-rose-400 to-rose-500 border-rose-300/40'}
+                  `}
+                  style={{ width: `${pct ?? 0}%`}} />
+              </div>
+              <span className={`text-[10px] font-medium ${specialLevel?.isPass ? 'text-emerald-700' : 'text-rose-600'}`}>
+                {specialLevel?.isPass ? 'ผ่าน' : 'ไม่ผ่าน'}
+              </span>
+            </div>
+          }
+        </TableCell>
+        <TableCell className={`text-center ${isColumnSelf ? 'border-r-2' : 'border-x-2'} border-gray-400`}>
+          {finalLevel
+          ? <Badge 
+              className={`text-[12px] ${isColumnSelf ? 'text-muted-foreground border-muted-foreground' : 'border-none text-white'}`}
+              style={{ backgroundColor: isColumnSelf ? 'inherit' : finalLevel.color }}
+            >
+              {finalLevel.name}
+            </Badge>
+            : <span className="text-muted-foreground">-</span>
+          }
+        </TableCell>
+      </>
     );
   };
 
@@ -288,10 +366,10 @@ export default function EvaluateeHome() {
   > = {
     completed: {
       label: "เสร็จสิ้น",
-      className: "bg-emerald-600 text-white",
+      className: "bg-emerald-600 hover:bg-emerald-700 text-white",
     },
     submitted: { label: "ส่งแล้ว", className: "bg-blue-600 text-white" },
-    draft: { label: "ร่าง", className: "bg-amber-500 text-white" },
+    draft: { label: "ร่าง", className: "bg-gray-300 text-muted-foreground hover:bg-gray-500 hover:text-white border-muted-foreground" },
     revision: { label: "ต้องแก้ไข", className: "bg-rose-500 text-white" },
   };
 
@@ -362,8 +440,8 @@ export default function EvaluateeHome() {
 
     if (hasScore)
       return (
-        <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white border-none px-3">
-          ประเมินแล้ว
+        <Badge className="bg-gray-300 text-muted-foreground hover:bg-gray-500 hover:text-white border-muted-foreground px-3">
+          ร่าง
         </Badge>
       );
 
@@ -422,9 +500,9 @@ export default function EvaluateeHome() {
               <h2 className="text-sm font-bold truncate" style={{ color: "var(--green-heading)" }}>
                 {reg?.organizationName ?? user?.name ?? "-"}
               </h2>
-              <Badge className="bg-primary hover:bg-primary/90 text-primary-foreground border-none px-2 py-0.5 rounded-full text-[0.625rem] font-bold shrink-0">
+              {/* <Badge className="bg-primary hover:bg-primary/90 text-primary-foreground border-none px-2 py-0.5 rounded-full text-[0.625rem] font-bold shrink-0">
                 {regStatus.label}
-              </Badge>
+              </Badge> */}
             </div>
             <p className="text-[0.625rem] text-muted-foreground uppercase tracking-widest">
               {reg?.organizationType || "General Organization"}
@@ -442,12 +520,12 @@ export default function EvaluateeHome() {
         </div>
 
         {/* Info tiles */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 pt-3 border-t border-border/40">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3 pt-3 border-t border-border/40">
           {[
             { icon: <ClipboardCheck className="h-3.5 w-3.5 text-primary" />, label: "โครงการ", value: reg?.programName ?? programId },
             { icon: <MapPin className="h-3.5 w-3.5 text-primary" />, label: "จังหวัด", value: (() => { const pv = reg?.province ?? user?.province; const found = provinces.find((p: any) => String(p.code) === pv || p.name === pv); return found ? found.name : (pv ?? "-"); })() },
             { icon: <User className="h-3.5 w-3.5 text-primary" />, label: "ผู้ติดต่อ", value: reg?.contactName ?? user?.name ?? "-" },
-            { icon: <CalendarDays className="h-3.5 w-3.5 text-primary" />, label: "วันที่เข้าร่วม", value: reg ? new Date(reg.createdAt).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" }) : new Date(user?.createdAt ?? Date.now()).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" }) },
+            // { icon: <CalendarDays className="h-3.5 w-3.5 text-primary" />, label: "วันที่เข้าร่วม", value: reg ? new Date(reg.createdAt).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" }) : new Date(user?.createdAt ?? Date.now()).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" }) },
           ].map(({ icon, label, value }) => (
             <div key={label} className="flex items-center gap-2 bg-muted/30 rounded-xl px-3 py-2 min-w-0">
               {icon}
@@ -549,11 +627,11 @@ export default function EvaluateeHome() {
                     .sort((a, b) => a.year - b.year)
                     .findIndex((e)=> e.year === item.year) + 1;
                   const hasCommittee = !!item.committee_total_score || item.has_committee_score;
-                  const canPrint = item.committee_result_is_pass !== false ||
+                  const canPrint = item.evaluation_status === EvaluationStatus.completed && (item.committee_result_is_pass !== false ||
                     (item.is_yes_no && (item.has_committee_score
                       ? item.committee_total_score === item.committee_max_score
                       : item.total_score === item.self_max_score
-                    ));
+                    )));
                   return (
                     <div key={item.id} className="rounded-xl border border-border/50 bg-background/60 p-3 space-y-2.5">
                       {/* Row 1: program + year + type */}
@@ -585,14 +663,16 @@ export default function EvaluateeHome() {
                       {/* Row 3: scores */}
                       <div className="flex items-center gap-3">
                         <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5 flex flex-col items-center">
-                          <p className="text-[10px] text-muted-foreground">คะแนนรวม</p>
+                          <p className="text-[10px] text-muted-foreground">คะแนนตนเอง</p>
                           {renderScoreWithLevel(
                             attempt,
                             typeKey,
                             item.has_cat_pct,
                             item.total_score, item.self_max_score,
                             item.total_score_sp, item.self_max_score_sp,
-                            scoringLevels
+                            scoringLevels,
+                            true,
+                            true
                           )}
                         </div>
                         <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5 flex flex-col items-center">
@@ -603,7 +683,9 @@ export default function EvaluateeHome() {
                             item.has_cat_pct,
                             item.committee_total_score, item.committee_max_score,
                             item.committee_total_score_sp, item.committee_max_score_sp,
-                            scoringLevels
+                            scoringLevels,
+                            false,
+                            true
                           )}
                         </div>
                       </div>
@@ -652,13 +734,18 @@ export default function EvaluateeHome() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/30 hover:bg-muted/30 border-b border-border/50">
-                      <TableHead className="text-center min-w-[80px] text-slate-400 font-bold uppercase text-[0.625rem] tracking-[0.1em]">ปี</TableHead>
-                      <TableHead className="text-center min-w-[130px] text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">ประเภทเอกสาร</TableHead>
-                      <TableHead className="text-center min-w-[140px] text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">สถานะประเมินตนเอง</TableHead>
-                      <TableHead className="text-center min-w-[100px] text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">คะแนนรวม</TableHead>
-                      <TableHead className="text-center min-w-[140px] text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">สถานะกรรมการ</TableHead>
-                      <TableHead className="text-center min-w-[100px] text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">กรรมการ</TableHead>
-                      <TableHead className="text-center w-28 text-muted-foreground font-bold uppercase text-[0.625rem] tracking-[0.1em]">จัดการ</TableHead>
+                      <TableHead className="text-center text-slate-400">ปี</TableHead>
+                      <TableHead className="text-center text-muted-foreground">ประเภทเอกสาร</TableHead>
+                      <TableHead className="text-center text-muted-foreground">สถานะประเมินตนเอง</TableHead>
+                      <TableHead className="text-center text-muted-foreground border-l-2 border-gray-400">คะแนนตนเอง<br/>(หมวดหลัก)</TableHead>
+                      <TableHead className="text-center text-muted-foreground">คะแนนตนเอง<br/>(หมวดเพิ่มเติม)</TableHead>
+                      <TableHead className="text-center text-muted-foreground border-r-2 border-gray-400">ระดับเกณฑ์<br/>(ตนเอง)</TableHead>
+                      <TableHead className="text-center text-muted-foreground border-l-2 border-gray-400">สถานะกรรมการ</TableHead>
+                      <TableHead className="text-center text-muted-foreground">คะแนนกรรมการ<br/>(หมวดหลัก)</TableHead>
+                      <TableHead className="text-center text-muted-foreground border-r-2 border-gray-400">คะแนนกรรมการ<br/>(หมวดเพิ่มเติม)</TableHead>
+                      <TableHead className="text-center text-muted-foreground border-x-2 border-gray-400">ระดับเกณฑ์<br/>(ที่ได้)</TableHead>
+                      <TableHead className="text-center text-muted-foreground">สรุปผล</TableHead>
+                      <TableHead className="text-center w-28 text-muted-foreground">จัดการ</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -673,11 +760,11 @@ export default function EvaluateeHome() {
                         .filter((e) => e.evaluation_type === typeKey && e.program_id === item.program_id)
                         .sort((a, b) => a.year - b.year)
                         .findIndex((e)=> e.year === item.year) + 1;
-                      const canPrintDesktop = item.committee_result_is_pass === null ?
+                      const canPrintDesktop = item.evaluation_status === EvaluationStatus.completed && (item.committee_result_is_pass === null ?
                         (item.is_yes_no && (item.has_committee_score
                           ? item.committee_total_score === item.committee_max_score
                           : item.self_total_score === item.self_max_score
-                        )) : item.committee_result_is_pass;
+                        )) : item.committee_result_is_pass);
                       return (
                         <TableRow key={item.id} className="hover:bg-muted/20 transition-colors border-b border-border/30 last:border-0 group">
                           <TableCell className="text-center font-medium">{item.year ? item.year + 543 : "-"}</TableCell>
@@ -689,27 +776,38 @@ export default function EvaluateeHome() {
                             ) : <span className="text-muted-foreground text-xs">{typeKey}</span>}
                           </TableCell>
                           <TableCell className="text-center">{getStatusBadge(item.evaluation_status)}</TableCell>
-                          <TableCell className="text-center font-bold text-foreground">
-                            {renderScoreWithLevel(
+                          {renderScoreWithLevel(
                               attempt,
                               typeKey,
                               item.has_cat_pct,
                               item.total_score, item.self_max_score,
                               item.total_score_sp, item.self_max_score_sp,
-                              scoringLevels
+                              scoringLevels,
+                              true
                             )}
-                          </TableCell>
                           <TableCell className="text-center">
                             {getCommitteeBadge(item.evaluation_status, !!item.committee_total_score || item.has_committee_score)}
                           </TableCell>
-                          <TableCell className="text-center font-bold text-foreground">
-                            {renderScoreWithLevel(
-                              attempt,
-                              typeKey,
-                              item.has_cat_pct,
-                              item.committee_total_score, item.committee_max_score,
-                              item.committee_total_score_sp, item.committee_max_score_sp,
-                              scoringLevels
+                          {renderScoreWithLevel(
+                            attempt,
+                            typeKey,
+                            item.has_cat_pct,
+                            item.committee_total_score, item.committee_max_score,
+                            item.committee_total_score_sp, item.committee_max_score_sp,
+                            scoringLevels,
+                            false
+                          )}
+                          <TableCell className="text-center">
+                            {item.has_committee_score && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-green-600 hover:text-white"
+                                onClick={() => navigate(`/evaluation/${programId}/summary?evaluationId=${item.evaluation_id}`)}
+                                title="ดูสรุปผล"
+                              >
+                                <BarChart2 className="h-4 w-4" />
+                              </Button>
                             )}
                           </TableCell>
                           <TableCell className="text-center">

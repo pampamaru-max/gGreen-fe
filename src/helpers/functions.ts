@@ -33,9 +33,9 @@ export const isRenewType  = (t?: string) => t === "score_renew" || t === "yes_no
 
 export const labelScoreType = (categories: any[], type: string): string => {
   const selectType = (val: string) => {
-    return type === 'new' ? isNewType(val) : type === 'upgrade' ? isUpgradType(val) : isRenewType(val);
+    return type === ScoringLevelType.new ? isNewType(val) : type === ScoringLevelType.upgrade ? isUpgradType(val) : isRenewType(val);
   }
-  const filteredIndexes = categories
+  const filteredIndexes = categories.filter(c => c.scoreType.endsWith('_new') || c.scoreType.endsWith(type === ScoringLevelType.upgrade ? '_upgrad' : '_renew'))
     .map((cat, index) => (selectType(cat.scoreType) ? index + 1 : null))
     .filter((i) => i !== null) as number[];
   if (filteredIndexes.length === 0) return '';
@@ -73,12 +73,13 @@ export const findScoringLevelMatch = (
   type: ScoringLevelType | string,
   normalPct: number,
   specialPct: number,
+  isBoth: boolean,
   isYesNo?: boolean
-): ScoringLevel => {
+): ScoringLevel | { normalLevel: ScoringLevel, specialLevel?: ScoringLevel | null } => {
   if (scoringLevels.length === 0) {
     if (isYesNo) {
       const isPass = normalPct === 100;
-      return {
+      const level = {
         id: 0,
         name: isPass ? "สอดคล้อง" : "ไม่สอดคล้อง",
         minScore: isPass ? 100 : 0,
@@ -91,7 +92,8 @@ export const findScoringLevelMatch = (
         isActive: true,
         isPass: isPass,
         programId: null,
-      } as ScoringLevel;
+      }
+      return isBoth ? { normalLevel: level } : level;
     }
     return null;
   }
@@ -100,7 +102,7 @@ export const findScoringLevelMatch = (
   
   const normalLevel = getScoringLevel(normalLevels, ScoringLevelType.new, normalPct);
   if (!normalLevel) return null;
-  if (normalLevel.maxScore != 100 || !specialLevels.length) return normalLevel;
+  if (normalLevel.maxScore != 100 || !specialLevels.length) return isBoth ? { normalLevel } : normalLevel;
   const specialLevel = getScoringLevel(scoringLevels, type, specialPct, attempt);
-  return specialLevel ?? normalLevel;
+  return  isBoth ? { normalLevel, specialLevel } : (specialLevel ?? normalLevel);
 }

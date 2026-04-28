@@ -20,9 +20,9 @@ import { findScoringLevelMatch, labelScoreType, queryArray } from "@/helpers/fun
 import { EvaluationStatus } from "@/helpers/enum";
 
 const EVAL_TYPE_CONFIG: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
-  new:     { label: "ประเมินใหม่",             icon: <FilePlus   className="h-3 w-3" />, className: "bg-blue-50 text-blue-700 border-blue-200"     },
-  renew:   { label: "ต่ออายุใบประกาศนียบัตร", icon: <RefreshCw  className="h-3 w-3" />, className: "bg-amber-50 text-amber-700 border-amber-200"   },
-  upgrade: { label: "ยกระดับคะแนน",           icon: <TrendingUp className="h-3 w-3" />, className: "bg-purple-50 text-purple-700 border-purple-200" },
+  new:     { label: "ประเมินใหม่", icon: <FilePlus   className="h-3 w-3" />, className: "bg-blue-50 text-blue-700 border-blue-200" },
+  renew:   { label: "ต่ออายุใบประกาศนียบัตร", icon: <RefreshCw  className="h-3 w-3" />, className: "bg-amber-50 text-amber-700 border-amber-200" },
+  upgrade: { label: "ยกระดับคะแนน", icon: <TrendingUp className="h-3 w-3" />, className: "bg-purple-50 text-purple-700 border-purple-200" },
 };
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = { Trophy, Medal, Award, Star };
@@ -356,12 +356,12 @@ const EvaluationByProgramPage = () => {
   }, [grandSelfTotalSp, displaySelfMaxSp]);
 
   const activeLevel = useMemo(() => {
-    return findScoringLevelMatch(attemptTypeCount, scoringLevels, evaluationType || ScoringLevelType.new, selfPct, selfPctSp, isYesNoProgram);
+    return findScoringLevelMatch(attemptTypeCount, scoringLevels, evaluationType || ScoringLevelType.new, selfPct, selfPctSp, false, isYesNoProgram) as ScoringLevel;
   }, [scoringLevels, evaluationType, selfPct, selfPctSp, isYesNoProgram]);
 
   const committeeActiveLevel = useMemo(() => {
     if (role === "user") return null;
-    const matchLevel = findScoringLevelMatch(attemptTypeCount, scoringLevels, evaluationType || ScoringLevelType.new, displayCommitteePct, displayCommitteePctSp, isYesNoProgram);
+    const matchLevel = findScoringLevelMatch(attemptTypeCount, scoringLevels, evaluationType || ScoringLevelType.new, displayCommitteePct, displayCommitteePctSp, false, isYesNoProgram) as ScoringLevel;
     setCanPrint(matchLevel ? matchLevel.isPass : false);
     return matchLevel;
   }, [scoringLevels, evaluationType, displayCommitteePct, displayCommitteePctSp, isYesNoProgram, role]);
