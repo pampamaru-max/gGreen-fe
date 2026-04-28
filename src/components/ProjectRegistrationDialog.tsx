@@ -65,6 +65,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import apiClient from "@/lib/axios";
+import { downloadFileViaApi } from "@/lib/download";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { AlertActionPopup } from "./AlertActionPopup";
@@ -295,9 +296,11 @@ export default function ProjectRegistrationDialog({
     }, 500);
   };
 
-  const getDownloadUrl = (id: string, fileName: string | null) => {
-    const base = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5001/api/").replace(/\/$/, "");
-    return `${base}/document-templates/${id}/download/${encodeURIComponent(fileName ?? "")}`;
+  const handleDownloadTemplate = (id: string, fileName: string | null) => {
+    downloadFileViaApi(
+      `document-templates/${id}/download/${encodeURIComponent(fileName ?? "")}`,
+      fileName ?? "document"
+    );
   };
 
   const formatPhoneNumber = (value: string) => {
@@ -1166,15 +1169,13 @@ export default function ProjectRegistrationDialog({
                               )}
                             </div>
                             {tpl.sampleFileUrl && (
-                              <a
-                                href={getDownloadUrl(tpl.id, tpl.sampleFileName)}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                              <button
+                                onClick={() => handleDownloadTemplate(tpl.id, tpl.sampleFileName)}
                                 className="text-xs text-primary hover:underline flex items-center gap-1 shrink-0"
                               >
                                 <Download className="h-3 w-3" />
                                 ตัวอย่าง
-                              </a>
+                              </button>
                             )}
                           </div>
                           {pendingFile ? (

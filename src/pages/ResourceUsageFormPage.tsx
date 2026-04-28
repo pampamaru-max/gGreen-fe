@@ -13,6 +13,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertActionPopup } from "@/components/AlertActionPopup";
 import apiClient from "@/lib/axios";
+import { xlsxDownload } from "@/lib/download";
 import { toast } from "sonner";
 import {
   ArrowLeft, Download, Trash2, CheckCircle2, Loader2, Dices,
@@ -754,7 +755,7 @@ export default function ResourceUsageFormPage() {
     sr(ws5, 23, 0, 23, 0, TOT_L); sr(ws5, 23, 1, 23, NC5 - 1, TOT);
     XLSX.utils.book_append_sheet(wb, ws5, '5-สรุปการปลดปล่อย');
 
-    XLSX.writeFile(wb, `รายงาน_GHG_Green Office_${thYear}.xlsx`);
+    xlsxDownload(wb, `รายงาน_GHG_Green Office_${thYear}.xlsx`);
   };
 
   if (loading) return <PageLoading />;

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import apiClient from "@/lib/axios";
+import { downloadFileViaApi } from "@/lib/download";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -144,9 +145,11 @@ export default function SettingsDocuments() {
 
   const programName = useMemo(() => programs.find((p) => p.id === selectedProgram)?.name ?? "", [programs, selectedProgram]);
 
-  const getDownloadUrl = (id: string, fileName: string | null) => {
-    const base = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5000/api/").replace(/\/$/, "");
-    return `${base}/document-templates/${id}/download/${encodeURIComponent(fileName ?? "")}`;
+  const handleDownloadTemplate = (id: string, fileName: string | null) => {
+    downloadFileViaApi(
+      `document-templates/${id}/download/${encodeURIComponent(fileName ?? "")}`,
+      fileName ?? "document"
+    );
   };
 
   return (
@@ -210,10 +213,10 @@ export default function SettingsDocuments() {
                       <TableCell className="font-medium">{doc.name}</TableCell>
                       <TableCell>
                         {doc.sampleFileUrl ? (
-                          <a href={getDownloadUrl(doc.id, doc.sampleFileName)} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1 text-sm">
+                          <button onClick={() => handleDownloadTemplate(doc.id, doc.sampleFileName)} className="text-primary hover:underline inline-flex items-center gap-1 text-sm">
                             <ExternalLink className="h-3.5 w-3.5" />
                             {doc.sampleFileName || "ดูตัวอย่าง"}
-                          </a>
+                          </button>
                         ) : (
                           <span className="text-muted-foreground text-sm">—</span>
                         )}

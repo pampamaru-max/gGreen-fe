@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import apiClient from "@/lib/axios";
+import { xlsxDownload } from "@/lib/download";
 import natureBg from "@/assets/login2.jpg";
 
 const ReportParticipants = () => {
@@ -97,7 +98,7 @@ const ReportParticipants = () => {
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "ผู้เข้าร่วมโครงการ");
-    XLSX.writeFile(wb, "participants_report.xlsx");
+    xlsxDownload(wb, "participants_report.xlsx");
   };
 
   return (
