@@ -5,6 +5,7 @@ import {
   Clock, FileText, AlertCircle, XCircle, RotateCcw,
   FilePlus, RefreshCw, TrendingUp,
   Trophy, Medal, Award, Star, Save,
+  Printer,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { ScoringLevelType } from "./SettingsScoringCriteria";
 import { findScoringLevelMatch, isNewType, isRenewType, isUpgradType, labelScoreType, queryArray } from "@/helpers/functions";
+import { EvaluationStatus } from "@/helpers/enum";
 
 const EVAL_TYPE_CONFIG: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
   new:     { label: "ประเมินใหม่",             icon: <FilePlus   className="h-3 w-3" />, className: "bg-blue-50 text-blue-700 border-blue-200"     },
@@ -102,6 +104,7 @@ export default function ProjectRegistration() {
   const [evaluationId, setEvaluationId]     = useState<string | null>(null);
   const [evaluationType, setEvaluationType] = useState<string>("new");
   const [year, setYear]                     = useState<number>(new Date().getFullYear());
+  const [attemptTypeCount, setAttemptTypeCount] = useState<number | null>(null);
   const [committeeScores, setCommitteeScores] = useState<Record<string, number>>({});
   const [committeeComments, setCommitteeComments] = useState<Record<string, string>>({});
   const [submitting, setSubmitting]         = useState(false);
@@ -116,6 +119,7 @@ export default function ProjectRegistration() {
   const [copyHistoryEvals, setCopyHistoryEvals] = useState<Array<{ evaluationId: string; year: number; status: string; evaluationType: string }>>([]);
   const [copyHistoryLoaded, setCopyHistoryLoaded] = useState(false);
   const [copyDropdownOpen, setCopyDropdownOpen] = useState(false);
+  const [canPrint, setCanPrint] = useState(false);
   const navigate = useNavigate();
 
   const handleCategoryClick = useCallback((categoryId: string | number) => {
@@ -207,7 +211,7 @@ export default function ProjectRegistration() {
           });
           if (newEval?.id) {
             setEvaluationId(newEval.id);
-            setEvaluationStatus("draft");
+            setEvaluationStatus(EvaluationStatus.draft);
             navigate(`/register/evaluate?type=${urlEvalType}&year=${selectedYear}&id=${newEval.id}`, { replace: true });
           }
           return;
@@ -222,13 +226,14 @@ export default function ProjectRegistration() {
 
         const evalData = evalRes.data;
         setYear(evalData.year);
+        setAttemptTypeCount(evalData.attempt);
         const levRes = await apiClient.get(`scoring-levels?programId=${programId}&${queryArray('type', Array.from(new Set([evalData.evaluationType, ScoringLevelType.new])))}`).catch(() => ({ data: [] }));
 
         // ประมวลผล form structure
         const formData = formRes.data;
         const prog = formData?.program;
         const cats: EvalCategory[] = (formData?.categories ?? []).map((c: any) => ({
-          id: c.id, name: c.name, maxScore: c.maxScore,
+          id: c.id, name: c.name, maxScore: c.maxScore, maxScorePct: c.maxScorePct,
           scoreType: c.scoreType ?? "score", upgradeMode: c.upgradeMode ?? null, renewMode: c.renewMode ?? null,
           topics: (c.topics ?? []).map((t: any) => ({
             id: t.id, name: t.name,
@@ -324,7 +329,7 @@ export default function ProjectRegistration() {
 
   // ── Autosave dirty indicators every 30s ───────────────────────────────────
   useEffect(() => {
-    const readOnly = evaluationStatus === "submitted" || evaluationStatus === "completed";
+    const readOnly = evaluationStatus === EvaluationStatus.submitted || evaluationStatus === EvaluationStatus.completed;
     if (readOnly || !evaluationId || !programId) return;
     const interval = setInterval(async () => {
       const dirty = Array.from(dirtyIndicatorIds);
@@ -355,7 +360,7 @@ export default function ProjectRegistration() {
         description: "ทีมงานจะตรวจสอบและแจ้งผลให้ทราบในภายหลัง",
         duration: 5000,
       });
-      setEvaluationStatus("submitted");
+      setEvaluationStatus(EvaluationStatus.submitted);
       navigate("/register");
     } catch (err: any) {
       toast.error(err?.response?.data?.message ?? "เกิดข้อผิดพลาดในการส่งแบบประเมิน");
@@ -405,7 +410,7 @@ export default function ProjectRegistration() {
       }));
       return {
         id: cat.id, name: cat.name, score: totalScore,
-        maxScore: cat.maxScore, totalPossible: totalMax, index: idx,
+        maxScore: cat.maxScore, maxScorePct: cat.maxScorePct, totalPossible: totalMax, index: idx,
         scoreType: cat.scoreType,
         ...(isYesNo ? { passCount, totalIndicators } : {}),
       };
@@ -432,7 +437,7 @@ export default function ProjectRegistration() {
       }));
       return {
         id: cat.id, name: cat.name, score: totalScore,
-        maxScore: cat.maxScore, totalPossible: totalMax,
+        maxScore: cat.maxScore, maxScorePct: cat.maxScorePct, totalPossible: totalMax,
         scoreType: cat.scoreType,
         ...(isYesNo ? { passCount, totalIndicators } : {}),
       };
@@ -464,7 +469,10 @@ export default function ProjectRegistration() {
   const displayPct      = displayMax > 0 
     ? (isYesNoProgram 
         ? (displayTotal === displayMax ? 100 : Math.floor((displayTotal / displayMax) * 100))
-        : Math.round((displayTotal / displayMax) * 100)) 
+        : summaryData?.some((c)=> c.scoreType === 'score_new' && c.maxScorePct)
+          ? summaryData.reduce((s, c) => c.scoreType === 'score_new' ? s + Math.round((c.score * c.maxScorePct) / c.maxScore) : s, 0)
+          : Math.round((displayTotal / displayMax) * 100)
+    )
     : 0;
   const displayUnit     = isYesNoProgram ? "ผ่าน" : "";
   const grandCommitteeTotal = committeeSummaryData
@@ -479,28 +487,39 @@ export default function ProjectRegistration() {
   const displayCommitteeMax   = isYesNoProgram ? grandPassTotal : grandMax;
 
   const grandTotalSp = summaryData.reduce((s, c) => c.scoreType !== 'score_new' ? (s + c.score) : s, 0);
-  const grandMaxSP = summaryData.reduce((s, c) => c.scoreType !== 'score_new' ? (s + c.totalPossible) : s, 0);
-  const displayPctSp      = grandMaxSP > 0 ? Math.round((grandTotalSp / grandMaxSP) * 100) : 0;
-  const grandCommitteeTotalSp = committeeSummaryData? committeeSummaryData.reduce((s, c) => c.scoreType !== 'score_new' ? (s + c.totalPossible) : s, 0) : undefined;
+  const grandCommitteeTotalSp = committeeSummaryData ? committeeSummaryData.reduce((s, c) => c.scoreType !== 'score_new' ? (s + c.score) : s, 0) : undefined;
+  const grandMaxSp = summaryData.reduce((s, c) => c.scoreType !== 'score_new' ? (s + c.totalPossible) : s, 0);
+  const displayPctSp =
+    grandMaxSp > 0
+      ? summaryData?.some((c)=> c.scoreType !== 'score_new' && c.maxScorePct)
+        ? summaryData.reduce((s, c) => c.scoreType !== 'score_new' ? (s + Math.round((c.score * c.maxScorePct) / c.maxScore)) : s, 0)
+        : Math.round((grandTotalSp / grandMaxSp) * 100)
+      : 0;
 
   const activeLevel = useMemo(() => {
-    return findScoringLevelMatch(null, scoringLevels, evaluationType, displayPct, displayPctSp, isYesNoProgram);
+    return findScoringLevelMatch(attemptTypeCount, scoringLevels, evaluationType, displayPct, displayPctSp, isYesNoProgram);
   }, [scoringLevels, evaluationType, displayPct, displayPctSp, isYesNoProgram]);
 
   const committeePct = useMemo(() => {
     if (displayCommitteeTotal === undefined || displayCommitteeMax === 0) return 0;
     if (isYesNoProgram) return displayCommitteeTotal === displayCommitteeMax ? 100 : Math.floor((displayCommitteeTotal / displayCommitteeMax) * 100);
-    return Math.round((displayCommitteeTotal / displayCommitteeMax) * 100);
+    return committeeSummaryData?.some((c)=> c.scoreType === 'score_new' && c.maxScorePct)
+            ? committeeSummaryData.reduce((s, c) => c.scoreType === 'score_new' ? (s + Math.round((c.score * c.maxScorePct) / c.maxScore)) : s, 0)
+            : Math.round((displayCommitteeTotal / displayCommitteeMax) * 100);
   }, [displayCommitteeTotal, displayCommitteeMax, isYesNoProgram]);
 
   const committeePctSp = useMemo(() => {
-    if (grandCommitteeTotalSp === undefined || grandMaxSP === 0) return 0;
-    return Math.round((grandCommitteeTotalSp / grandMaxSP) * 100);
-  }, [grandCommitteeTotalSp, grandMaxSP])
+    if (grandCommitteeTotalSp === undefined || grandMaxSp === 0) return 0;
+    return committeeSummaryData?.some((c)=> c.scoreType !== 'score_new' && c.maxScorePct)
+            ? committeeSummaryData.reduce((s, c) => c.scoreType !== 'score_new' ? (s + Math.round((c.score * c.maxScorePct) / c.maxScore)): s, 0)
+            : Math.round((grandCommitteeTotalSp / grandMaxSp) * 100);
+  }, [grandCommitteeTotalSp, grandMaxSp])
 
   const committeeActiveLevel = useMemo(() => {
     if (displayCommitteeTotal === undefined) return null;
-    return findScoringLevelMatch(null, scoringLevels, evaluationType, committeePct, committeePctSp, isYesNoProgram);
+    const matchLevel = findScoringLevelMatch(attemptTypeCount, scoringLevels, evaluationType, committeePct, committeePctSp, isYesNoProgram);
+    setCanPrint(matchLevel ? matchLevel.isPass : false);
+    return matchLevel;
   }, [scoringLevels, evaluationType, committeePct, committeePctSp, isYesNoProgram, displayCommitteeTotal]);
 
   // ── Wizard flat list ───────────────────────────────────────────────────────
@@ -597,8 +616,8 @@ export default function ProjectRegistration() {
   const totalIndicators = visibleCategories.reduce((s, c) => s + c.topics.reduce((ts, t) => ts + t.indicators.length, 0), 0);
 
   // Derived from evaluationStatus
-  const isEvalReadOnly = evaluationStatus === "submitted" || evaluationStatus === "completed";
-  const isEvalCompleted = evaluationStatus === "completed";
+  const isEvalReadOnly = evaluationStatus === EvaluationStatus.submitted || evaluationStatus === EvaluationStatus.completed;
+  const isEvalCompleted = evaluationStatus === EvaluationStatus.completed;
 
   const evalStatusConfig: Record<string, { label: string; icon: React.ReactNode; badge: string; banner?: string }> = {
     draft:     { label: "ร่าง",             icon: <FileText className="h-3.5 w-3.5" />,    badge: "bg-gray-100 text-gray-600 border-gray-300" },
@@ -637,6 +656,8 @@ export default function ProjectRegistration() {
     border: "1px solid var(--glass-border)",
   } as React.CSSProperties;
 
+  const hasScoreSp = evaluationType !== ScoringLevelType.new && scoringLevels.some((sl) => sl.type === evaluationType);
+
   return (
     <div className="h-full flex flex-col gap-3 p-4">
 
@@ -654,21 +675,21 @@ export default function ProjectRegistration() {
             <h2 data-testid="evaluation-form-title" className="text-sm font-bold leading-tight truncate" style={{ color: "var(--green-heading)" }}>ประเมิน {programName}</h2>
             <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
               {evaluationType && EVAL_TYPE_CONFIG[evaluationType] && (
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.625rem] font-semibold border ${EVAL_TYPE_CONFIG[evaluationType].className}`}>
-                  {EVAL_TYPE_CONFIG[evaluationType].icon}{EVAL_TYPE_CONFIG[evaluationType].label}
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${EVAL_TYPE_CONFIG[evaluationType].className}`}>
+                  {EVAL_TYPE_CONFIG[evaluationType].icon}{EVAL_TYPE_CONFIG[evaluationType].label}{ attemptTypeCount && ` (ครั้งที่ ${attemptTypeCount})`}
                 </span>
               )}
               {currentEvalStatus && (
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.625rem] font-semibold border ${currentEvalStatus.badge}`}>
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${currentEvalStatus.badge}`}>
                   {currentEvalStatus.icon}{currentEvalStatus.label}
                 </span>
               )}
               {year && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[0.625rem] font-medium border border-border bg-muted/60 text-muted-foreground">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border border-border bg-muted/60 text-muted-foreground">
                   พ.ศ. {year + 543}
                 </span>
               )}
-              <span className="text-[0.625rem]" style={{ color: "var(--green-muted)" }}>
+              <span className="text-xs" style={{ color: "var(--green-muted)" }}>
                 {visibleCategories.length} หมวด · {totalTopics} ประเด็น · {totalIndicators} ตัวชี้วัด{!isYesNoProgram ? ` · เต็ม ${grandMax}` : ""}
               </span>
             </div>
@@ -687,41 +708,43 @@ export default function ProjectRegistration() {
           </div>
           {/* Scores and Actions */}
           <div className="flex flex-col items-end gap-2 shrink-0">
-            <div className="flex items-center gap-2">
-              <div className="flex flex-col items-end">
+            <div className="flex flex-col sm:flex-row flex-1 items-start gap-2">
+              <div className="inline-flex flex-col gap-1 items-end">
                 <p className="text-[0.5625rem] font-semibold text-muted-foreground uppercase tracking-wider">คะแนนรวม</p>
                 <div className="flex flex-col w-full">
-                  <p className="flex w-full justify-between items-center text-base font-bold text-primary leading-tight">
-                    {evaluationType !== ScoringLevelType.new && scoringLevels.some((sl) => sl.type === evaluationType) ?
-                      <span className="mr-2 text-start text-xs font-normal text-amber-700">{labelScoreType(visibleCategories, ScoringLevelType.new)}</span> : <span></span>
+                  <p className={`flex w-full ${hasScoreSp ? 'justify-between' : 'justify-end'} items-center text-base font-bold text-primary leading-tight`}>
+                    {hasScoreSp &&
+                      <span className="mr-2 text-start text-xs font-normal text-amber-700">
+                        {labelScoreType(visibleCategories, ScoringLevelType.new)}
+                      </span>
                     }
-                    <span>
-                      <AnimatedScore value={displayTotal}>
-                        {displayTotal}{displayUnit && <span className="text-end text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}
-                      </AnimatedScore>
-                      <span className="text-end text-xs font-normal text-muted-foreground">/{displayMax}</span>
-                    </span>
+                    {displayMax > 0 && <span className="text-end">{displayPct}%</span>}
                   </p>
-                  {displayMax > 0 && <p className="text-end text-[0.5625rem] text-muted-foreground">{displayPct}%</p>}
+                  <span className="text-end text-[0.6rem] text-primary font-semibold">
+                    <AnimatedScore value={displayTotal}>
+                        {displayTotal}{displayUnit && <span className="text-end font-normal ml-0.5">{displayUnit}</span>}
+                    </AnimatedScore>
+                    <span className="text-end font-normal text-muted-foreground">/{displayMax}</span>
+                  </span>
                 </div>
-                {evaluationType !== ScoringLevelType.new && scoringLevels.some((sl) => sl.type === evaluationType) &&
+                {hasScoreSp &&
                   <div className="flex flex-col w-full">
                     <p className="flex w-full justify-between items-center text-base font-bold text-primary leading-tight">
                       <span className="mr-2 text-start text-xs font-normal text-amber-700">{labelScoreType(visibleCategories, evaluationType)}</span>
-                      <span>
-                        <AnimatedScore value={grandTotalSp}>
-                          {grandTotalSp}{displayUnit && <span className="text-end text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}
-                        </AnimatedScore>
-                        <span className="text-end text-xs font-normal text-muted-foreground">/{grandMaxSP}</span>
-                      </span>
+                      {grandMaxSp > 0 && <span className="text-end">{displayPctSp}%</span>}
                     </p>
-                    {displayMax > 0 && <p className="text-end text-[0.5625rem] text-muted-foreground">{displayPctSp}%</p>}
+                    <span className="text-end text-[0.6rem] text-primary font-semibold">
+                      <AnimatedScore value={grandTotalSp}>
+                        {grandTotalSp}{displayUnit && <span className="text-end font-normal ml-0.5">{displayUnit}</span>}
+                      </AnimatedScore>
+                      <span className="text-end font-normal text-muted-foreground">/{grandMaxSp}</span>
+                    </span>
                   </div>
                 }
                 
                 {activeLevel && (
-                  <div className="mt-1">
-                    <div className="score-active-wrap scale-[0.8] origin-right">
+                  <div className="flex w-full justify-end">
+                    <div className="score-active-wrap origin-right">
                       <div className="score-sparkles">
                         <div className="score-sparkle" />
                         <div className="score-sparkle" />
@@ -783,17 +806,42 @@ export default function ProjectRegistration() {
               {displayCommitteeTotal !== undefined && (
                 <>
                   <div className="w-px self-stretch bg-border mx-1" />
-                  <div className="flex flex-col items-end">
+                  <div className="inline-flex flex-col gap-1 items-end">
                     <p className="text-[0.5625rem] font-semibold text-muted-foreground uppercase tracking-wider">กรรมการ</p>
-                    <p className="text-base font-bold text-muted-foreground leading-tight">
-                      <AnimatedScore value={displayCommitteeTotal ?? 0}>{displayCommitteeTotal}{displayUnit && <span className="text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}</AnimatedScore>
-                      <span className="text-xs font-normal text-muted-foreground">/{displayCommitteeMax}</span>
-                    </p>
-                    {displayCommitteeMax > 0 && <p className="text-[0.5625rem] text-muted-foreground">{committeePct}%</p>}
+                    <div className="flex flex-col w-full">
+                      <p className={`flex w-full ${hasScoreSp ? 'justify-between' : 'justify-end'} items-center text-base font-bold text-muted-foreground leading-tight`}>
+                        {hasScoreSp &&
+                          <span className="mr-2 text-start text-xs font-normal text-amber-700">
+                            {labelScoreType(visibleCategories, ScoringLevelType.new)}
+                          </span>
+                        }
+                        {displayCommitteeMax > 0 && <span className="text-end">{committeePct}%</span>}
+                      </p>
+                      <span className="text-end text-[0.6rem] text-muted-foreground font-semibold">
+                        <AnimatedScore value={displayCommitteeTotal ?? 0}>
+                          {displayCommitteeTotal}{displayUnit && <span className="text-end font-normal ml-0.5">{displayUnit}</span>}
+                        </AnimatedScore>
+                        <span className="text-end font-normal">/{displayCommitteeMax}</span>
+                      </span>
+                    </div>
+                    {hasScoreSp &&
+                      <div className="flex flex-col w-full">
+                        <p className="flex w-full justify-between items-center text-base font-bold text-muted-foreground leading-tight">
+                          <span className="mr-2 text-start text-xs font-normal text-amber-700">{labelScoreType(visibleCategories, evaluationType)}</span>
+                          {grandMaxSp > 0 && <span className="text-end">{committeePctSp}%</span>}
+                        </p>
+                        <span className="text-end text-[0.6rem] text-muted-foreground font-semibold">
+                          <AnimatedScore value={grandCommitteeTotalSp}>
+                            {grandCommitteeTotalSp}{displayUnit && <span className="text-end font-normal ml-0.5">{displayUnit}</span>}
+                          </AnimatedScore>
+                          <span className="text-end font-normal">/{grandMaxSp}</span>
+                        </span>
+                      </div>
+                    }
                     
                     {committeeActiveLevel && (
-                      <div className="mt-1">
-                        <div className="score-active-wrap scale-[0.8] origin-right">
+                      <div className="flex w-full justify-end">
+                        <div className="score-active-wrap origin-right">
                           <div className="score-sparkles">
                             <div className="score-sparkle" />
                             <div className="score-sparkle" />
@@ -819,7 +867,7 @@ export default function ProjectRegistration() {
               )}
             </div>
             
-            <div className="flex items-center gap-1.5">
+            <div className="flex flex-1 items-center gap-1.5">
               {!isEvalReadOnly && !evalLoading && categories.length > 0 && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -838,6 +886,23 @@ export default function ProjectRegistration() {
                 </DropdownMenu>
               )}
             </div>
+
+            {evaluationStatus === EvaluationStatus.completed && (
+              <div className="flex items-center gap-1.5">
+                <Button variant="outline" size="sm"
+                  onClick={() => navigate(`/evaluation/${programId}/summary?evaluationId=${evaluationId || ""}`)}
+                  className="gap-1 text-green-700 border-green-300 bg-green-50 hover:bg-green-100 h-7 px-3 text-[10px] shrink-0">
+                  <CheckCircle2 className="h-3 w-3" /> ดูสรุป
+                </Button>
+                <Button variant="outline" size="icon"
+                  onClick={() => canPrint && window.open(`/certificate/print/${evaluationId}`, "_blank")}
+                  disabled={!canPrint}
+                  title={canPrint ? "พิมพ์ใบประกาศ" : "ระดับนี้ไม่ออกใบประกาศนียบัตร"}
+                  className={`h-7 w-7 px-3 ${canPrint ? "border-amber-300 bg-amber-50/50 text-amber-600 hover:bg-amber-100" : "border-slate-100 bg-slate-50/50 text-slate-400 cursor-not-allowed"}`}>
+                  <Printer className="h-3 w-3" />
+                </Button> 
+              </div>
+            )}
           </div>
         </div>
 
@@ -845,7 +910,7 @@ export default function ProjectRegistration() {
         {currentEvalStatus?.banner && (
           <div className={`flex items-center gap-2 mt-2 px-3 py-2 rounded-xl text-xs font-medium ${currentEvalStatus.banner}`}>
             {currentEvalStatus.icon}
-            {evaluationStatus === "revision" && "เอกสารนี้ถูกส่งกลับเพื่อแก้ไข กรุณาตรวจสอบและส่งใหม่อีกครั้ง"}
+            {evaluationStatus === EvaluationStatus.revision && "เอกสารนี้ถูกส่งกลับเพื่อแก้ไข กรุณาตรวจสอบและส่งใหม่อีกครั้ง"}
             {evaluationStatus === "cancel" && "เอกสารนี้ถูกยกเลิกแล้ว"}
           </div>
         )}
@@ -862,12 +927,13 @@ export default function ProjectRegistration() {
         ) : (
           <>
             {/* Score summary grid */}
-            {summaryData.length > 0 && <ScoreSummary data={summaryData} committeeData={committeeSummaryData} onCategoryClick={handleCategoryClick} />}
+            {summaryData.length > 0 && <ScoreSummary status={evaluationStatus} data={summaryData} committeeData={committeeSummaryData} onCategoryClick={handleCategoryClick} />}
 
             {/* Category cards */}
             {visibleCategories.map((category, idx) => (
               <CategoryCard
                 key={category.id}
+                status={evaluationStatus}
                 category={category}
                 colorIndex={idx}
                 scores={scores}
@@ -925,7 +991,7 @@ export default function ProjectRegistration() {
                     ? <><Loader2 className="h-4 w-4 animate-spin" />กำลังส่งแบบประเมิน...</>
                     : !allScored
                       ? <><ClipboardCheck className="h-4 w-4" />กรุณาประเมินให้ครบทุกตัวชี้วัด</>
-                      : evaluationStatus === "revision"
+                      : evaluationStatus === EvaluationStatus.revision
                         ? <><RotateCcw className="h-4 w-4" />ส่งแบบประเมินใหม่อีกครั้ง</>
                         : <><ClipboardCheck className="h-4 w-4" />ส่งแบบประเมินตนเอง</>}
                 </Button>

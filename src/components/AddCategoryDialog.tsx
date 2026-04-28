@@ -27,6 +27,7 @@ enum SCORE_TYPE {
 interface AddCategoryData {
   name: string;
   maxScore: number;
+  maxScorePct: number;
   sortOrder: number;
   scoreType: AddScoreType;
 }
@@ -53,12 +54,14 @@ export function AddCategoryDialog({ open, onOpenChange, scoreType, nextSortOrder
   const [sortOrder, setSortOrder] = useState<string>(nextSortOrder.toString());
   const [name, setName] = useState("");
   const [maxScore, setMaxScore] = useState<string>("15");
+  const [maxScorePct, setMaxScorePct] = useState<string>("");
 
   useEffect(() => {
     if (open) {
       setSortOrder(nextSortOrder.toString());
       setName("");
       setMaxScore("15");
+      setMaxScorePct("");
     }
   }, [open, nextSortOrder]);
 
@@ -75,6 +78,7 @@ export function AddCategoryDialog({ open, onOpenChange, scoreType, nextSortOrder
     onAdd({
       name: name.trim(),
       maxScore: hasScore ? Number(maxScore) : 0,
+      maxScorePct: hasScore ? Number(maxScorePct) : 0,
       sortOrder: Number(sortOrder),
       scoreType,
     });
@@ -103,9 +107,15 @@ export function AddCategoryDialog({ open, onOpenChange, scoreType, nextSortOrder
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="เช่น สภาพแวดล้อม" />
           </div>
           {hasScore && (
-            <div className="space-y-1.5">
-              <Label>คะแนนเต็มหมวด</Label>
-              <Input type="number" value={maxScore} onChange={(e) => setMaxScore(e.target.value)} min={1} />
+            <div className="flex w-full justify-between">
+              <div className="space-y-1.5">
+                <Label>คะแนนเต็มหมวด</Label>
+                <Input type="number" value={maxScore} onChange={(e) => setMaxScore(e.target.value)} min={1} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>คะแนนเต็มหมวด (ร้อยละ)</Label>
+                <Input type="number" value={maxScorePct === '0' ? "" : maxScorePct} onChange={(e) => setMaxScorePct(e.target.value)} min={1} />
+              </div>
             </div>
           )}
         </div>

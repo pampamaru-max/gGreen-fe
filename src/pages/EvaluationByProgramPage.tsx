@@ -5,7 +5,7 @@ import type { UploadedFile, IndicatorNavItem } from "@/components/evaluation/Cat
 import { CategoryCard, IndicatorDialog, getCategoryColor } from "@/components/evaluation/CategoryCard";
 import { ScoreSummary } from "@/components/evaluation/ScoreSummary";
 import { AnimatedScore } from "@/components/ui/animated-score";
-import { ClipboardCheck, Loader2, ArrowLeft, RotateCcw, CheckCircle2, Clock, FileText, AlertCircle, XCircle, FilePlus, RefreshCw, TrendingUp, ChevronDown, Trophy, Medal, Award, Star } from "lucide-react";
+import { ClipboardCheck, Loader2, ArrowLeft, RotateCcw, CheckCircle2, Clock, FileText, AlertCircle, XCircle, FilePlus, RefreshCw, TrendingUp, ChevronDown, Trophy, Medal, Award, Star, Printer } from "lucide-react";
 import { ScoringLevelBadges } from "@/components/self-eval/ScoringLevelBadges";
 import type { EvalCategory, ScoringLevel } from "@/pages/ProjectRegistration";
 import {
@@ -17,6 +17,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
 import { ScoringLevelType } from "./SettingsScoringCriteria";
 import { findScoringLevelMatch, labelScoreType, queryArray } from "@/helpers/functions";
+import { EvaluationStatus } from "@/helpers/enum";
 
 const EVAL_TYPE_CONFIG: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
   new:     { label: "ประเมินใหม่",             icon: <FilePlus   className="h-3 w-3" />, className: "bg-blue-50 text-blue-700 border-blue-200"     },
@@ -53,11 +54,15 @@ const EvaluationByProgramPage = () => {
   const [evaluationType, setEvaluationType] = useState<string | null>(null);
   const [scoringLevels, setScoringLevels] = useState<ScoringLevel[]>([]);
   const [year, setYear] = useState<number | null>(null);
+  const [attemptTypeCount, setAttemptTypeCount]     = useState<number | null>(null);
   const [selfMaxFromApi, setSelfMaxFromApi] = useState<number | null>(null);
+  const [selfMaxSpFromApi, setSelfMaxSpFromApi] = useState<number | null>(null);
   const [committeeMaxFromApi, setCommitteeMaxFromApi] = useState<number | null>(null);
+  const [committeeMaxSpFromApi, setCommitteeMaxSpFromApi] = useState<number | null>(null);
   // notification IDs ของ indicator ที่ผู้ถูกประเมินแก้ไขใหม่ (เฉพาะฝั่งกรรมการ)
   const [newEvaluateeIndicatorIds, setNewEvaluateeIndicatorIds] = useState<Map<string, { prevScore: number | null; newScore: number | null }>>(new Map());
   const [expandedCategoryId, setExpandedCategoryId] = useState<string | number | null>(null);
+  const [canPrint, setCanPrint] = useState(false);
 
   const handleCategoryClick = useCallback((categoryId: string | number) => {
     setExpandedCategoryId(categoryId);
@@ -91,6 +96,7 @@ const EvaluationByProgramPage = () => {
           id: c.id,
           name: c.name,
           maxScore: c.maxScore,
+          maxScorePct: c.maxScorePct,
           scoreType: c.scoreType ?? "score",
           upgradeMode: c.upgradeMode ?? null,
           renewMode: c.renewMode ?? null,
@@ -127,8 +133,11 @@ const EvaluationByProgramPage = () => {
           setEvaluationStatus(evalData.status);
           if (evalData.evaluationType) setEvaluationType(evalData.evaluationType);
           if (evalData.year) setYear(evalData.year);
+          if (evalData.attempt) setAttemptTypeCount(evalData.attempt);
           if (evalData.self_max_score) setSelfMaxFromApi(Number(evalData.self_max_score));
           if (evalData.committee_max_score) setCommitteeMaxFromApi(Number(evalData.committee_max_score));
+          if (evalData.self_max_score_sp) setSelfMaxSpFromApi(Number(evalData.self_max_score_sp));
+          if (evalData.committee_max_score_sp) setCommitteeMaxSpFromApi(Number(evalData.committee_max_score_sp));
 
           const loaded: Record<string, number> = {};
           const loadedDetails: Record<string, string> = {};
@@ -196,11 +205,11 @@ const EvaluationByProgramPage = () => {
   };
 
   const handleSaveIndicator = useCallback(async (indicatorId: string) => {
-    if (role === "user" && (evaluationStatus === "submitted" || evaluationStatus === "submit" || evaluationStatus === "completed" || evaluationStatus === "complete")) {
+    if (role === "user" && (evaluationStatus === EvaluationStatus.submitted || evaluationStatus === "submit" || evaluationStatus === EvaluationStatus.completed || evaluationStatus === "complete")) {
       toast.error("ไม่สามารถแก้ไขได้ เอกสารถูกส่งแล้ว");
       return;
     }
-    if (role !== "user" && (evaluationStatus === "completed" || evaluationStatus === "complete")) {
+    if (role !== "user" && (evaluationStatus === EvaluationStatus.completed || evaluationStatus === "complete")) {
       toast.error("ไม่สามารถแก้ไขได้ การประเมินเสร็จสิ้นแล้ว");
       return;
     }
@@ -270,7 +279,7 @@ const EvaluationByProgramPage = () => {
           }
         });
       });
-      return { id: cat.id, name: cat.name, score: totalScore, maxScore: cat.maxScore, totalPossible: totalMax, index: idx, scoreType: cat.scoreType, ...(isYesNo ? { passCount, totalIndicators } : {}) };
+      return { id: cat.id, name: cat.name, score: totalScore, maxScore: cat.maxScore, maxScorePct: cat.maxScorePct, totalPossible: totalMax, index: idx, scoreType: cat.scoreType, ...(isYesNo ? { passCount, totalIndicators } : {}) };
     });
   }, [scores, visibleCategories]);
 
@@ -293,7 +302,7 @@ const EvaluationByProgramPage = () => {
           }
         });
       });
-      return { id: cat.id, name: cat.name, score: totalScore, maxScore: cat.maxScore, totalPossible: totalMax, scoreType: cat.scoreType, ...(isYesNo ? { passCount, totalIndicators } : {}) };
+      return { id: cat.id, name: cat.name, score: totalScore, maxScore: cat.maxScore, maxScorePct: cat.maxScorePct, totalPossible: totalMax, scoreType: cat.scoreType, ...(isYesNo ? { passCount, totalIndicators } : {}) };
     });
   }, [committeeScores, visibleCategories]);
 
@@ -317,34 +326,44 @@ const EvaluationByProgramPage = () => {
   const displayCommitteePct      = displayCommitteeMax > 0 
     ? (isYesNoProgram 
         ? (displayCommitteeTotal === displayCommitteeMax ? 100 : Math.floor((displayCommitteeTotal / displayCommitteeMax) * 100))
-        : Math.round((displayCommitteeTotal / displayCommitteeMax) * 100)) 
+        : !committeeSummaryData?.some((c)=> c.scoreType === 'score_new' && c.maxScorePct)
+          ? Math.round((displayCommitteeTotal / displayCommitteeMax) * 100)
+          : committeeSummaryData.reduce((s, c) => c.scoreType === 'score_new' ? s + Math.round((c.score * c.maxScorePct) / c.maxScore) : s, 0)
+    )
     : 0;
   const displayUnit              = isYesNoProgram ? "ผ่าน" : "";
 
   const grandSelfTotalSp = summaryData.reduce((s, c) => c.scoreType !== 'score_new' ? (s + c.score) : s, 0);
-  const grandCommitteeTotalSp    = committeeSummaryData?.reduce((s, c) => c.scoreType !== 'score_new' ? (s + c.totalPossible) : s, 0) ?? 0;
+  const grandCommitteeTotalSp = committeeSummaryData?.reduce((s, c) => c.scoreType !== 'score_new' ? (s + c.score) : s, 0) ?? 0;
   const grandMaxSP = summaryData.reduce((s, c) => c.scoreType !== 'score_new' ? (s + c.totalPossible) : s, 0);
-
-  const displayCommitteePctSp    = grandMaxSP > 0 ? Math.round((grandCommitteeTotalSp / grandMaxSP) * 100) : 0;
+  const displaySelfMaxSp = selfMaxSpFromApi ?? grandMaxSP;
+  const displayCommitteeMaxSp = committeeMaxSpFromApi ?? grandMaxSP;
+  const displayCommitteePctSp = !committeeSummaryData?.some((c)=> c.scoreType !== 'score_new' && c.maxScorePct)
+    ? displayCommitteeMaxSp > 0 ? Math.round((grandCommitteeTotalSp / displayCommitteeMaxSp) * 100): 0
+    : committeeSummaryData.reduce((s, c) => c.scoreType !== 'score_new' ? s + Math.round((c.score * c.maxScorePct) / c.maxScore) : s, 0);
 
   const selfPct = useMemo(() => {
     if (displaySelfMax === 0) return 0;
     if (isYesNoProgram) return displaySelfTotal === displaySelfMax ? 100 : Math.floor((displaySelfTotal / displaySelfMax) * 100);
-    return Math.round((displaySelfTotal / displaySelfMax) * 100);
+    return !summaryData[0].maxScorePct
+          ? Math.round((displaySelfTotal / displaySelfMax) * 100)
+          : summaryData.reduce((s, c) => c.scoreType === 'score_new' ? s + Math.round((c.score * c.maxScorePct) / c.maxScore) : s, 0);
   }, [displaySelfTotal, displaySelfMax, isYesNoProgram]);
 
   const selfPctSp = useMemo(() => {
-    if (grandMaxSP === 0) return 0;
-    return Math.round((grandSelfTotalSp / grandMaxSP) * 100);
-  }, [grandSelfTotalSp, grandMaxSP]);
+    if ((displaySelfMaxSp) === 0) return 0;
+    return Math.round((grandSelfTotalSp / displaySelfMaxSp) * 100);
+  }, [grandSelfTotalSp, displaySelfMaxSp]);
 
   const activeLevel = useMemo(() => {
-    return findScoringLevelMatch(null, scoringLevels, evaluationType || ScoringLevelType.new, selfPct, selfPctSp, isYesNoProgram);
+    return findScoringLevelMatch(attemptTypeCount, scoringLevels, evaluationType || ScoringLevelType.new, selfPct, selfPctSp, isYesNoProgram);
   }, [scoringLevels, evaluationType, selfPct, selfPctSp, isYesNoProgram]);
 
   const committeeActiveLevel = useMemo(() => {
     if (role === "user") return null;
-    return findScoringLevelMatch(null, scoringLevels, evaluationType || ScoringLevelType.new, displayCommitteePct, displayCommitteePctSp, isYesNoProgram);
+    const matchLevel = findScoringLevelMatch(attemptTypeCount, scoringLevels, evaluationType || ScoringLevelType.new, displayCommitteePct, displayCommitteePctSp, isYesNoProgram);
+    setCanPrint(matchLevel ? matchLevel.isPass : false);
+    return matchLevel;
   }, [scoringLevels, evaluationType, displayCommitteePct, displayCommitteePctSp, isYesNoProgram, role]);
 
   // ── Wizard ──────────────────────────────────────────────────────────────────
@@ -396,8 +415,8 @@ const EvaluationByProgramPage = () => {
     })),
   [flatIndicators, scores, committeeScores, role]);
 
-  const isCompleted = evaluationStatus === "completed" || evaluationStatus === "complete";
-  const isSubmitted = evaluationStatus === "submitted" || evaluationStatus === "submit";
+  const isCompleted = evaluationStatus === EvaluationStatus.completed || evaluationStatus === "complete";
+  const isSubmitted = evaluationStatus === EvaluationStatus.submitted || evaluationStatus === "submit";
 
   const statusConfig: Record<string, { label: string; icon: React.ReactNode; badge: string; banner?: string }> = {
     draft:     { label: "ร่าง",             icon: <FileText className="h-3.5 w-3.5" />,    badge: "bg-gray-100 text-gray-600 border-gray-300" },
@@ -535,13 +554,15 @@ const EvaluationByProgramPage = () => {
     border: "1px solid var(--glass-border)",
   } as React.CSSProperties;
 
+  const hasScoreSp = evaluationType !== ScoringLevelType.new && scoringLevels.some((sl) => sl.type === evaluationType);
+
   return (
     <div className="h-full flex flex-col gap-3 p-4">
 
       {/* ── Header glass card ── */}
       <div className="px-4 py-3 rounded-2xl shrink-0" style={glassCard}>
         {/* Row 1 */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-1 items-center gap-2">
           <Button variant="ghost" size="icon" onClick={() => navigate("/evaluation")} className="shrink-0 h-8 w-8">
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -552,67 +573,68 @@ const EvaluationByProgramPage = () => {
             <h2 className="text-sm font-bold leading-tight truncate" style={{ color: "var(--green-heading)" }}>{programName}</h2>
             <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
               {evaluationType && EVAL_TYPE_CONFIG[evaluationType] && (
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.625rem] font-semibold border ${EVAL_TYPE_CONFIG[evaluationType].className}`}>
-                  {EVAL_TYPE_CONFIG[evaluationType].icon}
-                  {EVAL_TYPE_CONFIG[evaluationType].label}
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${EVAL_TYPE_CONFIG[evaluationType].className}`}>
+                  {EVAL_TYPE_CONFIG[evaluationType].icon}{EVAL_TYPE_CONFIG[evaluationType].label}{attemptTypeCount && ` (ครั้งที่ ${attemptTypeCount})`}
                 </span>
               )}
               {currentStatus && (
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.625rem] font-semibold border ${currentStatus.badge}`}>
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${currentStatus.badge}`}>
                   {currentStatus.icon}
                   {currentStatus.label}
                 </span>
               )}
               {year && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[0.625rem] font-medium border border-border bg-muted/60 text-muted-foreground">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border border-border bg-muted/60 text-muted-foreground">
                   พ.ศ. {year + 543}
                 </span>
               )}
-              <span className="text-[0.625rem]" style={{ color: "var(--green-muted)" }}>
+              <span className="text-xs" style={{ color: "var(--green-muted)" }}>
                 {visibleCategories.length} หมวด · {totalTopics} ประเด็น · {totalIndicators} ตัวชี้วัด{!isYesNoProgram ? ` · เต็ม ${grandMax}` : ""}
               </span>
             </div>
           </div>
 
           {/* Scores and Actions */}
-          <div className="flex flex-col items-end gap-2 shrink-0">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-1 flex-col items-end gap-2 shrink-0">
+            <div className="flex flex-col sm:flex-row flex-1 items-start gap-2">
               {role !== "user" ? (
                 <>
-                  <div className="flex flex-col items-end">
+                  <div className="inline-flex flex-col gap-1 items-end">
                     <p className="text-[0.5625rem] font-semibold text-muted-foreground uppercase tracking-wider">ตนเอง</p>
                     <div className="flex flex-col w-full">
-                      <p className="flex w-full justify-between items-center text-base font-bold text-primary leading-tight">
-                        {evaluationType !== ScoringLevelType.new && scoringLevels.some((sl) => sl.type === evaluationType) ?
-                          <span className="mr-2 text-start text-xs font-normal text-amber-700">{labelScoreType(visibleCategories, ScoringLevelType.new)}</span> : <span></span>
-                        }
-                        <span>
-                          <AnimatedScore value={displaySelfTotal}>
-                            {displaySelfTotal}{displayUnit && <span className="text-end text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}
-                          </AnimatedScore>
-                          <span className="text-end text-xs font-normal text-muted-foreground">/{displaySelfMax}</span>
-                        </span>
-                      </p>
-                      {displaySelfMax > 0 && <p className="text-end text-[0.5625rem] text-muted-foreground">{selfPct}%</p>}
-                    </div>
-                    {evaluationType !== ScoringLevelType.new && scoringLevels.some((sl) => sl.type === evaluationType) &&
-                      <div className="flex flex-col w-full">
-                        <p className="flex w-full justify-between items-center text-base font-bold text-primary leading-tight">
-                          <span className="mr-2 text-start text-xs font-normal text-amber-700">{labelScoreType(visibleCategories, evaluationType)}</span>
-                          <span>
-                            <AnimatedScore value={grandSelfTotalSp}>
-                              {grandSelfTotalSp}{displayUnit && <span className="text-end text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}
-                            </AnimatedScore>
-                            <span className="text-end text-xs font-normal text-muted-foreground">/{grandMaxSP}</span>
+                      <p className={`flex w-full ${hasScoreSp ? 'justify-between' : 'justify-end'} items-center text-base font-bold text-muted-foreground leading-tight`}>
+                        {hasScoreSp &&
+                          <span className="mr-2 text-start text-xs font-normal text-amber-700">
+                            {labelScoreType(visibleCategories, ScoringLevelType.new)}
                           </span>
+                        }
+                        {displaySelfMax > 0 && <span className="text-end">{selfPct}%</span>}
+                      </p>
+                      <span className="text-end text-[0.6rem] text-muted-foreground font-semibold">
+                        <AnimatedScore value={displaySelfTotal}>
+                          {displaySelfTotal}{displayUnit && <span className="text-end font-normal ml-0.5">{displayUnit}</span>}
+                        </AnimatedScore>
+                        <span className="text-end font-normal">/{displaySelfMax}</span>
+                      </span>
+                    </div>
+                    {hasScoreSp &&
+                      <div className="flex flex-col w-full">
+                        <p className="flex w-full justify-between items-center text-base font-bold text-muted-foreground leading-tight">
+                          <span className="mr-2 text-start text-xs font-normal text-amber-700">{labelScoreType(visibleCategories, evaluationType)}</span>
+                          {grandMaxSP > 0 && <span className="text-end">{selfPctSp}%</span>}
                         </p>
-                        {grandMaxSP > 0 && <p className="text-end text-[0.5625rem] text-muted-foreground">{selfPctSp}%</p>}
+                        <span className="text-end text-[0.6rem] text-muted-foreground font-semibold">
+                          <AnimatedScore value={grandSelfTotalSp}>
+                            {grandSelfTotalSp}{displayUnit && <span className="text-end font-normal ml-0.5">{displayUnit}</span>}
+                          </AnimatedScore>
+                          <span className="text-end font-normal">/{grandMaxSP}</span>
+                        </span>
                       </div>
                     }
                     
                     {activeLevel && (
-                      <div className="mt-1">
-                        <div className="score-active-wrap scale-[0.8] origin-right">
+                      <div className="flex w-full justify-end">
+                        <div className="score-active-wrap origin-right">
                           <div className="score-sparkles">
                             <div className="score-sparkle" />
                             <div className="score-sparkle" />
@@ -635,19 +657,42 @@ const EvaluationByProgramPage = () => {
                     )}
                   </div>
                   <div className="w-px self-stretch bg-border mx-1" />
-                  <div className="flex flex-col items-end">
+                  <div className="inline-flex flex-col gap-1 items-end">
                     <p className="text-[0.5625rem] font-semibold text-muted-foreground uppercase tracking-wider">กรรมการ</p>
-                    <p className="text-base font-bold text-primary leading-tight">
-                      <AnimatedScore value={displayCommitteeTotal}>
-                        {displayCommitteeTotal}{displayUnit && <span className="text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}
-                      </AnimatedScore>
-                      <span className="text-xs font-normal text-muted-foreground">/{displayCommitteeMax}</span>
-                    </p>
-                    {displayCommitteeMax > 0 && <p className="text-[0.5625rem] text-muted-foreground">{displayCommitteePct}%</p>}
+                    <div className="flex flex-col w-full">
+                      <p className={`flex w-full ${hasScoreSp ? 'justify-between' : 'justify-end'} items-center text-base font-bold text-primary leading-tight`}>
+                        {hasScoreSp &&
+                          <span className="mr-2 text-start text-xs font-normal text-amber-700">
+                            {labelScoreType(visibleCategories, ScoringLevelType.new)}
+                          </span>
+                        }
+                        {displayCommitteeMax > 0 && <span className="text-end">{displayCommitteePct}%</span>}
+                      </p>
+                      <span className="text-end text-[0.6rem] text-primary font-semibold">
+                        <AnimatedScore value={displayCommitteeTotal ?? 0}>
+                          {displayCommitteeTotal}{displayUnit && <span className="text-end font-normal ml-0.5">{displayUnit}</span>}
+                        </AnimatedScore>
+                        <span className="text-end font-normal text-muted-foreground">/{displayCommitteeMax}</span>
+                      </span>
+                    </div>
+                    {hasScoreSp &&
+                      <div className="flex flex-col w-full">
+                        <p className="flex w-full justify-between items-center text-base font-bold text-primary leading-tight">
+                          <span className="mr-2 text-start text-xs font-normal text-amber-700">{labelScoreType(visibleCategories, evaluationType)}</span>
+                          {displayCommitteeMaxSp > 0 && <span className="text-end">{displayCommitteePctSp}%</span>}
+                        </p>
+                        <span className="text-end text-[0.6rem] text-primary font-semibold">
+                          <AnimatedScore value={grandCommitteeTotalSp}>
+                            {grandCommitteeTotalSp}{displayUnit && <span className="text-end font-normal ml-0.5">{displayUnit}</span>}
+                          </AnimatedScore>
+                          <span className="text-end font-normal text-muted-foreground">/{displayCommitteeMaxSp}</span>
+                        </span>
+                      </div>
+                    }
                     
                     {committeeActiveLevel && (
-                      <div className="mt-1">
-                        <div className="score-active-wrap scale-[0.8] origin-right">
+                      <div className="flex w-full justify-end">
+                        <div className="score-active-wrap origin-right">
                           <div className="score-sparkles">
                             <div className="score-sparkle" />
                             <div className="score-sparkle" />
@@ -671,17 +716,42 @@ const EvaluationByProgramPage = () => {
                   </div>
                 </>
               ) : (
-                <div className="flex flex-col items-end">
+                <div className="inline-flex flex-col gap-1 items-end">
                   <p className="text-[0.5625rem] font-semibold text-muted-foreground uppercase tracking-wider">คะแนนรวม</p>
-                  <p className="text-base font-bold text-primary leading-tight">
-                    {displaySelfTotal}{displayUnit && <span className="text-[0.625rem] font-normal ml-0.5">{displayUnit}</span>}
-                    <span className="text-xs font-normal text-muted-foreground">/{displaySelfMax}</span>
-                  </p>
-                  {displaySelfMax > 0 && <p className="text-[0.5625rem] text-muted-foreground">{selfPct}%</p>}
+                  <div className="flex flex-col w-full">
+                    <p className={`flex w-full ${hasScoreSp ? 'justify-between' : 'justify-end'} items-center text-base font-bold text-primary leading-tight`}>
+                      {hasScoreSp &&
+                        <span className="mr-2 text-start text-xs font-normal text-amber-700">
+                          {labelScoreType(visibleCategories, ScoringLevelType.new)}
+                        </span>
+                      }
+                      {displaySelfMax > 0 && <span className="text-end">{selfPct}%</span>}
+                    </p>
+                    <span className="text-end text-[0.6rem] text-muted-foreground font-semibold">
+                      <AnimatedScore value={displaySelfTotal}>
+                        {displaySelfTotal}{displayUnit && <span className="text-end font-normal ml-0.5">{displayUnit}</span>}
+                      </AnimatedScore>
+                      <span className="text-end font-normal">/{displaySelfMax}</span>
+                    </span>
+                  </div>
+                  {hasScoreSp &&
+                    <div className="flex flex-col w-full">
+                      <p className="flex w-full justify-between items-center text-base font-bold text-primary leading-tight">
+                        <span className="mr-2 text-start text-xs font-normal text-amber-700">{labelScoreType(visibleCategories, evaluationType)}</span>
+                        {grandMaxSP > 0 && <span className="text-end">{selfPctSp}%</span>}
+                      </p>
+                      <span className="text-end text-[0.6rem] text-muted-foreground font-semibold">
+                        <AnimatedScore value={grandSelfTotalSp}>
+                          {grandSelfTotalSp}{displayUnit && <span className="text-end font-normal ml-0.5">{displayUnit}</span>}
+                        </AnimatedScore>
+                        <span className="text-end font-normal">/{grandMaxSP}</span>
+                      </span>
+                    </div>
+                  }
                   
                   {activeLevel && (
-                    <div className="mt-1">
-                      <div className="score-active-wrap scale-[0.8] origin-right">
+                    <div className="flex w-full justify-end">
+                        <div className="score-active-wrap origin-right">
                         <div className="score-sparkles">
                           <div className="score-sparkle" />
                           <div className="score-sparkle" />
@@ -725,11 +795,20 @@ const EvaluationByProgramPage = () => {
                 </DropdownMenu>
               )}
               {isCompleted ? (
-                <Button variant="outline" size="sm"
-                  onClick={() => navigate(`/evaluation/${programId}/summary?evaluationId=${evaluationId || ""}`)}
-                  className="gap-1 text-green-700 border-green-300 bg-green-50 hover:bg-green-100 h-7 px-3 text-[10px] shrink-0">
-                  <CheckCircle2 className="h-3 w-3" /> ดูสรุป
-                </Button>
+                <div className="flex items-center gap-1.5">
+                  <Button variant="outline" size="sm"
+                    onClick={() => navigate(`/evaluation/${programId}/summary?evaluationId=${evaluationId || ""}`)}
+                    className="gap-1 text-green-700 border-green-300 bg-green-50 hover:bg-green-100 h-7 px-3 text-[10px] shrink-0">
+                    <CheckCircle2 className="h-3 w-3" /> ดูสรุป
+                  </Button>
+                  <Button variant="outline" size="icon"
+                    onClick={() => canPrint && window.open(`/certificate/print/${evaluationId}`, "_blank")}
+                    disabled={!canPrint}
+                    title={canPrint ? "พิมพ์ใบประกาศ" : "ระดับนี้ไม่ออกใบประกาศนียบัตร"}
+                    className={`h-7 w-7 px-3 ${canPrint ? "border-amber-300 bg-amber-50/50 text-amber-600 hover:bg-amber-100" : "border-slate-100 bg-slate-50/50 text-slate-400 cursor-not-allowed"}`}>
+                    <Printer className="h-3 w-3" />
+                  </Button>
+                </div>
               ) : (
                 role !== "user" && isSubmitted && (
                   <div className="flex items-center gap-1.5">
@@ -755,7 +834,7 @@ const EvaluationByProgramPage = () => {
         {currentStatus?.banner && (
           <div className={`flex items-center gap-2 mt-2 px-3 py-2 rounded-xl text-xs font-medium ${currentStatus.banner}`}>
             {currentStatus.icon}
-            {evaluationStatus === "revision" && "เอกสารนี้ถูกส่งกลับเพื่อแก้ไข กรุณารอการแก้ไขจากผู้ถูกประเมิน"}
+            {evaluationStatus === EvaluationStatus.revision && "เอกสารนี้ถูกส่งกลับเพื่อแก้ไข กรุณารอการแก้ไขจากผู้ถูกประเมิน"}
             {evaluationStatus === "cancel" && "เอกสารนี้ถูกยกเลิกแล้ว"}
           </div>
         )}
@@ -764,10 +843,11 @@ const EvaluationByProgramPage = () => {
       {/* ── Scrollable content glass card ── */}
       <div className="flex-1 min-h-0 rounded-2xl overflow-hidden" style={glassCard}>
         <div className="h-full overflow-y-auto px-4 py-4 space-y-4">
-          <ScoreSummary data={summaryData} committeeData={committeeSummaryData} onCategoryClick={handleCategoryClick} />
+          <ScoreSummary status={evaluationStatus} data={summaryData} committeeData={committeeSummaryData} onCategoryClick={handleCategoryClick} />
           {visibleCategories.map((category, idx) => (
             <CategoryCard
               key={category.id}
+              status={evaluationStatus}
               category={category}
               colorIndex={idx}
               scores={scores}

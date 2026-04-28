@@ -66,7 +66,7 @@ const Index = () => {
             </p>
           </div>
           <div className="ml-auto flex items-center gap-3">
-            <AddCategoryDialog nextSortOrder={nextId} onAdd={(data) => handleAddCategory({ id: nextId, name: data.name, maxScore: data.maxScore, topics: [] })} />
+            <AddCategoryDialog nextSortOrder={nextId} onAdd={(data) => handleAddCategory({ id: nextId, name: data.name, maxScore: data.maxScore, maxScorePct: data.maxScorePct, topics: [] })} />
             <div className="text-right">
               <p className="text-xs text-muted-foreground">คะแนนรวม</p>
               <p className="text-2xl font-bold text-primary">
