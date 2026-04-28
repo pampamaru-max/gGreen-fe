@@ -1209,4 +1209,3 @@ export function CategoryCard({ status, category, colorIndex, scores, onScoreChan
     </div>
   );
 }
-
