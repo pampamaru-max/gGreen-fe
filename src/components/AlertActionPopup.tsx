@@ -20,6 +20,7 @@ type BaseProps = {
   open?: boolean;
   onOpenChange?(open: boolean): void;
   trigger?: ReactNode;
+  triggerClassName?: string;
   type?: popupType;
   title: ReactNode;
   description: ReactNode;
@@ -44,6 +45,7 @@ export function AlertActionPopup({
   open,
   onOpenChange,
   trigger,
+  triggerClassName,
   action,
   type,
   title,
@@ -62,9 +64,9 @@ export function AlertActionPopup({
               <Button
                 variant="ghost"
                 size="icon"
-                className="shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                className={cn("shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive", triggerClassName)}
               >
-                <Trash2 className="h-4 w-4" />
+                <Trash2 className="h-3.5 w-3.5" />
               </Button>
             ))}
         </AlertDialogTrigger>

@@ -414,7 +414,7 @@ const CategoryItem = ({ cat, topicCount, indicatorCount, onEdit, onDelete }: Cat
         </div>
         <EditCategoryDialog
           category={{ id: cat.id, name: cat.name, maxScore: cat.maxScore, maxScorePct: cat.maxScorePct, sortOrder: cat.sortOrder, scoreType: cat.scoreType }}
-          onSave={(updated) => onEdit({ ...cat, name: updated.name, maxScore: updated.maxScore, sortOrder: updated.sortOrder, scoreType: updated.scoreType })}
+          onSave={(updated) => onEdit({ ...cat, name: updated.name, maxScore: updated.maxScore, maxScorePct: updated.maxScorePct, sortOrder: updated.sortOrder, scoreType: updated.scoreType })}
         />
         {topicCount > 0 ? (
           <Tooltip>
@@ -452,7 +452,7 @@ interface ProgramCardProps {
   scoringLevels: ScoringLevel[];
   topicCounts: Record<number, number>;
   indicatorCounts: Record<number, number>;
-  onAddCategory: (data: { name: string; maxScore: number; sortOrder: number; scoreType: AddScoreType }, programId: string) => void;
+  onAddCategory: (data: { name: string; maxScore: number; maxScorePct: number; sortOrder: number; scoreType: AddScoreType }, programId: string) => void;
   onEditCategory: (updated: DbCategory) => void;
   onDeleteCategory: (id: number) => void;
   onSaveUpgradeForProgram: (programId: string, mode: string, levelId: number | null) => Promise<void>;
@@ -798,7 +798,7 @@ const SettingsCategories = () => {
     fetchData().finally(() => setLoading(false));
   }, []);
 
-  const handleAddCategory = async (data: { name: string; maxScore: number; sortOrder: number; scoreType: AddScoreType }, programId: string) => {
+  const handleAddCategory = async (data: { name: string; maxScore: number; maxScorePct: number; sortOrder: number; scoreType: AddScoreType }, programId: string) => {
     try {
       await apiClient.post("categories", { ...data, isDefault: false, programId });
       toast({ title: "เพิ่มหมวดสำเร็จ", description: `หมวด "${data.name}" ถูกเพิ่มเข้าระบบแล้ว`, variant: "success" });
@@ -823,6 +823,7 @@ const SettingsCategories = () => {
       await apiClient.patch(`categories/${updated.id}`, {
         name: updated.name,
         maxScore: updated.maxScore,
+        maxScorePct: updated.maxScorePct,
         sortOrder: updated.sortOrder,
         scoreType: updated.scoreType,
       });

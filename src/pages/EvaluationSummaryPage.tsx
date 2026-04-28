@@ -98,7 +98,7 @@ const EvaluationSummaryPage = () => {
             const passCount = scores.filter(s => Number(s.committeeScore) === 1).length;
             const totalIndicators = scores.length;
             const passPct = totalIndicators > 0 ? (passCount === totalIndicators ? 100 : Math.floor((passCount / totalIndicators) * 100)) : 0;
-            const matched = findScoringLevelMatch(null, programLevels, ScoringLevelType.new, passPct, 0, true);
+            const matched = findScoringLevelMatch(null, programLevels, ScoringLevelType.new, passPct, 0, false, true) as ScoringLevel;
             setYesNoStats({
               passCount,
               totalIndicators,
@@ -110,7 +110,7 @@ const EvaluationSummaryPage = () => {
             // score-based: คำนวณ % จาก totalScore แล้ว match level
             const pct = Math.round((data.totalScore / data.totalMaxScore) * 100);
             const pctSp = Math.round((data.totalScoreSpecial / data.totalMaxScoreSpecial) * 100);
-            const matched = findScoringLevelMatch(data.attempt, programLevels, data.scoreType, pct, pctSp);
+            const matched = findScoringLevelMatch(data.attempt, programLevels, data.scoreType, pct, pctSp, false) as ScoringLevel;
             if (matched) {
               setResult(prev => prev ? {
                 ...prev,

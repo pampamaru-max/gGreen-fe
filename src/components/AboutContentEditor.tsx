@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Type, ImagePlus, FileUp, Trash2, ChevronUp, ChevronDown, Loader2, Link } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { MAX_FILE_SIZE } from "@/helpers/constants";
+import { MAX_FILE_SIZE, MAX_FILE_SIZE_MB } from "@/helpers/constants";
 import RichTextEditor from "./RichTextEditor";
 
 export type ContentBlock =
@@ -91,7 +91,7 @@ export default function AboutContentEditor({ blocks, onChange, programId }: Prop
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && file.size > MAX_FILE_SIZE) {
-      toast({ title: `ไฟล์ ${file.name} ใหญ่เกิน 10MB`, variant: "destructive" });
+      toast({ title: `ไฟล์ ${file.name} ใหญ่เกิน ${MAX_FILE_SIZE_MB}MB`, variant: "destructive" });
     } else if (file) uploadFile(file, "file");
     e.target.value = "";
   };

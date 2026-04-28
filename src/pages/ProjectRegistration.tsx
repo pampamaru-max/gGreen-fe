@@ -497,7 +497,7 @@ export default function ProjectRegistration() {
       : 0;
 
   const activeLevel = useMemo(() => {
-    return findScoringLevelMatch(attemptTypeCount, scoringLevels, evaluationType, displayPct, displayPctSp, isYesNoProgram);
+    return findScoringLevelMatch(attemptTypeCount, scoringLevels, evaluationType, displayPct, displayPctSp, false, isYesNoProgram) as ScoringLevel;
   }, [scoringLevels, evaluationType, displayPct, displayPctSp, isYesNoProgram]);
 
   const committeePct = useMemo(() => {
@@ -517,7 +517,7 @@ export default function ProjectRegistration() {
 
   const committeeActiveLevel = useMemo(() => {
     if (displayCommitteeTotal === undefined) return null;
-    const matchLevel = findScoringLevelMatch(attemptTypeCount, scoringLevels, evaluationType, committeePct, committeePctSp, isYesNoProgram);
+    const matchLevel = findScoringLevelMatch(attemptTypeCount, scoringLevels, evaluationType, committeePct, committeePctSp, false, isYesNoProgram) as ScoringLevel;
     setCanPrint(matchLevel ? matchLevel.isPass : false);
     return matchLevel;
   }, [scoringLevels, evaluationType, committeePct, committeePctSp, isYesNoProgram, displayCommitteeTotal]);
