@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { AlertActionPopup } from "@/components/AlertActionPopup";
-import { MAX_FILE_SIZE } from "@/helpers/constants";
+import { MAX_FILE_SIZE, MAX_FILE_SIZE_MB } from "@/helpers/constants";
 
 const glassCard = {
   background: "var(--glass-bg)",
@@ -696,7 +696,7 @@ export default function SettingsPrograms() {
         guidelines: f.guidelines.map((g, i) => i === guidelineIndex ? { ...g, files: [...g.files, ...newFiles] } : g),
       }));
       if (errorFiles.length > 0) {
-        toast({ title: "บางไฟล์ไม่ถูกอัปโหลด", description: `ไฟล์เหล่านี้ใหญ่เกิน 10MB: ${errorFiles.join(", ")}`, variant: "destructive" });
+        toast({ title: "บางไฟล์ไม่ถูกอัปโหลด", description: `ไฟล์เหล่านี้ใหญ่เกิน ${MAX_FILE_SIZE_MB}MB: ${errorFiles.join(", ")}`, variant: "destructive" });
       }
     } catch (err: any) {
       toast({ title: "อัปโหลดไฟล์ไม่สำเร็จ", description: err.message, variant: "destructive" });
@@ -751,7 +751,7 @@ export default function SettingsPrograms() {
         reports: f.reports.map((r, i) => i === reportIndex ? { ...r, files: [...r.files, ...newFiles] } : r),
       }));
       if (errorFiles.length > 0) {
-        toast({ title: "บางไฟล์ไม่ถูกอัปโหลด", description: `ไฟล์เหล่านี้ใหญ่เกิน 10MB: ${errorFiles.join(", ")}`, variant: "destructive" });
+        toast({ title: "บางไฟล์ไม่ถูกอัปโหลด", description: `ไฟล์เหล่านี้ใหญ่เกิน ${MAX_FILE_SIZE_MB}MB: ${errorFiles.join(", ")}`, variant: "destructive" });
       }
     } catch (err: any) {
       toast({ title: "อัปโหลดไฟล์ไม่สำเร็จ", description: err.message, variant: "destructive" });
@@ -882,7 +882,7 @@ export default function SettingsPrograms() {
                 <div className="space-y-3">
                   <Label>
                     แนวทางการดำเนินงาน<br />
-                    <span className="text-destructive text-xs"> รองรับ PDF, Word, Excel, PowerPoint และรูปภาพ (ไม่เกิน 10MB)</span>
+                    <span className="text-destructive text-xs"> รองรับ PDF, Word, Excel, PowerPoint และรูปภาพ (ไม่เกิน {MAX_FILE_SIZE_MB}MB)</span>
                   </Label>
                   <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleGuidelineDragEnd}>
                     <SortableContext items={form.guidelines.map((_, i) => `guideline-${i}`)} strategy={verticalListSortingStrategy}>
@@ -917,7 +917,7 @@ export default function SettingsPrograms() {
                 <div className="space-y-3">
                   <Label>
                     รายงาน<br />
-                    <span className="text-destructive text-xs"> รองรับ PDF, Word, Excel, PowerPoint และรูปภาพ (ไม่เกิน 10MB)</span>
+                    <span className="text-destructive text-xs"> รองรับ PDF, Word, Excel, PowerPoint และรูปภาพ (ไม่เกิน {MAX_FILE_SIZE_MB}MB)</span>
                   </Label>
                   <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleReportDragEnd}>
                     <SortableContext items={form.reports.map((_, i) => `report-${i}`)} strategy={verticalListSortingStrategy}>

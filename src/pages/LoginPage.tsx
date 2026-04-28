@@ -52,7 +52,7 @@ export default function LoginPage() {
         } else if (isEvaluator) {
           navigate("/evaluation");
         } else {
-          navigate("/register");
+          navigate("/resource-usage");
         }
       }
     } catch (err) {

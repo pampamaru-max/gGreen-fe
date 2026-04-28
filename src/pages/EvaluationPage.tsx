@@ -12,13 +12,14 @@ import apiClient from "@/lib/axios";
 import { useQuery } from "@tanstack/react-query";
 import { FilePlus, RefreshCw, TrendingUp } from "lucide-react";
 import { ScoringLevelType } from "./SettingsScoringCriteria";
-import { findScoringLevelMatch, labelScoreType } from "@/helpers/functions";
+import { findScoringLevelMatch } from "@/helpers/functions";
 import { EvaluationStatus } from "@/helpers/enum";
+import { ScoringLevel } from "./ProjectRegistration";
 
 const EVAL_TYPE_CONFIG: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
-  new:     { label: "ประเมินใหม่",             icon: <FilePlus   className="h-3 w-3" />, className: "bg-blue-50 text-blue-700 border-blue-200"     },
-  renew:   { label: "ต่ออายุใบประกาศนียบัตร", icon: <RefreshCw  className="h-3 w-3" />, className: "bg-amber-50 text-amber-700 border-amber-200"   },
-  upgrade: { label: "ยกระดับคะแนน",           icon: <TrendingUp className="h-3 w-3" />, className: "bg-purple-50 text-purple-700 border-purple-200" },
+  new:     { label: "ประเมินใหม่", icon: <FilePlus   className="h-3 w-3" />, className: "bg-blue-50 text-blue-700 border-blue-200" },
+  renew:   { label: "ต่ออายุ", icon: <RefreshCw  className="h-3 w-3" />, className: "bg-amber-50 text-amber-700 border-amber-200" },
+  upgrade: { label: "ยกระดับ", icon: <TrendingUp className="h-3 w-3" />, className: "bg-purple-50 text-purple-700 border-purple-200" },
 };
 
 interface RegistrationRow {
@@ -70,33 +71,109 @@ const EvaluationPage = () => {
     hasCatPct: boolean,
     score: number | null, max: number | null,
     scoreSp: number | null, maxSp: number | null,
-    programId: string
+    programId: string,
+    isColumnSelf: boolean,
+    isMobile?: boolean,
   ) => {
-    if (score === null || max === null || max === 0) return <span className="text-muted-foreground">-</span>;
-    const numScore = Number(score);
-    const numMax = Number(max);
-    if (isNaN(numScore) || isNaN(numMax) || numMax === 0) return <span className="text-muted-foreground">-</span>;
-
-    const pct = hasCatPct ? numScore : Math.round((numScore / numMax) * 100);
+    const pct = hasCatPct ? score : Math.round((score / max) * 100);
     const pctSp = scoreSp && maxSp ? hasCatPct ? scoreSp : Math.round((scoreSp / maxSp) * 100) : null;
     const programLevels = allScoringLevels.filter((l: any) => l.programId === programId);
     // Check if it's likely a yes/no program (if max score is same as count)
     // Actually we can just pass true if we want default badges for all programs with no levels defined
-    const level = findScoringLevelMatch(attempt, programLevels, type, pct, pctSp, programLevels.length === 0);
+    const { normalLevel, specialLevel } = findScoringLevelMatch(attempt, programLevels, type, pct, pctSp, true, programLevels.length === 0) as { normalLevel: ScoringLevel, specialLevel: ScoringLevel };
+    const hasScoreSp = programLevels.some((l) => l.type === type) && pctSp !== null;
+    const finalLevel = hasScoreSp ? (specialLevel ?? normalLevel) : normalLevel;
+
+    if (isMobile) {
+      return (
+        <div className="flex flex-col items-center gap-1">
+          <span>
+            {hasScoreSp && <span className="mr-2 text-start text-xs font-normal text-amber-700">หมวดหลัก: </span>}
+            <span className="text-sm font-bold">{pct}%</span>
+          </span>
+          {hasScoreSp && 
+            <span>
+              <span className="mr-2 text-start text-xs font-normal text-amber-700">หมวดเพิ่มเติม: </span>
+              <span className="text-sm font-bold">{pctSp}%</span>
+            </span>
+          }
+          {finalLevel && (
+            <Badge 
+              className="text-[10px] px-2 py-0 h-4 border-none whitespace-nowrap"
+              style={{ backgroundColor: finalLevel.color, color: '#fff' }}
+            >
+              {finalLevel.name}
+            </Badge>
+          )}
+        </div>
+      );
+    }
     
     return (
-      <div className="flex flex-col items-center gap-1">
-        <span className="text-sm font-bold">{pct}%</span>
-        {programLevels.some((l) => l.type === type) && pctSp !== null && <span className="text-sm font-bold">{pctSp}%</span>}
-        {level && (
-          <Badge 
-            className="text-[10px] px-2 py-0 h-4 border-none whitespace-nowrap"
-            style={{ backgroundColor: level.color, color: '#fff' }}
-          >
-            {level.name}
-          </Badge>
-        )}
-      </div>
+      <>
+        <TableCell className={`text-center ${isColumnSelf && 'border-l-2 border-gray-400'}`}>
+          {!normalLevel
+            ? <span className="text-muted-foreground">-</span> :
+            <div className="flex flex-col flex-1 gap-1 items-center">
+              <Badge 
+                className={`px-4 justify-center text-sm border-none whitespace-nowrap text-white
+                  ${normalLevel.isPass ? 'bg-gradient-to-br from-emerald-400 to-emerald-500 border-emerald-300/40'
+                  : 'bg-gradient-to-br from-rose-400 to-rose-500 border-rose-300/40'}
+                `}
+              >
+                {pct}%
+              </Badge>
+              <div className="h-1.5 w-full rounded-full bg-muted/60 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-500
+                    ${normalLevel.isPass ? 'bg-gradient-to-br from-emerald-400 to-emerald-500 border-emerald-300/40'
+                    : 'bg-gradient-to-br from-rose-400 to-rose-500 border-rose-300/40'}
+                  `}
+                  style={{ width: `${pct ?? 0}%`}} />
+              </div>
+              <span className={`text-[10px] font-medium ${normalLevel.isPass ? 'text-emerald-700' : 'text-rose-600'}`}>
+                {normalLevel.isPass ? 'ผ่าน' : 'ไม่ผ่าน'}
+              </span>
+            </div>
+          }
+        </TableCell>
+        <TableCell className="text-center">
+          {!hasScoreSp ? <span className="text-muted-foreground">-</span> :
+            <div className="flex flex-col flex-1 gap-1 items-center">
+              <Badge 
+                className={`px-4 justify-center text-sm border-none whitespace-nowrap text-white
+                  ${specialLevel?.isPass ? 'bg-gradient-to-br from-emerald-400 to-emerald-500 border-emerald-300/40'
+                  : 'bg-gradient-to-br from-rose-400 to-rose-500 border-rose-300/40'}
+                `}
+              >
+                {pctSp}%
+              </Badge>
+              <div className="h-1.5 w-full rounded-full bg-muted/60 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-500
+                    ${specialLevel?.isPass ? 'bg-gradient-to-br from-emerald-400 to-emerald-500 border-emerald-300/40'
+                    : 'bg-gradient-to-br from-rose-400 to-rose-500 border-rose-300/40'}
+                  `}
+                  style={{ width: `${pct ?? 0}%`}} />
+              </div>
+              <span className={`text-[10px] font-medium ${specialLevel?.isPass ? 'text-emerald-700' : 'text-rose-600'}`}>
+                {specialLevel?.isPass ? 'ผ่าน' : 'ไม่ผ่าน'}
+              </span>
+            </div>
+          }
+        </TableCell>
+        <TableCell className={`text-center ${isColumnSelf ? 'border-r-2' : 'border-x-2'} border-gray-400`}>
+          {finalLevel
+          ? <Badge 
+              className={`text-[12px] ${isColumnSelf ? 'text-muted-foreground border-muted-foreground' : 'border-none text-white'}`}
+              style={{ backgroundColor: isColumnSelf ? 'inherit' : finalLevel.color }}
+            >
+              {finalLevel.name}
+            </Badge>
+            : <span className="text-muted-foreground">-</span>
+          }
+        </TableCell>
+      </>
     );
   };
 
@@ -181,7 +258,7 @@ const EvaluationPage = () => {
 
   const getSelfAssessmentBadge = (status: string | null) => {
     if (status === EvaluationStatus.completed || status === "complete") {
-      return <Badge className="bg-emerald-600">เสร็จสิ้น</Badge>;
+      return <Badge className="bg-emerald-600 hover:bg-emerald-700">เสร็จสิ้น</Badge>;
     }
     if (status === EvaluationStatus.submitted || status === "submit") {
       return <Badge className="bg-blue-600">ส่งแล้ว</Badge>;
@@ -191,7 +268,7 @@ const EvaluationPage = () => {
     }
     if (status === EvaluationStatus.draft) {
       return (
-        <Badge variant="secondary" className="bg-amber-500 text-white border-none">
+        <Badge variant="secondary" className="bg-muted border-muted-foreground text-muted-foreground">
           ร่าง
         </Badge>
       );
@@ -201,7 +278,7 @@ const EvaluationPage = () => {
 
   const getCommitteeBadge = (status: string | null, hasScore: boolean) => {
     if (status === EvaluationStatus.completed || status === "complete") {
-      return <Badge className="bg-emerald-600 text-white border-none">เสร็จสิ้น</Badge>;
+      return <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white border-none">เสร็จสิ้น</Badge>;
     }
     if (status === EvaluationStatus.submitted || status === "submit") {
       return <Badge className="bg-blue-600 text-white border-none">รอการประเมิน</Badge>;
@@ -209,7 +286,7 @@ const EvaluationPage = () => {
     if (status === EvaluationStatus.revision) {
       return <Badge variant="secondary" className="bg-amber-100 text-amber-700 border-amber-300">รอดำเนินการ</Badge>;
     }
-    if (hasScore) return <Badge className="bg-emerald-600 hover:bg-emerald-700">ประเมินแล้ว</Badge>;
+    if (hasScore) return <Badge className="bg-gray-300 text-muted-foreground hover:bg-gray-500 hover:text-white border-muted-foreground">ร่าง</Badge>;
     return <span className="text-muted-foreground">-</span>;
   };
 
@@ -357,7 +434,9 @@ const EvaluationPage = () => {
                           row.has_cat_pct,
                           row.self_total_score ?? null, row.self_max_score ?? row.total_max ?? null,
                           row.self_total_score_sp ?? null, row.self_max_score_sp ?? row.total_max_sp ?? null,
-                          row.program_id
+                          row.program_id,
+                          true,
+                          true
                         )}
                       </div>
                       <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5 flex flex-col items-center">
@@ -368,7 +447,9 @@ const EvaluationPage = () => {
                           row.has_cat_pct,
                           row.committee_total_score ?? null, row.committee_max_score ?? row.total_max ?? null,
                           row.committee_total_score_sp ?? null, row.committee_max_score_sp ?? row.total_max_sp ?? null,
-                          row.program_id
+                          row.program_id,
+                          false,
+                          true
                         )}
                       </div>
                     </div>
@@ -417,14 +498,18 @@ const EvaluationPage = () => {
                   <TableHead className="w-12 text-center">#</TableHead>
                   <TableHead>ชื่อหน่วยงาน</TableHead>
                   <TableHead>ชื่อโครงการ</TableHead>
-                  <TableHead className="text-center w-20">ปี พ.ศ.</TableHead>
+                  <TableHead className="text-center">ปี พ.ศ.</TableHead>
                   <TableHead className="text-center min-w-[130px]">ประเภทเอกสาร</TableHead>
                   <TableHead>จังหวัด</TableHead>
                   <TableHead className="text-center">สถานะประเมินตนเอง</TableHead>
-                  <TableHead className="text-center">สถานะกรรมการ</TableHead>
-                  <TableHead className="text-center w-28">คะแนนรวม</TableHead>
-                  <TableHead className="text-center w-28">กรรมการ</TableHead>
-                  <TableHead className="text-center w-24">สรุปผล</TableHead>
+                  <TableHead className="text-center border-l-2 border-gray-400">คะแนนตนเอง<br/>(หมวดหลัก)</TableHead>
+                  <TableHead className="text-center">คะแนนตนเอง<br/>(หมวดเพิ่มเติม)</TableHead>
+                  <TableHead className="text-center border-r-2 border-gray-400">ระดับเกณฑ์<br/>(ตนเอง)</TableHead>
+                  <TableHead className="text-center border-l-2 border-gray-400">สถานะกรรมการ</TableHead>
+                  <TableHead className="text-center">คะแนนกรรมการ<br/>(หมวดหลัก)</TableHead>
+                  <TableHead className="text-center border-r-2 border-gray-400">คะแนนกรรมการ<br/>(หมวดเพิ่มเติม)</TableHead>
+                  <TableHead className="text-center border-x-2 border-gray-400">ระดับเกณฑ์<br/>(ที่ได้)</TableHead>
+                  <TableHead className="text-center">สรุปผล</TableHead>
                   <TableHead className="text-center w-20">จัดการ</TableHead>
                 </TableRow>
               </TableHeader>
@@ -444,38 +529,41 @@ const EvaluationPage = () => {
                       <TableCell className="text-center">{(row as any).year ? (row as any).year + 543 : "-"}</TableCell>
                       <TableCell className="text-center">
                         {typeCfg ? (
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.6875rem] font-semibold border ${typeCfg.className}`}>
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-pretty text-[0.6875rem] font-semibold border ${typeCfg.className}`}>
                             {typeCfg.icon}{typeCfg.label}{ attempt && ` (ครั้งที่ ${attempt})`}
                           </span>
                         ) : <span className="text-muted-foreground text-xs">{typeKey}</span>}
                       </TableCell>
                       <TableCell>{row.province}</TableCell>
                       <TableCell className="text-center">{getSelfAssessmentBadge(row.self_status)}</TableCell>
+                      {renderScoreWithLevel(
+                        (row as any).year,
+                        row.evaluation_type,
+                        row.has_cat_pct,
+                        row.self_total_score ?? null, row.self_max_score ?? row.total_max ?? null,
+                        row.self_total_score_sp ?? null, row.self_max_score_sp ?? row.total_max_sp ?? null,
+                        row.program_id,
+                        true
+                      )}
                       <TableCell className="text-center">{getCommitteeBadge(row.self_status, row.has_committee_score)}</TableCell>
-                      <TableCell className="text-center">
-                        {renderScoreWithLevel(
-                          (row as any).year,
-                          row.evaluation_type,
-                          row.has_cat_pct,
-                          row.self_total_score ?? null, row.self_max_score ?? row.total_max ?? null,
-                          row.self_total_score_sp ?? null, row.self_max_score_sp ?? row.total_max_sp ?? null,
-                          row.program_id
-                        )}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {renderScoreWithLevel(
-                          (row as any).year,
-                          row.evaluation_type,
-                          row.has_cat_pct,
-                          row.committee_total_score ?? null, row.committee_max_score ?? row.total_max ?? null,
-                          row.committee_total_score_sp ?? null, row.committee_max_score_sp ?? row.total_max_sp ?? null,
-                          row.program_id
-                        )}
-                      </TableCell>
+                      {renderScoreWithLevel(
+                        (row as any).year,
+                        row.evaluation_type,
+                        row.has_cat_pct,
+                        row.committee_total_score ?? null, row.committee_max_score ?? row.total_max ?? null,
+                        row.committee_total_score_sp ?? null, row.committee_max_score_sp ?? row.total_max_sp ?? null,
+                        row.program_id,
+                        false
+                      )}
                       <TableCell className="text-center">
                         {row.has_committee_score && (
-                          <Button variant="ghost" size="icon" onClick={() => navigate(`/evaluation/${row.program_id}/summary?evaluationId=${row.evaluation_id}`)} title="ดูสรุปผล">
-                            <BarChart2 className="h-4 w-4 text-green-600" />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-green-600 hover:text-white"
+                            onClick={() => navigate(`/evaluation/${row.program_id}/summary?evaluationId=${row.evaluation_id}`)}
+                            title="ดูสรุปผล">
+                            <BarChart2 className="h-4 w-4" />
                           </Button>
                         )}
                       </TableCell>
