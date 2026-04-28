@@ -21,6 +21,7 @@ import {
   Download,
   AlertCircle,
   Hash,
+  Eye,
 } from "lucide-react";
 import {
   Dialog,
@@ -64,6 +65,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import apiClient from "@/lib/axios";
+import { downloadFileViaApi } from "@/lib/download";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { AlertActionPopup } from "./AlertActionPopup";
@@ -79,10 +81,23 @@ interface DocumentTemplate {
   sortOrder: number;
 }
 
+const BANNED_FILE_EXTENSIONS = [".zip", ".rar", ".7z", ".tar", ".gz", ".bz2"];
+const BANNED_FILE_MIME_TYPES = [
+  "application/zip",
+  "application/x-zip-compressed",
+  "application/x-zip",
+  "multipart/x-zip",
+  "application/x-rar-compressed",
+  "application/vnd.rar",
+  "application/x-7z-compressed",
+  "application/gzip",
+  "application/x-tar",
+];
+
 const registrationSchema = z.object({
   program_id: z.string().min(1, "กรุณาเลือกโครงการ"),
-  juristic_id: z.string().trim().optional(),
-  branch_number: z.string().trim().min(1, "กรุณาระบุรหัสสาขา"),
+  juristic_id: z.string().trim().min(1, "กรุณาระบุเลขทะเบียนนิติบุคคล"),
+  branch_number: z.string().trim().optional(),
   organization_name: z
     .string()
     .trim()
@@ -281,9 +296,11 @@ export default function ProjectRegistrationDialog({
     }, 500);
   };
 
-  const getDownloadUrl = (id: string, fileName: string | null) => {
-    const base = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5001/api/").replace(/\/$/, "");
-    return `${base}/document-templates/${id}/download/${encodeURIComponent(fileName ?? "")}`;
+  const handleDownloadTemplate = (id: string, fileName: string | null) => {
+    downloadFileViaApi(
+      `document-templates/${id}/download/${encodeURIComponent(fileName ?? "")}`,
+      fileName ?? "document"
+    );
   };
 
   const formatPhoneNumber = (value: string) => {
@@ -474,6 +491,7 @@ export default function ProjectRegistrationDialog({
                           <FormLabel className="flex items-center gap-1.5 text-sm font-semibold">
                             <Hash className="h-4 w-4 text-primary" />
                             เลขทะเบียนนิติบุคคล
+                            <span className="text-destructive">*</span>
                           </FormLabel>
                           <FormControl>
                             <Input
@@ -1151,21 +1169,33 @@ export default function ProjectRegistrationDialog({
                               )}
                             </div>
                             {tpl.sampleFileUrl && (
-                              <a
-                                href={getDownloadUrl(tpl.id, tpl.sampleFileName)}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                              <button
+                                onClick={() => handleDownloadTemplate(tpl.id, tpl.sampleFileName)}
                                 className="text-xs text-primary hover:underline flex items-center gap-1 shrink-0"
                               >
                                 <Download className="h-3 w-3" />
                                 ตัวอย่าง
-                              </a>
+                              </button>
                             )}
                           </div>
                           {pendingFile ? (
                             <div className="flex items-center gap-2 bg-muted/50 rounded-md px-3 py-2">
                               <FileText className="h-4 w-4 text-primary shrink-0" />
                               <span className="text-sm truncate flex-1">{pendingFile.name}</span>
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                title="ดูตัวอย่างเอกสาร"
+                                className="h-7 w-7 text-primary hover:bg-primary/10"
+                                onClick={() => {
+                                  const url = URL.createObjectURL(pendingFile);
+                                  window.open(url, "_blank");
+                                  setTimeout(() => URL.revokeObjectURL(url), 10000);
+                                }}
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                              </Button>
                               <AlertActionPopup
                                 type="delete"
                                 title="ยืนยันการลบ"
@@ -1198,12 +1228,22 @@ export default function ProjectRegistrationDialog({
                                 className="hidden"
                                 onChange={(e) => {
                                   const file = e.target.files?.[0];
-                                  if (file && file.size > MAX_FILE_SIZE) {
-                                    toast({title: `ไฟล์ ${file.name} ใหญ่เกิน ${MAX_FILE_SIZE_MB}MB`, variant: "destructive"});
-                                  } else if (file) {
-                                    setPendingFiles((prev) => ({ ...prev, [tpl.id]: file }));
-                                  }
                                   e.target.value = "";
+                                  if (!file) return;
+                                  const ext = "." + (file.name.split(".").pop()?.toLowerCase() ?? "");
+                                  if (BANNED_FILE_EXTENSIONS.includes(ext) || BANNED_FILE_MIME_TYPES.includes(file.type)) {
+                                    toast({
+                                      title: "ไม่อนุญาตประเภทไฟล์นี้",
+                                      description: `ไฟล์ "${file.name}" เป็นประเภทที่ไม่รองรับ กรุณาใช้ไฟล์ PDF, Word, Excel, PowerPoint หรือรูปภาพเท่านั้น`,
+                                      variant: "destructive",
+                                    });
+                                    return;
+                                  }
+                                  if (file.size > MAX_FILE_SIZE) {
+                                    toast({ title: `ไฟล์ ${file.name} ใหญ่เกิน ${MAX_FILE_SIZE_MB}MB`, variant: "destructive" });
+                                    return;
+                                  }
+                                  setPendingFiles((prev) => ({ ...prev, [tpl.id]: file }));
                                 }}
                               />
                               {isUploading ? (

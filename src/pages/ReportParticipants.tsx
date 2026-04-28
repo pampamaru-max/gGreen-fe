@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import apiClient from "@/lib/axios";
+import { xlsxDownload } from "@/lib/download";
+import natureBg from "@/assets/login2.jpg";
 
 const ReportParticipants = () => {
   const navigate = useNavigate();
@@ -96,16 +98,23 @@ const ReportParticipants = () => {
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "ผู้เข้าร่วมโครงการ");
-    XLSX.writeFile(wb, "participants_report.xlsx");
+    xlsxDownload(wb, "participants_report.xlsx");
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <Button 
-        variant="outline" 
-        size="sm" 
-        onClick={() => navigate("/")} 
-        className="gap-2 rounded-full px-4 border-primary/20 bg-primary/5 hover:bg-primary/10 transition-all hover:scale-105"
+    <div className="relative min-h-screen">
+      <img
+        src={natureBg}
+        alt=""
+        className="fixed inset-0 w-full h-full object-cover pointer-events-none select-none"
+        style={{ zIndex: 0, filter: "brightness(1.05) saturate(1.3)" }}
+      />
+      <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0, background: "rgba(255,255,255,0.1)" }} />
+    <div className="relative p-6 space-y-6" style={{ zIndex: 1 }}>
+      <Button
+        size="sm"
+        onClick={() => navigate("/")}
+        className="gap-2 rounded-full px-5 bg-white/90 text-emerald-800 border border-white/60 shadow-md hover:bg-white transition-all hover:scale-105 font-semibold"
       >
         <ArrowLeft className="h-4 w-4" />
         กลับหน้าหลัก
@@ -114,7 +123,7 @@ const ReportParticipants = () => {
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
           <Users className="h-5 w-5 text-primary-foreground" />
         </div>
-        <h1 className="text-xl font-bold text-foreground">รายชื่อผู้เข้าร่วมโครงการ</h1>
+        <h1 className="text-xl font-bold text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.6)]">รายชื่อผู้เข้าร่วมโครงการ</h1>
       </div>
 
       <Card>
@@ -200,7 +209,7 @@ const ReportParticipants = () => {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="overflow-hidden">
         <CardHeader className="pb-4 flex flex-row items-center justify-between">
           <CardTitle className="text-base font-bold">
             ผู้เข้าร่วมโครงการทั้งหมด {filtered.length} รายการ
@@ -216,7 +225,7 @@ const ReportParticipants = () => {
             Export Excel
           </Button>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-hidden">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-12 gap-2 text-muted-foreground">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -228,8 +237,8 @@ const ReportParticipants = () => {
               <p>ไม่พบข้อมูล</p>
             </div>
           ) : (
-            <div className="overflow-x-auto border-t">
-              <Table>
+            <div className="overflow-x-auto border-t w-full">
+              <Table className="min-w-[900px]">
                 <TableHeader>
                   <TableRow className="bg-muted/30">
                     <TableHead className="w-[60px] text-center">ลำดับ</TableHead>
@@ -269,6 +278,7 @@ const ReportParticipants = () => {
           )}
         </CardContent>
       </Card>
+    </div>
     </div>
   );
 };

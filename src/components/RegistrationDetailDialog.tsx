@@ -7,6 +7,7 @@ import { Upload, FileText, Trash2, Loader2, Download, AlertCircle, CheckCircle2,
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import apiClient from "@/lib/axios";
+import { downloadFileViaApi } from "@/lib/download";
 import { useQuery } from "@tanstack/react-query";
 
 interface Registration {
@@ -177,9 +178,11 @@ export default function RegistrationDetailDialog({ registration, programName, op
 
   const status = statusMap[registration.status] ?? { label: registration.status, variant: "outline" as const };
 
-  const getDownloadUrl = (id: string,fileName: string | null) =>{
-    const base = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5001/api/").replace(/\/$/, "");
-    return `${base}/document-templates/${id}/download/${encodeURIComponent(fileName ?? "")}`;
+  const handleDownloadTemplate = (id: string, fileName: string | null) => {
+    downloadFileViaApi(
+      `document-templates/${id}/download/${encodeURIComponent(fileName ?? "")}`,
+      fileName ?? "document"
+    );
   };
 
   return (
@@ -325,15 +328,13 @@ export default function RegistrationDetailDialog({ registration, programName, op
                         )}
                       </div>
                       {tpl.sampleFileUrl && (
-                        <a
-                          href={getDownloadUrl(tpl.id, tpl.sampleFileName)}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          onClick={() => handleDownloadTemplate(tpl.id, tpl.sampleFileName)}
                           className="text-xs text-primary hover:underline flex items-center gap-1 shrink-0"
                         >
                           <Download className="h-3 w-3" />
                           ตัวอย่าง
-                        </a>
+                        </button>
                       )}
                     </div>
 

@@ -10,6 +10,7 @@ import RegistrationDetailDialog from "@/components/RegistrationDetailDialog";
 import apiClient from "@/lib/axios";
 import { useQuery } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
+import { xlsxDownload } from "@/lib/download";
 
 interface Registration {
   id: string;
@@ -220,7 +221,7 @@ export default function RegistrationManagement() {
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "รายการสมัคร");
-    XLSX.writeFile(wb, "registration_list.xlsx");
+    xlsxDownload(wb, "registration_list.xlsx");
   };
 
   return (
@@ -436,7 +437,7 @@ export default function RegistrationManagement() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40">
-                    <TableHead className="w-10">#</TableHead>
+                    <TableHead className="w-10">ลำดับ</TableHead>
                     <TableHead>โครงการ</TableHead>
                     <TableHead>เลขทะเบียนนิติบุคคล</TableHead>
                     <TableHead>รหัสสาขา</TableHead>
@@ -446,7 +447,7 @@ export default function RegistrationManagement() {
                     <TableHead>อำเภอ/เขต</TableHead>
                     <TableHead>วันที่สมัคร</TableHead>
                     <TableHead>สถานะ</TableHead>
-                    <TableHead className="w-16 text-center">ดู</TableHead>
+                    <TableHead className="text-center">ดูรายละเอียด</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
