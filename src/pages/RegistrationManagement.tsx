@@ -436,7 +436,7 @@ export default function RegistrationManagement() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40">
-                    <TableHead className="w-10">#</TableHead>
+                    <TableHead className="w-10">ลำดับ</TableHead>
                     <TableHead>โครงการ</TableHead>
                     <TableHead>เลขทะเบียนนิติบุคคล</TableHead>
                     <TableHead>รหัสสาขา</TableHead>
@@ -446,7 +446,7 @@ export default function RegistrationManagement() {
                     <TableHead>อำเภอ/เขต</TableHead>
                     <TableHead>วันที่สมัคร</TableHead>
                     <TableHead>สถานะ</TableHead>
-                    <TableHead className="w-16 text-center">ดู</TableHead>
+                    <TableHead className="text-center">ดูรายละเอียด</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

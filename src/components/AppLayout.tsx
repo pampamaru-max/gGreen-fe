@@ -170,7 +170,7 @@ export function AppLayout() {
           </header>
 
           {/* Main content — เพิ่ม padding bottom บน mobile ให้ไม่ถูก bottom nav บัง */}
-          <main className="flex-1 overflow-hidden pb-16 md:pb-0">
+          <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
             <Outlet />
           </main>
         </div>
